@@ -1,0 +1,26 @@
+# Virtual environments
+.venv
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Build artifacts
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Local database files
+*.db
+*.db-journal*
+
+# uv cache
+.uv_cache/
+
+# OS-specific files
+.DS_Store
+
+# IDE configuration
+.idea/
+.vscode/

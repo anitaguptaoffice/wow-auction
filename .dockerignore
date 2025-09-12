@@ -1,0 +1,26 @@
+# 虚拟环境
+.venv
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# Git 目录
+.git
+.gitignore
+
+# IDE 和 OS 特定文件
+.idea/
+.vscode/
+.DS_Store
+
+# 本地数据库文件
+*.db
+*.db-journal
+
+# uv 缓存
+.uv_cache
+
+# Docker 文件
+Dockerfile
+.dockerignore
