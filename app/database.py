@@ -3,8 +3,12 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# 数据库文件将存放在项目根目录
-DATABASE_URL = "sqlite:///./wow-auction.db"
+# 数据库文件将存放在项目根目录下的 data 文件夹中
+DATA_DIR = "data"
+DATABASE_URL = f"sqlite:///./{DATA_DIR}/wow-auction.db"
+
+# 确保数据目录存在
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # 创建 SQLAlchemy 引擎
 # connect_args={"check_same_thread": False} 是 SQLite 特有的配置，允许多个线程访问同一个连接

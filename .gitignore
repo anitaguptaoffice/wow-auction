@@ -24,3 +24,5 @@ wheels/
 # IDE configuration
 .idea/
 .vscode/
+
+.history/
