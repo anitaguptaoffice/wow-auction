@@ -1,6 +1,6 @@
 # --- STAGE 1: Builder ---
 # 使用与您环境匹配的 Python 版本作为基础镜像
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 # 设置工作目录
 WORKDIR /app
