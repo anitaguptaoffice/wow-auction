@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const queryResultDiv = document.getElementById('query-result');
 
     // --- API Configuration ---
-    const API_BASE_URL = 'http://129.226.123.47:8000';
+    const API_BASE_URL = 'https://api.wowplayer.lol:8000';
 
     // --- State ---
     const token = localStorage.getItem('accessToken');

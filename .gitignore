@@ -26,3 +26,5 @@ wheels/
 .vscode/
 
 .history/
+
+certs/
