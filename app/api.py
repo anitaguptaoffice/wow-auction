@@ -1,9 +1,9 @@
-
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 # slowapi imports
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -22,6 +22,19 @@ limiter = Limiter(key_func=get_remote_address)
 create_db_and_tables()
 
 app = FastAPI()
+
+# Set up CORS
+origins = [
+    "*",  # Allows all origins
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # 将 limiter 注册到 app state 中
 app.state.limiter = limiter
