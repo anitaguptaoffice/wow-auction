@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WoW Auction House</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">WoW Auction</div>
+            <div id="user-status">
+                <button id="login-btn">登录</button>
+                <button id="register-btn">注册</button>
+            </div>
+        </nav>
+    </header>
+
+    <main id="main-content">
+        <div class="search-container">
+            <h2>Query API</h2>
+            <form id="query-form">
+                <input type="text" id="query-input" placeholder="Enter your query here...">
+                <button type="submit">Query</button>
+            </form>
+            <div id="query-result"></div>
+        </div>
+    </main>
+
+    <!-- 登录模态框 -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>登录</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="login-username">用户名</label>
+                    <input type="text" id="login-username" required>
+                </div>
+                <div class="input-group">
+                    <label for="login-password">密码</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit">登录</button>
+                <p id="login-message" class="message"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- 注册模态框 -->
+    <div id="register-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>注册</h2>
+            <form id="register-form">
+                <div class="input-group">
+                    <label for="register-username">用户名</label>
+                    <input type="text" id="register-username" required>
+                </div>
+                <div class="input-group">
+                    <label for="register-password">密码</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <button type="submit">注册</button>
+                <p id="register-message" class="message"></p>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

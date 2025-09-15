@@ -1,0 +1,241 @@
+/* General Body Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Header and Navigation */
+header {
+    background-color: #007bff; /* Blue background */
+    padding: 0.75rem 2rem;
+    border-bottom: 1px solid #0056b3;
+    color: white;
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+#user-status {
+    display: flex;
+    align-items: center;
+}
+
+#user-status button {
+    background-color: #fff;
+    color: #007bff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+#user-status button:hover {
+    background-color: #e0e0e0;
+}
+
+/* User Info, Icon, and Tooltip */
+#user-info {
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+#user-icon {
+    font-size: 1.8rem;
+    margin-right: 1rem;
+}
+
+#user-info .tooltip {
+    visibility: hidden;
+    width: 200px;
+    background-color: #2a2a2a;
+    color: #fff;
+    text-align: left;
+    border-radius: 8px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    top: 130%; /* Position the tooltip below the icon */
+    right: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+#user-info .tooltip::after { /* Arrow */
+    content: "";
+    position: absolute;
+    bottom: 100%; /* At the top of the tooltip */
+    right: 15px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #2a2a2a transparent;
+}
+
+#user-info:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+#logout-btn {
+    background-color: transparent !important;
+    color: white !important;
+    border: 1px solid white !important;
+}
+
+#logout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+
+/* Main Content Area */
+main {
+    padding: 2rem;
+    text-align: center;
+}
+
+/* Modal Styles */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; 
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+    background-color: #2a2a2a;
+    margin: 15% auto;
+    padding: 2rem;
+    border: 1px solid #555;
+    width: 80%;
+    max-width: 400px;
+    border-radius: 8px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-btn:hover, .close-btn:focus {
+    color: #fff;
+}
+
+/* Form Styles */
+.input-group {
+    margin-bottom: 1rem;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #e0e0e0;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+form button {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+form button:hover {
+    background-color: #0056b3;
+}
+
+.message {
+    margin-top: 1rem;
+    text-align: center;
+    min-height: 20px;
+}
+
+/* Search Container Styles */
+.search-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: #1f1f1f;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+#query-form {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+#query-input {
+    flex-grow: 1;
+    padding: 0.75rem;
+    border: 1px solid #555;
+    background-color: #333;
+    color: #e0e0e0;
+    border-radius: 4px;
+}
+
+#query-form button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#query-form button:hover {
+    background-color: #0056b3;
+}
+
+#query-result {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    min-height: 50px;
+    text-align: left;
+    white-space: pre-wrap; /* To format JSON output nicely */
+    word-wrap: break-word;
+}

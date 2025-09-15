@@ -9,8 +9,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from app import models
-from app.database import get_db
+from backend import models
+from backend.database import get_db
 
 # --- 安全配置 ---
 # 从环境变量中读取 SECRET_KEY，如果不存在，则使用一个默认的、不安全的 key（仅用于开发）

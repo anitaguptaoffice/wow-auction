@@ -10,8 +10,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from app import auth, models
-from app.database import SessionLocal, engine, create_db_and_tables, get_db
+from backend import auth, models
+from backend.database import SessionLocal, engine, create_db_and_tables, get_db
 
 # --- Rate Limiting Setup ---
 # 创建一个 limiter 实例，key_func=get_remote_address 表示我们将基于 IP 地址进行限流

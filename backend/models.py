@@ -1,7 +1,7 @@
 
 from sqlalchemy import Column, Integer, String
 from pydantic import BaseModel
-from app.database import Base
+from backend.database import Base
 
 # SQLAlchemy 模型：代表数据库中的 'users' 表
 class User(Base):
