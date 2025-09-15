@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const queryResultDiv = document.getElementById('query-result');
 
     // --- API Configuration ---
-    const API_BASE_URL = 'http://127.0.0.1:8000';
+    const API_BASE_URL = 'http://129.226.123.47:8000';
 
     // --- State ---
     const token = localStorage.getItem('accessToken');
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             queryResultDiv.style.color = '#e0e0e0';
             queryResultDiv.textContent = JSON.stringify(data, null, 2);
-            
+
             // Refresh user data to get updated usage count
             fetchUserAndUpdateUI();
 
