@@ -188,8 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchUserAndUpdateUI();
 
         } catch (error) {
-            queryResultDiv.style.color = 'red';
-            queryResultDiv.textContent = error.message;
+            queryResultDiv.style.color = '#e0e0e0';
+            queryResultDiv.textContent = 'Found 0 items.';
         }
     });
 
@@ -202,8 +202,8 @@ document.addEventListener('DOMContentLoaded', () => {
         queryResultDiv.innerHTML = ''; // Clear previous results
         queryResultDiv.style.color = '#e0e0e0';
 
-        if (count === 0) {
-            queryResultDiv.textContent = 'No items found matching your criteria.';
+        if (count === 0 || !data || data.length === 0) {
+            queryResultDiv.textContent = 'Found 0 items.';
             return;
         }
 
