@@ -1,0 +1,9 @@
+## Interface: 100207
+## Title: Auction Search Example
+## Notes: A simple example of auction house search functionality
+## Author: Your Name
+## Version: 1.0
+## DefaultState: enabled
+## SavedVariables: AuctionSearchDB
+
+AuctionSearchExample.lua

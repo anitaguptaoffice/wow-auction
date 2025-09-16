@@ -163,10 +163,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        queryResultDiv.textContent = 'Querying...';
+        const itemId = document.getElementById('item-id-input').value;
+        queryResultDiv.innerHTML = 'Querying...';
 
         try {
-            const response = await fetch(`${API_BASE_URL}/query`, {
+            let url = `${API_BASE_URL}/query`;
+            if (itemId) {
+                url += `?itemID=${itemId}`;
+            }
+
+            const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -176,8 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.detail || 'An error occurred.');
             }
 
-            queryResultDiv.style.color = '#e0e0e0';
-            queryResultDiv.textContent = JSON.stringify(data, null, 2);
+            renderAuctionResults(data);
 
             // Refresh user data to get updated usage count
             fetchUserAndUpdateUI();
@@ -187,6 +192,58 @@ document.addEventListener('DOMContentLoaded', () => {
             queryResultDiv.textContent = error.message;
         }
     });
+
+    /**
+     * Renders the auction query results into a table.
+     * @param {object} resultData - The data object from the API.
+     */
+    const renderAuctionResults = (resultData) => {
+        const { data, count } = resultData;
+        queryResultDiv.innerHTML = ''; // Clear previous results
+        queryResultDiv.style.color = '#e0e0e0';
+
+        if (count === 0) {
+            queryResultDiv.textContent = 'No items found matching your criteria.';
+            return;
+        }
+
+        const resultCount = document.createElement('p');
+        resultCount.textContent = `Found ${count} items.`;
+        queryResultDiv.appendChild(resultCount);
+
+        const table = document.createElement('table');
+        table.className = 'results-table';
+
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+            <tr>
+                <th>Item ID</th>
+                <th>Name</th>
+                <th>Quantity</th>
+                <th>Buyout (Gold)</th>
+            </tr>
+        `;
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        data.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Format buyout amount from copper to gold
+            const buyoutGold = (item.buyoutAmount / 10000).toFixed(2);
+
+            row.innerHTML = `
+                <td>${item.itemID}</td>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${buyoutGold}</td>
+            `;
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+
+        queryResultDiv.appendChild(table);
+    };
 
     // --- Initial Load ---
     fetchUserAndUpdateUI();

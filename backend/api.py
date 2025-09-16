@@ -12,6 +12,7 @@ from slowapi.util import get_remote_address
 
 from backend import auth, models
 from backend.database import SessionLocal, engine, create_db_and_tables, get_db
+from backend.data_processor import start_monitoring, get_cached_auction_items
 
 # --- Rate Limiting Setup ---
 # 创建一个 limiter 实例，key_func=get_remote_address 表示我们将基于 IP 地址进行限流
@@ -22,6 +23,12 @@ limiter = Limiter(key_func=get_remote_address)
 create_db_and_tables()
 
 app = FastAPI()
+
+# --- FastAPI Lifecycle Events ---
+@app.on_event("startup")
+async def startup_event():
+    """On app startup, initialize data caching and file monitoring."""
+    start_monitoring()
 
 # Set up CORS
 origins = [
@@ -83,9 +90,15 @@ def login_for_access_token(request: Request, form_data: Annotated[OAuth2Password
 
 @app.get("/query")
 @limiter.limit("20/minute") # 每分钟最多 20 次
-def query_data(request: Request, current_user: Annotated[models.User, Depends(auth.get_current_active_user)], db: Session = Depends(get_db)):
+def query_data(
+    request: Request, 
+    current_user: Annotated[models.User, Depends(auth.get_current_active_user)], 
+    db: Session = Depends(get_db),
+    itemID: int | None = None
+):
     """
     受保护的查询端点。
+    根据 itemID 查询拍卖行数据。
     每次调用会消耗一次使用次数。
     """
     if current_user.usage_count <= 0:
@@ -99,7 +112,16 @@ def query_data(request: Request, current_user: Annotated[models.User, Depends(au
     db.commit()
     db.refresh(current_user)
     
-    return {"message": "hello", "remaining_uses": current_user.usage_count}
+    all_items = get_cached_auction_items()
+    
+    if itemID is not None:
+        # Filter by itemID if provided
+        filtered_items = [item for item in all_items if item.get("itemID") == itemID]
+    else:
+        # If no itemID, return all items
+        filtered_items = all_items
+        
+    return {"data": filtered_items, "count": len(filtered_items), "remaining_uses": current_user.usage_count}
 
 
 @app.get("/users/me")

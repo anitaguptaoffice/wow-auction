@@ -425,6 +425,18 @@ wheels = [
 ]
 
 [[package]]
+name = "slpp"
+version = "1.2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7c/74/634e94098bec76b79902d7ff5cb82a2c5a50bb20167bf30eaba0298548e0/SLPP-1.2.3.tar.gz", hash = "sha256:21fdd9328348090c71a5d32773e8ee68aab8ad7ecc322f5e0cc010114cb549c8", size = 4750, upload-time = "2020-11-17T17:49:22.094Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2d/5b/906a2f65d87a80041af995586d0b6d5e885f32943906298f0268639257d4/SLPP-1.2.3-py2.py3-none-any.whl", hash = "sha256:b2ff423e6afe8f49c56ed60209790a7e15a239c6d4a0a034337ab9d175389227", size = 4700, upload-time = "2020-11-17T17:49:21.007Z" },
+]
+
+[[package]]
 name = "sniffio"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -610,6 +622,7 @@ dependencies = [
     { name = "python-jose", extra = ["cryptography"] },
     { name = "python-multipart" },
     { name = "slowapi" },
+    { name = "slpp" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -622,6 +635,7 @@ requires-dist = [
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.5.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "slowapi", specifier = ">=0.1.9" },
+    { name = "slpp", specifier = ">=1.2.3" },
     { name = "sqlalchemy", specifier = ">=2.0.43" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.35.0" },
 ]
