@@ -239,3 +239,30 @@ form button:hover {
     white-space: pre-wrap; /* To format JSON output nicely */
     word-wrap: break-word;
 }
+
+/* Results Table Styles */
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.results-table th, .results-table td {
+    border: 1px solid #444;
+    padding: 0.75rem;
+    text-align: left;
+}
+
+.results-table th {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+.results-table tbody tr:nth-child(even) {
+    background-color: #2a2a2a;
+}
+
+.results-table tbody tr:hover {
+    background-color: #3a3a3a;
+}

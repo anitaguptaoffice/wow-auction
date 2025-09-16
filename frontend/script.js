@@ -217,10 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr>
-                <th>Item ID</th>
-                <th>Name</th>
-                <th>Quantity</th>
-                <th>Buyout (Gold)</th>
+                <th>物品ID</th>
+                <th>名称</th>
+                <th>数量</th>
+                <th>一口价 (金)</th>
             </tr>
         `;
         table.appendChild(thead);
