@@ -1,15 +1,20 @@
-import re
 import os
-import time
+import re
 import threading
+import time
+from types import MappingProxyType
+
 from slpp import slpp
 
 LUA_FILE_PATH = "data/auction.lua"
 
 # --- Cache and Threading Globals ---
-_auction_data_cache = []
-_cache_lock = threading.Lock()
+# We'll store the cache as an immutable snapshot: a tuple of MappingProxyType wrappers.
+# This keeps reads lock-free (atomic reference read) and avoids expensive copies on every read.
+_auction_data_cache = tuple()  # tuple of MappingProxyType
+_cache_lock = threading.Lock()  # only used during writes
 _last_mtime = 0
+
 
 def _load_and_process_lua_file():
     """
@@ -49,20 +54,25 @@ def _load_and_process_lua_file():
     latest_scan = max(scans, key=lambda s: s.get("timestamp", 0))
     items = latest_scan.get("items", [])
 
-    filtered_items = [
-        item for item in items
-        if item.get("buyoutAmount") and item["buyoutAmount"] > 0
-    ]
+    filtered_items = [item for item in items if item.get("buyoutAmount") and item["buyoutAmount"] > 0]
     return filtered_items
+
 
 def _update_cache():
     """Loads data from file and updates the in-memory cache."""
     global _auction_data_cache
     print("Attempting to update auction data cache...")
     items = _load_and_process_lua_file()
+
+    # Convert list of dicts to immutable snapshot: tuple of MappingProxyType
+    snapshot = tuple(MappingProxyType(item) for item in items)
+
+    # Atomically replace the global reference while holding the write lock
     with _cache_lock:
-        _auction_data_cache = items
+        _auction_data_cache = snapshot
+
     print(f"Cache updated successfully. Found {len(items)} items.")
+
 
 def _monitor_file_changes():
     """Runs in a background thread to check for file modifications and update cache."""
@@ -77,7 +87,8 @@ def _monitor_file_changes():
         except FileNotFoundError:
             # If file is not found, wait and try again
             pass
-        time.sleep(10) # Check every 10 seconds
+        time.sleep(10)  # Check every 10 seconds
+
 
 def start_monitoring():
     """Initializes the cache and starts the file monitoring background thread."""
@@ -95,7 +106,13 @@ def start_monitoring():
     monitor_thread.start()
     print("Auction data monitor started in background.")
 
+
 def get_cached_auction_items():
-    """Returns a copy of the auction items from the in-memory cache."""
-    with _cache_lock:
-        return _auction_data_cache.copy()
+    """Return the cached auction items.
+
+    By default this returns the internal immutable snapshot (tuple of mapping proxies).
+    If a mutable list is needed by the caller, they can call list(get_cached_auction_items())
+    or you can call get_cached_auction_items(as_list=True) to receive a freshly allocated list.
+    """
+    # Atomic read of the reference; no lock required for readers.
+    return _auction_data_cache
