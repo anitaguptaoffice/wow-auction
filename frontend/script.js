@@ -90,6 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             document.getElementById('logout-btn').addEventListener('click', logout);
 
+            if (user.usage_count === 0) {
+                const searchButton = document.querySelector('#query-form button[type="submit"]');
+                if (searchButton) {
+                    searchButton.disabled = true;
+                }
+            }
+
         } catch (error) {
             console.error('Fetch user error:', error);
             logout(); // Log out if there's an error fetching user
@@ -188,8 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchUserAndUpdateUI();
 
         } catch (error) {
-            queryResultDiv.style.color = '#e0e0e0';
-            queryResultDiv.textContent = 'Found 0 items.';
+            if (error.message === "Usage limit exceeded. No more access attempts allowed.") {
+                queryResultDiv.style.color = 'red';
+                queryResultDiv.textContent = '没有可用额度';
+            } else {
+                queryResultDiv.style.color = '#e0e0e0';
+                queryResultDiv.textContent = '未找到物品。';
+            }
         }
     });
 
@@ -203,12 +215,12 @@ document.addEventListener('DOMContentLoaded', () => {
         queryResultDiv.style.color = '#e0e0e0';
 
         if (count === 0 || !data || data.length === 0) {
-            queryResultDiv.textContent = 'Found 0 items.';
+            queryResultDiv.textContent = '未找到物品。';
             return;
         }
 
         const resultCount = document.createElement('p');
-        resultCount.textContent = `Found ${count} items.`;
+        resultCount.textContent = `找到 ${count} 个物品。`;
         queryResultDiv.appendChild(resultCount);
 
         const table = document.createElement('table');
