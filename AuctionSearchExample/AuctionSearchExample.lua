@@ -140,7 +140,7 @@ local function IsRaidGear(itemDetails, itemID)
 	end
 
 	-- 检查装等范围（团本装备通常装等较高）
-	if itemDetails.itemLevel and itemDetails.itemLevel < 400 then -- 根据当前版本调整
+	if itemDetails.itemLevel and itemDetails.itemLevel < 620 then -- 根据当前版本调整
 		if itemID == 238033 then
 			print(format("DEBUG: 装等不符 (itemLevel=%d, 需要>=400)", itemDetails.itemLevel))
 		end
@@ -151,7 +151,7 @@ local function IsRaidGear(itemDetails, itemID)
 	if itemDetails.bonusIDs then
 		for _, bonusID in ipairs(itemDetails.bonusIDs) do
 			-- 这些是一些常见的团本bonusID，需要根据当前版本更新
-			if bonusID == 40 or bonusID == 41 or bonusID == 42 or bonusID == 43 then -- LFR, Normal, Heroic, Mythic
+			if bonusID == 10844 or bonusID == 10353 or bonusID == 10355 or bonusID == 10356 then -- LFR, Normal, Heroic, Mythic
 				if itemID == 238033 then
 					print(format("DEBUG: 通过bonusID检查 (bonusID=%d)", bonusID))
 				end
