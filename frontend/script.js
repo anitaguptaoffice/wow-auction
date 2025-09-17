@@ -21,8 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     const token = localStorage.getItem('accessToken');
     let usageCount = 0;
-    let cachedUser = null;
-    let lastFetchTimestamp = 0;
 
     // --- Functions ---
 
@@ -62,25 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     const logout = () => {
         localStorage.removeItem('accessToken');
-        cachedUser = null;
-        lastFetchTimestamp = 0;
         location.reload();
-    };
-
-    const updateUIWithUserData = (user) => {
-        usageCount = user.usage_count;
-        userStatusDiv.innerHTML = `
-            <div id="user-info">
-                <div id="user-icon">🤖</div>
-                <div class="tooltip">
-                    <div><strong>User:</strong> ${user.username}</div>
-                    <div><strong>API Calls Left:</strong> ${user.usage_count}</div>
-                </div>
-            </div>
-            <button id="logout-btn">Logout</button>
-        `;
-        document.getElementById('logout-btn').addEventListener('click', logout);
-        updateSearchButtonState();
     };
 
     /**
@@ -95,12 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             document.getElementById('login-btn').addEventListener('click', () => showModal(loginModal));
             document.getElementById('register-btn').addEventListener('click', () => showModal(registerModal));
-            return;
-        }
-
-        const now = Date.now();
-        if (cachedUser && (now - lastFetchTimestamp < 30000)) {
-            updateUIWithUserData(cachedUser);
             return;
         }
 
@@ -123,9 +97,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const user = await response.json();
-            cachedUser = user;
-            lastFetchTimestamp = Date.now();
-            updateUIWithUserData(user);
+            usageCount = user.usage_count;
+            userStatusDiv.innerHTML = `
+                <div id="user-info">
+                    <div id="user-icon">🤖</div>
+                    <div class="tooltip">
+                        <div><strong>User:</strong> ${user.username}</div>
+                        <div><strong>API Calls Left:</strong> ${user.usage_count}</div>
+                    </div>
+                </div>
+                <button id="logout-btn">Logout</button>
+            `;
+            document.getElementById('logout-btn').addEventListener('click', logout);
+
+            updateSearchButtonState();
 
         } catch (error) {
             console.error('Fetch user error:', error);
@@ -229,7 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAuctionResults(data);
 
             // Refresh user data to get updated usage count
-            lastFetchTimestamp = 0; // Invalidate cache
             fetchUserAndUpdateUI();
 
         } catch (error) {
@@ -278,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tbody = document.createElement('tbody');
         data.forEach(item => {
             const row = document.createElement('tr');
-            
+
             // Format buyout amount from copper to gold
             const buyoutGold = (item.buyoutAmount / 10000).toFixed(2);
 
