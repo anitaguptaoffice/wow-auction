@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
     const queryForm = document.getElementById('query-form');
+    const itemIdInput = document.getElementById('item-id-input');
+    const searchButton = queryForm.querySelector('button[type="submit"]');
 
     const loginMessage = document.getElementById('login-message');
     const registerMessage = document.getElementById('register-message');
@@ -18,8 +20,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State ---
     const token = localStorage.getItem('accessToken');
+    let usageCount = 0;
+    let cachedUser = null;
+    let lastFetchTimestamp = 0;
 
     // --- Functions ---
+
+    const updateSearchButtonState = () => {
+        const itemId = itemIdInput.value.trim();
+        if (usageCount > 0 && itemId !== '') {
+            searchButton.disabled = false;
+        } else {
+            searchButton.disabled = true;
+        }
+    };
 
     /**
      * Logs the user in by fetching and storing a token.
@@ -36,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!response.ok) {
             const err = await response.json();
-            throw new Error(err.detail || 'Login failed');
+            throw new Error(err.detail || err.error || 'Login failed');
         }
 
         const data = await response.json();
@@ -48,7 +62,25 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     const logout = () => {
         localStorage.removeItem('accessToken');
+        cachedUser = null;
+        lastFetchTimestamp = 0;
         location.reload();
+    };
+
+    const updateUIWithUserData = (user) => {
+        usageCount = user.usage_count;
+        userStatusDiv.innerHTML = `
+            <div id="user-info">
+                <div id="user-icon">🤖</div>
+                <div class="tooltip">
+                    <div><strong>User:</strong> ${user.username}</div>
+                    <div><strong>API Calls Left:</strong> ${user.usage_count}</div>
+                </div>
+            </div>
+            <button id="logout-btn">Logout</button>
+        `;
+        document.getElementById('logout-btn').addEventListener('click', logout);
+        updateSearchButtonState();
     };
 
     /**
@@ -66,6 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const now = Date.now();
+        if (cachedUser && (now - lastFetchTimestamp < 30000)) {
+            updateUIWithUserData(cachedUser);
+            return;
+        }
+
         try {
             // Fetch user and show logged-in state
             const response = await fetch(`${API_BASE_URL}/users/me`, {
@@ -77,25 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const user = await response.json();
-            userStatusDiv.innerHTML = `
-                <div id="user-info">
-                    <div id="user-icon">🤖</div>
-                    <div class="tooltip">
-                        <div><strong>User:</strong> ${user.username}</div>
-                        <div><strong>API Calls Left:</strong> ${user.usage_count}</div>
-                    </div>
-                </div>
-                <button id="logout-btn">Logout</button>
-            `;
-            document.getElementById('logout-btn').addEventListener('click', logout);
-
-            if (user.usage_count === 0) {
-                const searchButton = document.querySelector('#query-form button[type="submit"]');
-                if (searchButton) {
-                    searchButton.disabled = true;
-                }
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Error fetching user data:', errorData.detail || errorData.error || 'Unknown error');
+                logout();
+                return;
             }
+
+            const user = await response.json();
+            cachedUser = user;
+            lastFetchTimestamp = Date.now();
+            updateUIWithUserData(user);
 
         } catch (error) {
             console.error('Fetch user error:', error);
@@ -110,6 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Event Listeners ---
+
+    itemIdInput.addEventListener('input', updateSearchButtonState);
 
     closeBtns.forEach(btn => btn.addEventListener('click', hideModals));
     window.addEventListener('click', (event) => {
@@ -148,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.detail || 'Registration failed');
+                throw new Error(err.detail || err.error || 'Registration failed');
             }
 
             // Automatically log in after successful registration
@@ -164,13 +196,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     queryForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+
+        const itemId = itemIdInput.value.trim();
+        if (searchButton.disabled || itemId === '') {
+            return; // Prevent submission if button is disabled or input is empty
+        }
+
         if (!token) {
             queryResultDiv.style.color = 'red';
             queryResultDiv.textContent = 'You must be logged in to use the query API.';
             return;
         }
 
-        const itemId = document.getElementById('item-id-input').value;
         queryResultDiv.innerHTML = 'Querying...';
 
         try {
@@ -192,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAuctionResults(data);
 
             // Refresh user data to get updated usage count
+            lastFetchTimestamp = 0; // Invalidate cache
             fetchUserAndUpdateUI();
 
         } catch (error) {

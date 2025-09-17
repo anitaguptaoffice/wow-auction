@@ -229,6 +229,13 @@ form button:hover {
     background-color: #0056b3;
 }
 
+#query-form button:disabled,
+#query-form button:disabled:hover {
+    background-color: #555;
+    color: #aaa;
+    cursor: not-allowed;
+}
+
 #query-result {
     margin-top: 1.5rem;
     padding: 1rem;
