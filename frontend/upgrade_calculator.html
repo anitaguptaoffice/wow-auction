@@ -361,28 +361,34 @@
             // 计算实际可用蓝沙（除去最后必须用的1个，且不超过15个）
             const availableBlue = Math.min(blueSand - lastBlue, maxUsableBlue);
 
-            // 计算蓝沙可以覆盖的档位（优先使用蓝沙）
-            const blueSteps = Math.min(availableBlue * 3, remainingSteps);
+            // 计算蓝沙最多可以覆盖的档位数（必须是3的倍数，且不超过剩余档位）
+            // 优先使用蓝沙，但要确保蓝沙覆盖的档位是3的倍数
+            const maxBlueSteps = Math.floor(remainingSteps / 3) * 3; // 确保是3的倍数
+            const blueSteps = Math.min(availableBlue * 3, maxBlueSteps);
+
+            // 计算实际使用的蓝沙数量
+            let actualBlueUsed = blueSteps / 3; // 因为blueSteps已经是3的倍数，所以可以整除
 
             // 剩余需要绿沙的档位
             const greenStepsNeeded = remainingSteps - blueSteps;
 
-            // 至少需要2个绿沙
+            // 至少需要2个绿沙的规则检查
+            // 规则：从584到747全程至少要使用2个绿沙
             const minGreenRequired = 2;
-            if (greenStepsNeeded < minGreenRequired && remainingSteps > 0) {
-                // 如果计算出的绿沙需求少于2个，需要调整
+
+            // 如果绿沙需求不足2个，但剩余档位>=5（足够调整），需要调整蓝沙使用量
+            // remainingSteps < 5 时（如3个档位），允许全部用蓝沙覆盖，不强制2个绿沙
+            if (greenStepsNeeded < minGreenRequired && remainingSteps >= 5) {
                 // 减少蓝沙使用，确保至少用2个绿沙
-                const adjustedBlueSteps = remainingSteps - minGreenRequired;
-                const adjustedBlueUsed = Math.ceil(adjustedBlueSteps / 3);
-                const adjustedGreenSteps = remainingSteps - (adjustedBlueUsed * 3);
+                // 计算可以用蓝沙覆盖的最大档位（保留至少2个档位给绿沙）
+                const maxBlueForMinGreen = Math.floor((remainingSteps - minGreenRequired) / 3) * 3;
+                const adjustedBlueSteps = Math.min(blueSteps, maxBlueForMinGreen);
+                actualBlueUsed = adjustedBlueSteps / 3;
+                const adjustedGreenSteps = remainingSteps - adjustedBlueSteps;
 
-                const actualBlueUsed = adjustedBlueUsed;
-                const actualGreenUsed = adjustedGreenSteps;
+                // 检查用户是否有足够的绿沙
+                const greenNeeded = Math.max(0, adjustedGreenSteps - greenSand);
 
-                // 计算还需要多少绿沙
-                const greenNeeded = Math.max(0, actualGreenUsed - greenSand);
-
-                // 检查是否满足至少2个绿沙的要求
                 if (greenSand < minGreenRequired) {
                     resultDiv.innerHTML = `
                         <div class="info-box error">
@@ -414,7 +420,7 @@
                 // 显示升级路径建议
                 resultHTML += `<div class="info-box">
                     <strong>💡 升级建议：</strong><br>
-                    • 从 ${currentLevel} 到 737：先使用 ${actualBlueUsed} 个蓝沙，再使用 ${actualGreenUsed} 个绿沙<br>
+                    • 从 ${currentLevel} 到 737：先使用 ${actualBlueUsed} 个蓝沙，再使用 ${adjustedGreenSteps} 个绿沙<br>
                     • 从 737 到 747：使用 1 个蓝沙（必须）
                 </div>`;
 
@@ -425,7 +431,7 @@
                         <p style="margin-top: 10px;"><strong>数据详情：</strong></p>
                         <p>• 总共需要档位：${totalSteps} 个</p>
                         <p>• 使用蓝沙（含最后1个）：${actualBlueUsed + 1} 个</p>
-                        <p>• 使用绿沙：${Math.min(greenSand, actualGreenUsed)} 个</p>
+                        <p>• 使用绿沙：${Math.min(greenSand, adjustedGreenSteps)} 个</p>
                         <p style="margin-top: 10px;"><strong>注意事项：</strong></p>
                         <p>• 蓝沙最多使用16个</p>
                         <p>• 至少需要2个绿沙</p>
@@ -439,24 +445,11 @@
                 return;
             }
 
-            // 计算实际使用的蓝沙数量
-            const actualBlueUsed = Math.ceil(blueSteps / 3);
-
             // 计算还需要多少绿沙
             const greenNeeded = Math.max(0, greenStepsNeeded - greenSand);
 
-            // 检查是否满足至少2个绿沙的要求
-            if (greenStepsNeeded < minGreenRequired) {
-                resultDiv.innerHTML = `
-                    <div class="info-box error">
-                        ❌ 配置错误：根据规则，至少需要${minGreenRequired}个绿沙！
-                    </div>
-                `;
-                resultDiv.classList.add('show');
-                return;
-            }
-
-            if (greenSand < minGreenRequired) {
+            // 只有当实际需要使用绿沙(>=2个)时，才检查绿沙数量要求
+            if (greenStepsNeeded >= minGreenRequired && greenSand < minGreenRequired) {
                 resultDiv.innerHTML = `
                     <div class="info-box error">
                         ❌ 至少需要${minGreenRequired}个绿沙！<br>
