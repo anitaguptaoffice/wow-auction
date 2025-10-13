@@ -169,13 +169,76 @@
             background: #fff8e1;
             border-left-color: #f39c12;
         }
+
+        /* 可展开面板样式 */
+        .collapsible {
+            background: #f0f4ff;
+            border: none;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            transition: background 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .collapsible:hover {
+            background: #e6edff;
+        }
+
+        .collapsible::after {
+            content: '▼';
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .collapsible.active::after {
+            transform: rotate(-180deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            border-radius: 0 0 5px 5px;
+            margin-top: -10px;
+            margin-bottom: 15px;
+        }
+
+        .collapsible-content.active {
+            max-height: 500px;
+            padding: 0 15px 15px 15px;
+        }
+
+        .collapsible-content p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .main-result {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
     <div class="calculator-container">
         <h1>⚔️ 装备升级计算器</h1>
 
-        <div class="info-box">
+        <button class="collapsible">📋 升级规则说明</button>
+        <div class="collapsible-content">
             <p><strong>升级规则：</strong></p>
             <p>• 升级循环：4-3-3-3（重复）</p>
             <p>• 绿沙：提升1个档位</p>
@@ -332,47 +395,47 @@
                 }
 
                 // 生成结果
-                let resultHTML = '<h3>📊 计算结果</h3>';
-
-                resultHTML += `
-                    <div class="result-item">
-                        <span>总共需要档位：</span>
-                        <span>${totalSteps} 个</span>
-                    </div>
-                    <div class="result-item">
-                        <span>使用蓝沙（含最后1个）：</span>
-                        <span>${actualBlueUsed + 1} 个</span>
-                    </div>
-                    <div class="result-item">
-                        <span>使用绿沙：</span>
-                        <span>${Math.min(greenSand, actualGreenUsed)} 个</span>
-                    </div>
-                `;
+                let resultHTML = '';
 
                 if (greenNeeded > 0) {
                     resultHTML += `
-                        <div class="info-box warning">
+                        <div class="info-box warning main-result">
                             ⚠️ 还需要 <strong>${greenNeeded}</strong> 个绿沙才能升到747！
                         </div>
                     `;
                 } else {
                     resultHTML += `
-                        <div class="info-box success">
+                        <div class="info-box success main-result">
                             ✅ 材料充足！可以升到747！
                         </div>
                     `;
                 }
 
                 // 显示升级路径建议
-                resultHTML += `<div class="info-box" style="margin-top: 15px;">
-                    <strong>💡 升级建议（优先使用蓝沙）：</strong><br>
-                    • 从 ${currentLevel} 到 737：使用 ${actualBlueUsed} 个蓝沙 + ${actualGreenUsed} 个绿沙<br>
-                    • 从 737 到 747：使用 1 个蓝沙（必须）<br>
-                    • 注意：蓝沙最多使用16个，至少需要2个绿沙
+                resultHTML += `<div class="info-box">
+                    <strong>💡 升级建议：</strong><br>
+                    • 从 ${currentLevel} 到 737：先使用 ${actualBlueUsed} 个蓝沙，再使用 ${actualGreenUsed} 个绿沙<br>
+                    • 从 737 到 747：使用 1 个蓝沙（必须）
                 </div>`;
+
+                // 详细分析面板
+                resultHTML += `
+                    <button class="collapsible">📊 详细分析</button>
+                    <div class="collapsible-content">
+                        <p style="margin-top: 10px;"><strong>数据详情：</strong></p>
+                        <p>• 总共需要档位：${totalSteps} 个</p>
+                        <p>• 使用蓝沙（含最后1个）：${actualBlueUsed + 1} 个</p>
+                        <p>• 使用绿沙：${Math.min(greenSand, actualGreenUsed)} 个</p>
+                        <p style="margin-top: 10px;"><strong>注意事项：</strong></p>
+                        <p>• 蓝沙最多使用16个</p>
+                        <p>• 至少需要2个绿沙</p>
+                        <p>• 最后一次升级（737→747）必须使用蓝沙</p>
+                    </div>
+                `;
 
                 resultDiv.innerHTML = resultHTML;
                 resultDiv.classList.add('show');
+
                 return;
             }
 
@@ -405,44 +468,43 @@
             }
 
             // 生成结果
-            let resultHTML = '<h3>📊 计算结果</h3>';
-
-            resultHTML += `
-                <div class="result-item">
-                    <span>总共需要档位：</span>
-                    <span>${totalSteps} 个</span>
-                </div>
-                <div class="result-item">
-                    <span>使用蓝沙（含最后1个）：</span>
-                    <span>${actualBlueUsed + 1} 个</span>
-                </div>
-                <div class="result-item">
-                    <span>使用绿沙：</span>
-                    <span>${Math.min(greenSand, greenStepsNeeded)} 个</span>
-                </div>
-            `;
+            let resultHTML = '';
 
             if (greenNeeded > 0) {
                 resultHTML += `
-                    <div class="info-box warning">
+                    <div class="info-box warning main-result">
                         ⚠️ 还需要 <strong>${greenNeeded}</strong> 个绿沙才能升到747！
                     </div>
                 `;
             } else {
                 resultHTML += `
-                    <div class="info-box success">
+                    <div class="info-box success main-result">
                         ✅ 材料充足！可以升到747！
                     </div>
                 `;
             }
 
             // 显示升级路径建议
-            resultHTML += `<div class="info-box" style="margin-top: 15px;">
-                <strong>💡 升级建议（优先使用蓝沙）：</strong><br>
-                • 从 ${currentLevel} 到 737：使用 ${actualBlueUsed} 个蓝沙 + ${greenStepsNeeded} 个绿沙<br>
-                • 从 737 到 747：使用 1 个蓝沙（必须）<br>
-                • 注意：蓝沙最多使用16个，至少需要2个绿沙
+            resultHTML += `<div class="info-box">
+                <strong>💡 升级建议：</strong><br>
+                • 从 ${currentLevel} 到 737：先使用 ${actualBlueUsed} 个蓝沙，再使用 ${greenStepsNeeded} 个绿沙<br>
+                • 从 737 到 747：使用 1 个蓝沙（必须）
             </div>`;
+
+            // 详细分析面板
+            resultHTML += `
+                <button class="collapsible">📊 详细分析</button>
+                <div class="collapsible-content">
+                    <p style="margin-top: 10px;"><strong>数据详情：</strong></p>
+                    <p>• 总共需要档位：${totalSteps} 个</p>
+                    <p>• 使用蓝沙（含最后1个）：${actualBlueUsed + 1} 个</p>
+                    <p>• 使用绿沙：${Math.min(greenSand, greenStepsNeeded)} 个</p>
+                    <p style="margin-top: 10px;"><strong>注意事项：</strong></p>
+                    <p>• 蓝沙最多使用16个</p>
+                    <p>• 至少需要2个绿沙</p>
+                    <p>• 最后一次升级（737→747）必须使用蓝沙</p>
+                </div>
+            `;
 
             resultDiv.innerHTML = resultHTML;
             resultDiv.classList.add('show');
@@ -542,6 +604,17 @@
         document.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 calculate();
+            }
+        });
+
+        // 使用事件委托处理所有可展开面板（包括动态添加的）
+        document.body.addEventListener('click', function (e) {
+            if (e.target.classList.contains('collapsible')) {
+                e.target.classList.toggle('active');
+                const content = e.target.nextElementSibling;
+                if (content && content.classList.contains('collapsible-content')) {
+                    content.classList.toggle('active');
+                }
             }
         });
     </script>
