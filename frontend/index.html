@@ -1,73 +1,412 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoW Auction House</title>
-    <link rel="stylesheet" href="style.css">
+
+<html class="" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>艾泽拉斯交易所 | SPA</title>
+<!-- BEGIN: External Scripts -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wow: {
+                            gold: 'var(--wow-gold)',
+                            silver: 'var(--wow-silver)',
+                            copper: 'var(--wow-copper)',
+                            bg: 'var(--wow-bg)',
+                            card: 'var(--wow-card)',
+                            border: 'var(--wow-border)',
+                            accent: 'var(--wow-accent)',
+                            text: 'var(--wow-text)',
+                            rarityCommon: 'var(--wow-rarityCommon)',
+                            rarityUncommon: '#1eff00',
+                            rarityRare: '#0070dd',
+                            rarityEpic: '#a335ee',
+                            rarityLegendary: '#ff8000',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+<!-- END: External Scripts -->
+
+
+<link rel="stylesheet" href="css/styles.css"/>
 </head>
-<body>
-    <header>
-        <nav>
-            <div class="logo">WoW Auction</div>
-            <div id="user-status">
-                <button id="login-btn">登录</button>
-                <button id="register-btn">注册</button>
-            </div>
-        </nav>
-    </header>
-
-    <main id="main-content">
-        <div class="search-container">
-            <h2>拍卖行物品搜索</h2>
-            <form id="query-form">
-                <input type="text" id="item-id-input" placeholder="输入物品ID...">
-                <button type="submit" disabled>搜索</button>
-            </form>
-            <div id="query-result"></div>
-        </div>
-    </main>
-
-    <!-- 登录模态框 -->
-    <div id="login-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h2>登录</h2>
-            <form id="login-form">
-                <div class="input-group">
-                    <label for="login-username">用户名</label>
-                    <input type="text" id="login-username" required>
-                </div>
-                <div class="input-group">
-                    <label for="login-password">密码</label>
-                    <input type="password" id="login-password" required>
-                </div>
-                <button type="submit">登录</button>
-                <p id="login-message" class="message"></p>
-            </form>
-        </div>
-    </div>
-
-    <!-- 注册模态框 -->
-    <div id="register-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h2>注册</h2>
-            <form id="register-form">
-                <div class="input-group">
-                    <label for="register-username">用户名</label>
-                    <input type="text" id="register-username" required>
-                </div>
-                <div class="input-group">
-                    <label for="register-password">密码</label>
-                    <input type="password" id="register-password" required>
-                </div>
-                <button type="submit">注册</button>
-                <p id="register-message" class="message"></p>
-            </form>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-</body>
-</html>
+<body class="min-h-screen">
+<!-- BEGIN: MainHeader -->
+<header class="sticky top-0 z-50 bg-wow-card/95 border-b-2 border-wow-accent shadow-lg transition-colors duration-300" data-purpose="site-header">
+<div class="fluid-container h-20 flex items-center justify-between gap-6">
+<!-- Logo -->
+<div class="flex items-center space-x-3 shrink-0">
+<div class="w-10 h-10 bg-wow-accent rounded-sm rotate-45 flex items-center justify-center border-2 border-wow-gold">
+<span class="text-white dark:text-black font-bold -rotate-45 text-xl">W</span>
+</div>
+<h1 class="text-xl lg:text-2xl font-bold tracking-wider text-wow-accent uppercase whitespace-nowrap hidden sm:block">艾泽拉斯交易所</h1>
+</div>
+<!-- Navigation Buttons -->
+<nav class="flex items-center space-x-4 lg:space-x-6 text-sm font-semibold uppercase tracking-widest shrink-0">
+<button class="text-wow-accent border-b-2 border-wow-accent pb-1 transition-all whitespace-nowrap" id="btn-browse" onclick="showView('browse')">浏览</button>
+<button class="text-gray-500 hover:text-wow-accent transition-colors pb-1 whitespace-nowrap" id="btn-favorites" onclick="showView('favorites')">收藏夹</button>
+</nav>
+<!-- Search Box -->
+<div class="flex items-center flex-1 max-w-2xl px-2">
+<div class="relative w-full group">
+<input class="w-full bg-wow-card border-wow-border text-wow-accent focus:ring-wow-accent focus:border-wow-accent rounded-sm pl-10 pr-24 py-2.5 text-sm transition-all" placeholder="搜索物品..." type="text"/>
+<svg class="w-4 h-4 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<button class="absolute right-2 top-1.5 flex items-center gap-1 px-2 py-1.5 hover:bg-wow-accent/10 text-wow-accent rounded-sm transition-colors border-l border-wow-border" onclick="toggleAdvancedFilters()">
+<span class="material-symbols-outlined text-lg leading-none">tune</span>
+<span class="hidden md:inline text-[10px] font-bold uppercase">高级选项</span>
+</button>
+</div>
+</div>
+<!-- User Actions -->
+<div class="flex items-center space-x-2 md:space-x-3 shrink-0">
+<!-- Refresh Button -->
+<button class="header-action-btn text-wow-accent" title="刷新行情">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+<!-- Theme Toggle -->
+<button class="header-action-btn text-wow-accent" id="theme-toggle" title="切换深色/浅色模式">
+<span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
+</button>
+<!-- User Avatar with Dropdown -->
+<div class="relative">
+<div class="profile-avatar-container hover:opacity-80" id="user-avatar-trigger" onclick="toggleUserDropdown()">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKE1Um6Lbxs64quEqjIS8t3EBMJh9CsZtQWxJXNVOR0S0Q4hcOMnBiOQbEklS_ZA1YdNNnlhRg2WzYvsQl4zEbx-aANQaAATnXp8Ke_JKihch2zKUUyKo6JLJyk9t-9ziKcdnrvG6ZlnQu-JO0C02dRhLAmYzK9ouxdLVbuS0_l-LWSLqcMfsvqTT_D9HdL5C2W6Z-t9oNCrgAi6etV7XpzBTa8AYdynVGiAoRw0XIZ7Ny2NTWwMGxSYYBuGoA3wcM2ldQAu6rAsc"/>
+</div>
+<!-- Avatar Dropdown Menu -->
+<div class="dropdown-content overflow-hidden" id="user-dropdown">
+<div class="py-1">
+<a class="flex items-center gap-3 px-4 py-3 text-sm text-wow-text hover:bg-wow-accent/10 transition-colors font-semibold" href="#">
+<span class="material-symbols-outlined text-wow-accent text-lg">person</span>
+<span>个人信息</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm text-wow-text hover:bg-wow-accent/10 transition-colors font-semibold" href="#">
+<span class="material-symbols-outlined text-wow-accent text-lg">settings</span>
+<span>设置</span>
+</a>
+<div class="border-t border-wow-border my-1"></div>
+<a class="flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors font-bold" href="#">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>登出</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- END: MainHeader -->
+<!-- Advanced Filters Panel -->
+<div class="hidden bg-wow-card border-b border-wow-accent shadow-xl" id="advanced-filters-panel">
+<div class="fluid-container py-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+<div>
+<label class="text-xs text-gray-500 uppercase font-bold mb-2 block">物品等级 (iLvl)</label>
+<div class="flex items-center space-x-2">
+<input class="w-full bg-wow-bg border-wow-border text-sm p-2 text-wow-text rounded-sm focus:ring-1 focus:ring-wow-accent outline-none" placeholder="最小" type="number"/>
+<span class="text-gray-400">-</span>
+<input class="w-full bg-wow-bg border-wow-border text-sm p-2 text-wow-text rounded-sm focus:ring-1 focus:ring-wow-accent outline-none" placeholder="最大" type="number"/>
+</div>
+</div>
+<div>
+<label class="text-xs text-gray-500 uppercase font-bold mb-2 block">品质等级</label>
+<select class="w-full bg-wow-bg border-wow-border text-sm p-2 text-wow-text rounded-sm focus:ring-1 focus:ring-wow-accent outline-none">
+<option>所有品质</option>
+<option class="text-wow-rarityEpic font-bold">史诗 (Epic)</option>
+<option class="text-wow-rarityRare font-bold">精良 (Rare)</option>
+<option class="text-wow-rarityUncommon font-bold">优秀 (Uncommon)</option>
+<option class="text-wow-rarityCommon font-bold">普通 (Common)</option>
+</select>
+</div>
+<div>
+<label class="text-xs text-gray-500 uppercase font-bold mb-2 block">所属类别</label>
+<select class="w-full bg-wow-bg border-wow-border text-sm p-2 text-wow-text rounded-sm focus:ring-1 focus:ring-wow-accent outline-none">
+<option>所有类别</option>
+<option>护甲</option>
+<option>武器</option>
+<option>消耗品</option>
+<option>材料</option>
+</select>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-wow-accent hover:opacity-90 text-white dark:text-black font-bold py-2 rounded-sm transition-all uppercase text-sm shadow-md">应用筛选</button>
+<button class="px-4 border border-wow-border text-gray-500 hover:text-wow-accent rounded-sm transition-colors" onclick="toggleAdvancedFilters()">取消</button>
+</div>
+</div>
+</div>
+<main class="fluid-container py-8">
+<!-- BROWSE VIEW -->
+<div class="flex flex-col md:flex-row gap-8" id="view-browse">
+<!-- Sidebar: Popular Items Ranking -->
+<aside class="w-full md:w-[280px] flex-shrink-0 space-y-6">
+<div class="bg-wow-card border border-wow-border p-5 rounded-sm shadow-lg">
+<div class="flex items-center gap-2 mb-4 border-b border-wow-border pb-2">
+<span class="material-symbols-outlined text-wow-accent text-xl">trending_up</span>
+<h3 class="text-wow-accent font-bold uppercase tracking-tighter">热门物品排行</h3>
+</div>
+<div class="space-y-4">
+<!-- Ranking Items with Improved Icons -->
+<div class="flex items-center gap-3 group cursor-pointer">
+<span class="text-lg font-black text-gray-400 w-4">1</span>
+<div class="wow-icon-container rarity-border-epic">
+<span class="material-symbols-outlined text-wow-rarityEpic text-2xl">package_2</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-xs font-bold text-wow-text truncate group-hover:text-wow-accent transition-colors">鎏金先驱纹章</p>
+<p class="text-[10px] text-gray-500 font-mono">145,200 <i class="inline-block w-2 h-2 bg-wow-gold rounded-full"></i></p>
+</div>
+</div>
+<div class="flex items-center gap-3 group cursor-pointer">
+<span class="text-lg font-black text-gray-400 w-4">2</span>
+<div class="wow-icon-container rarity-border-epic">
+<span class="material-symbols-outlined text-wow-rarityEpic text-2xl">swords</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-xs font-bold text-wow-text truncate group-hover:text-wow-accent transition-colors">暗影之剑</p>
+<p class="text-[10px] text-gray-500 font-mono">82,400 <i class="inline-block w-2 h-2 bg-wow-gold rounded-full"></i></p>
+</div>
+</div>
+<div class="flex items-center gap-3 group cursor-pointer">
+<span class="text-lg font-black text-gray-400 w-4">3</span>
+<div class="wow-icon-container rarity-border-rare">
+<span class="material-symbols-outlined text-wow-rarityRare text-2xl">science</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-xs font-bold text-wow-text truncate group-hover:text-wow-accent transition-colors">究极法力药水</p>
+<p class="text-[10px] text-gray-500 font-mono">450 <i class="inline-block w-2 h-2 bg-wow-gold rounded-full"></i></p>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Stats -->
+<div class="bg-wow-card border border-wow-border p-5 rounded-sm shadow-lg">
+<h3 class="text-wow-accent font-bold mb-2 uppercase tracking-tighter text-xs">市场摘要</h3>
+<div class="space-y-3">
+<div class="flex justify-between text-xs">
+<span class="text-gray-500">追踪拍卖数</span>
+<span class="font-semibold">1,204,551</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-gray-500">最后更新 (Illidan-US)</span>
+<span class="font-semibold text-wow-accent">4 分钟前</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Results Section -->
+<section class="flex-1 min-w-0">
+<div class="bg-wow-card border border-wow-border rounded-sm shadow-lg overflow-hidden">
+<div class="overflow-x-auto">
+<table class="min-w-full text-left table-fixed">
+<thead class="bg-gray-100/30 dark:bg-black/40 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+<tr>
+<th class="px-4 py-4 w-[28%] min-w-[180px]">物品详情</th>
+<th class="px-4 py-4 text-right w-[17%] min-w-[130px]">最低一口价</th>
+<th class="px-4 py-4 text-center w-[12%] min-w-[100px]">所属服务器</th>
+<th class="px-4 py-4 text-center w-[12%] min-w-[100px]">最低价存量</th>
+<th class="px-4 py-4 text-center w-[10%] min-w-[90px]">最后更新时间</th>
+<th class="px-4 py-4 text-right w-[11%] min-w-[90px]">全服总量</th>
+<th class="px-4 py-4 text-right w-[10%] min-w-[90px]">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-wow-border">
+<!-- Row 1 -->
+<tr class="item-row transition-colors">
+<td class="px-4 py-4">
+<div class="flex items-center space-x-3">
+<div class="wow-icon-container rarity-border-epic scale-90">
+<span class="material-symbols-outlined text-wow-rarityEpic text-2xl">category</span>
+</div>
+<div class="min-w-0 overflow-hidden">
+<h4 class="text-wow-rarityEpic text-sm font-bold hover:underline cursor-pointer truncate item-title-text">鎏金先驱纹章</h4>
+<p class="text-[10px] text-gray-500 truncate">80级 制造材料</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 text-right whitespace-nowrap">
+<div class="flex flex-col items-end">
+<div class="font-mono text-sm flex items-center gap-1 font-bold">
+<span>145,200</span><i class="w-2.5 h-2.5 bg-[#ffd100] rounded-full border border-black/20" title="金"></i>
+<span class="text-wow-silver text-xs">50</span><i class="w-2.5 h-2.5 bg-[#e6e6e6] rounded-full border border-black/20" title="银"></i>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 text-center text-xs font-semibold text-wow-accent truncate">Illidan-US</td>
+<td class="px-4 py-4 text-center font-mono text-xs text-wow-text">4</td>
+<td class="px-4 py-4 text-center text-[10px] text-gray-500">2 分钟前</td>
+<td class="px-4 py-4 text-right font-mono text-xs text-gray-500 truncate">1,420</td>
+<td class="px-4 py-4 text-right">
+<button class="px-3 py-1 border border-wow-accent text-wow-accent hover:bg-wow-accent hover:text-white dark:hover:text-black text-[10px] font-bold transition-all uppercase rounded-sm whitespace-nowrap" onclick="openDetailsModal('鎏金先驱纹章')">详情</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="item-row transition-colors">
+<td class="px-4 py-4">
+<div class="flex items-center space-x-3">
+<div class="wow-icon-container rarity-border-common scale-90">
+<span class="material-symbols-outlined text-wow-rarityCommon text-2xl">category</span>
+</div>
+<div class="min-w-0 overflow-hidden">
+<h4 class="text-wow-rarityCommon text-sm font-bold hover:underline cursor-pointer truncate item-title-text">巨龙瓶</h4>
+<p class="text-[10px] text-gray-500 truncate">消耗品材料</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 text-right whitespace-nowrap">
+<div class="flex flex-col items-end">
+<div class="font-mono text-sm flex items-center gap-1 font-bold">
+<span>4</span><i class="w-2.5 h-2.5 bg-[#ffd100] rounded-full border border-black/20" title="金"></i>
+<span class="text-wow-silver text-xs">22</span><i class="w-2.5 h-2.5 bg-[#e6e6e6] rounded-full border border-black/20" title="银"></i>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 text-center text-xs font-semibold text-wow-accent truncate">Area 52-US</td>
+<td class="px-4 py-4 text-center font-mono text-xs text-wow-text">412</td>
+<td class="px-4 py-4 text-center text-[10px] text-gray-500">5 分钟前</td>
+<td class="px-4 py-4 text-right font-mono text-xs text-gray-500 truncate">45,012</td>
+<td class="px-4 py-4 text-right">
+<button class="px-3 py-1 border border-wow-accent text-wow-accent hover:bg-wow-accent hover:text-white dark:hover:text-black text-[10px] font-bold transition-all uppercase rounded-sm whitespace-nowrap" onclick="openDetailsModal('巨龙瓶')">详情</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="bg-gray-50/30 dark:bg-black/40 px-6 py-4 border-t border-wow-border flex items-center justify-between text-sm">
+<span class="text-gray-500 text-xs">显示第 1-20 条，共 1,240 条物品</span>
+<div class="flex space-x-1">
+<button class="px-3 py-1 bg-wow-card border border-wow-border text-gray-400 rounded-sm text-xs">上一页</button>
+<button class="px-3 py-1 bg-wow-accent text-white dark:text-black font-bold rounded-sm text-xs">1</button>
+<button class="px-3 py-1 bg-wow-card border border-wow-border text-wow-text rounded-sm text-xs">2</button>
+<button class="px-3 py-1 bg-wow-card border border-wow-border text-gray-400 rounded-sm text-xs">下一页</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- FAVORITES VIEW -->
+<div class="view-hidden flex flex-col gap-8" id="view-favorites">
+<div class="flex flex-wrap justify-between items-end gap-3 mb-2">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2 text-wow-accent">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="text-xs font-bold uppercase tracking-widest">Favorites</span>
+</div>
+<h2 class="text-3xl font-black text-wow-text uppercase">我的收藏</h2>
+<p class="text-gray-500 text-sm">管理您跨服关注的稀有物品、配方与核心材料</p>
+</div>
+<button class="bg-wow-accent text-white dark:text-black px-6 py-2.5 rounded-sm font-bold flex items-center gap-2 shadow-lg shadow-wow-accent/20 hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-lg">sync</span> 刷新行情
+</button>
+</div>
+<!-- Favorites Table -->
+<div class="bg-wow-card border border-wow-border rounded-sm shadow-lg overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left table-fixed">
+<thead class="bg-gray-100/30 dark:bg-black/40 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+<tr>
+<th class="px-4 py-4 w-[28%] min-w-[180px]">物品详情</th>
+<th class="px-4 py-4 text-right w-[17%] min-w-[130px]">最低一口价</th>
+<th class="px-4 py-4 text-center w-[12%] min-w-[100px]">所属服务器</th>
+<th class="px-4 py-4 text-center w-[12%] min-w-[100px]">最低价存量</th>
+<th class="px-4 py-4 text-center w-[10%] min-w-[90px]">最后更新时间</th>
+<th class="px-4 py-4 text-right w-[11%] min-w-[90px]">全服总量</th>
+<th class="px-4 py-4 text-right w-[10%] min-w-[90px]">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-wow-border">
+<tr class="item-row transition-colors">
+<td class="px-4 py-4">
+<div class="flex items-center gap-3">
+<div class="wow-icon-container rarity-border-epic scale-90">
+<span class="material-symbols-outlined text-wow-rarityEpic text-2xl">category</span>
+</div>
+<div class="min-w-0 overflow-hidden">
+<h4 class="text-wow-rarityEpic text-sm font-bold truncate item-title-text">奥金锭</h4>
+<p class="text-[10px] text-gray-500 truncate">稀有材料</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 text-right whitespace-nowrap">
+<div class="flex flex-col items-end">
+<div class="font-mono text-sm flex items-center gap-1 font-bold">
+<span>450</span><i class="inline-block w-2.5 h-2.5 bg-[#ffd100] rounded-full border border-black/20"></i>
+<span class="ml-1 text-xs">20</span><i class="inline-block w-2.5 h-2.5 bg-[#e6e6e6] rounded-full border border-black/20"></i>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 text-center text-xs font-semibold text-wow-accent truncate">格罗姆托</td>
+<td class="px-4 py-4 text-center font-mono text-xs text-wow-text">24</td>
+<td class="px-4 py-4 text-center text-[10px] text-gray-500">1 分钟前</td>
+<td class="px-4 py-4 text-right font-mono text-xs text-gray-500 truncate">128</td>
+<td class="px-4 py-4 text-right">
+<div class="flex justify-end gap-3 items-center">
+<button class="text-wow-accent text-[10px] font-bold uppercase hover:underline" onclick="openDetailsModal('奥金锭')">详情</button>
+<button class="text-gray-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-lg">heart_minus</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+<!-- Detail View Modal Structure -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay hidden" id="item-details-modal">
+<div class="bg-wow-card border-2 border-wow-accent w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl rounded-sm">
+<!-- Modal Header -->
+<div class="p-4 border-b border-wow-border flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="wow-icon-container rarity-border-epic" id="modal-item-icon">
+<span class="material-symbols-outlined text-wow-rarityEpic text-3xl">category</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-wow-rarityEpic" id="modal-item-name">物品名称</h3>
+<p class="text-xs text-gray-500">详细市场跨服对比</p>
+</div>
+</div>
+<button class="text-gray-400 hover:text-wow-accent" onclick="closeDetailsModal()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Content -->
+<div class="flex-1 overflow-auto p-4">
+<table class="w-full text-left text-xs">
+<thead class="bg-gray-100/30 dark:bg-black/40 font-bold uppercase text-gray-500">
+<tr>
+<th class="px-4 py-3">服务器 (Realm)</th>
+<th class="px-4 py-3 text-right">最低一口价</th>
+<th class="px-4 py-3 text-center">最低价库存</th>
+<th class="px-4 py-3 text-right">服务器总库存</th>
+<th class="px-4 py-3 text-center">最后更新</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-wow-border" id="modal-table-body">
+<tr class="hover:bg-wow-accent/5">
+<td class="px-4 py-3 font-bold text-wow-accent">Illidan-US</td>
+<td class="px-4 py-3 text-right font-mono font-bold">145,200 <i class="inline-block w-2 h-2 bg-wow-gold rounded-full"></i></td>
+<td class="px-4 py-3 text-center">4</td>
+<td class="px-4 py-3 text-right">120</td>
+<td class="px-4 py-3 text-center text-gray-500">2 分钟前</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Modal Footer -->
+<div class="p-4 border-t border-wow-border bg-gray-50/30 dark:bg-black/40 flex justify-end">
+<button class="px-6 py-2 bg-wow-accent text-white dark:text-black font-bold rounded-sm uppercase text-sm" onclick="closeDetailsModal()">关闭</button>
+</div>
+</div>
+</div>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body></html>

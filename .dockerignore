@@ -21,6 +21,6 @@ __pycache__/
 # uv 缓存
 .uv_cache
 
-# Docker 文件
-Dockerfile
+# Docker（构建上下文在仓库根目录时，仍使用根目录本文件）
+docker/Dockerfile
 .dockerignore

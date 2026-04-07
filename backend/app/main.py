@@ -3,61 +3,42 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-
-# slowapi imports
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
-from backend import auth, models
-from backend.data_processor import get_cached_auction_items, start_monitoring
-from backend.database import create_db_and_tables, get_db
+from app import auth, models
+from app.database import create_db_and_tables, get_db
+from app.services.auction_cache import get_cached_auction_items, start_monitoring
 
-# --- Rate Limiting Setup ---
-# 创建一个 limiter 实例，key_func=get_remote_address 表示我们将基于 IP 地址进行限流
 limiter = Limiter(key_func=get_remote_address)
 
-
-# --- App Initialization ---
 create_db_and_tables()
 
 app = FastAPI()
 
 
-# --- FastAPI Lifecycle Events ---
 @app.on_event("startup")
 async def startup_event():
-    """On app startup, initialize data caching and file monitoring."""
     start_monitoring()
 
 
-# Set up CORS
-origins = [
-    "*",  # Allows all origins
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# 将 limiter 注册到 app state 中
 app.state.limiter = limiter
-# 添加异常处理器，当请求超过限制时，会返回 429 Too Many Requests 错误
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
-# --- API Endpoints ---
-
-
 @app.post("/register", status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")  # 每分钟最多 5 次
+@limiter.limit("5/minute")
 def register_user(request: Request, user: models.UserCreate, db: Session = Depends(get_db)):
-    """用户注册端点"""
     db_user = auth.get_user(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
@@ -71,11 +52,10 @@ def register_user(request: Request, user: models.UserCreate, db: Session = Depen
 
 
 @app.post("/login", response_model=models.Token)
-@limiter.limit("5/minute")  # 每分钟最多 5 次
+@limiter.limit("5/minute")
 def login_for_access_token(
     request: Request, form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(get_db)
 ):
-    """用户登录端点，成功后返回 JWT"""
     user = auth.get_user(db, username=form_data.username)
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -89,18 +69,13 @@ def login_for_access_token(
 
 
 @app.get("/query")
-@limiter.limit("20/minute")  # 每分钟最多 20 次
+@limiter.limit("20/minute")
 def query_data(
     request: Request,
     current_user: Annotated[models.User, Depends(auth.get_current_active_user)],
     itemID: int,
     db: Session = Depends(get_db),
 ):
-    """
-    受保护的查询端点。
-    根据 itemID 查询拍卖行数据。
-    每次调用会消耗一次使用次数。
-    """
     if current_user.usage_count <= 0:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Usage limit exceeded. No more access attempts allowed."
@@ -112,14 +87,12 @@ def query_data(
     db.refresh(current_user)
 
     all_items = get_cached_auction_items()
-    # 仅返回匹配的 itemID（itemID 为必传）
     filtered_items = [item for item in all_items if item.get("itemID") == itemID]
 
     return {"data": filtered_items, "count": len(filtered_items), "remaining_uses": current_user.usage_count}
 
 
 @app.get("/users/me")
-@limiter.limit("20/minute")  # 每分钟最多 20 次
+@limiter.limit("20/minute")
 def read_users_me(request: Request, current_user: Annotated[models.User, Depends(auth.get_current_active_user)]):
-    """获取当前用户信息（用于测试）"""
     return {"username": current_user.username, "usage_count": current_user.usage_count}

@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
+
+:root {
+    /* Light Mode Variables - Parchment Theme */
+    --wow-bg: #f4f1ea;
+    --wow-bg-image: url('https://www.transparenttextures.com/patterns/natural-paper.png');
+    --wow-card: #ffffff;
+    --wow-border: #d1cdc2;
+    --wow-text: #2d2a26;
+    --wow-accent: #a67c00;
+    --wow-gold: #ffd100;
+    --wow-silver: #7a7a7a;
+    --wow-copper: #c77d52;
+    --wow-rarityCommon: #4a4a4a;
+}
+
+.dark {
+    /* Dark Mode Variables - Dark Stone Theme */
+    --wow-bg: #0a0a0a;
+    --wow-bg-image: url('https://www.transparenttextures.com/patterns/dark-matter.png');
+    --wow-card: #1a1a1a;
+    --wow-border: #3c3c3c;
+    --wow-text: #ffffff;
+    --wow-accent: #f8b700;
+    --wow-gold: #ffd100;
+    --wow-silver: #e6e6e6;
+    --wow-rarityCommon: #ffffff;
+}
+
+body {
+    font-family: 'Open Sans', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: var(--wow-bg);
+    background-image: var(--wow-bg-image);
+    color: var(--wow-text);
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--wow-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--wow-border);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--wow-accent);
+}
+
+.item-row:hover {
+    background-color: rgba(255, 209, 0, 0.05);
+}
+
+.fluid-container {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.view-hidden {
+    display: none !important;
+}
+
+/* Consistency for Action Buttons */
+.header-action-btn {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    border: 1px solid var(--wow-border);
+    background: var(--wow-card);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.header-action-btn:hover {
+    border-color: var(--wow-accent);
+}
+
+.profile-avatar-container {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2px solid var(--wow-accent);
+    overflow: hidden;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+#advanced-filters-panel.hidden {
+    display: none;
+}
+
+/* Fixed Icon Styles to match WoW UI */
+.wow-icon-container {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    background: #000;
+    border: 2px solid #333;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.wow-icon-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(255,255,255,0.1);
+    pointer-events: none;
+}
+
+.rarity-border-epic { border-color: var(--wow-rarityEpic); }
+.rarity-border-rare { border-color: var(--wow-rarityRare); }
+.rarity-border-uncommon { border-color: var(--wow-rarityUncommon); }
+.rarity-border-common { border-color: var(--wow-rarityCommon); }
+
+.item-title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+}
+
+@media (min-width: 1024px) {
+    .item-title-text { max-width: 240px; }
+}
+
+/* Modal specific styling */
+.modal-overlay {
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+/* Dropdown transition classes */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.5rem;
+    z-index: 60;
+    min-width: 180px;
+    background-color: var(--wow-card);
+    border: 1px solid var(--wow-accent);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+}
+.dropdown-content.show {
+    display: block;
+}

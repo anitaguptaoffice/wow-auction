@@ -28,3 +28,6 @@ wheels/
 .history/
 
 certs/
+
+# Raidbots synced data (large JSON files, use sync script to download)
+data/raidbots/
