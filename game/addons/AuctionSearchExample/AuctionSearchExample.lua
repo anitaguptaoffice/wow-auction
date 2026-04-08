@@ -82,7 +82,22 @@ local function GetItemDetails(itemID, itemLink)
 	return itemDetails
 end
 
--- 判断是否为团本装备
+-- 团本装绑(BoE)：物品链接 bonus 列表中含 10844 即视为团本可交易装
+local RAID_BOE_BONUS_ID = 10844
+
+local function BonusListContains(bonusIDs, targetId)
+	if not bonusIDs then
+		return false
+	end
+	for _, id in ipairs(bonusIDs) do
+		if id == targetId then
+			return true
+		end
+	end
+	return false
+end
+
+-- 判断是否为团本装备（仅：白名单物品ID，或 bonus 含 10844）
 local function IsRaidGear(itemDetails, itemID)
 	-- 特殊处理已知的团本物品ID
 	local knownRaidItems = {
@@ -139,36 +154,20 @@ local function IsRaidGear(itemDetails, itemID)
 		return false
 	end
 
-	-- 检查装等范围（团本装备通常装等较高）
-	if itemDetails.itemLevel and itemDetails.itemLevel < 620 then -- 根据当前版本调整
+	-- 团本 BoE：链接中含 10844
+	if itemDetails.bonusIDs and BonusListContains(itemDetails.bonusIDs, RAID_BOE_BONUS_ID) then
 		if itemID == 238033 then
-			print(format("DEBUG: 装等不符 (itemLevel=%d, 需要>=400)", itemDetails.itemLevel))
+			print(format("DEBUG: 团本 BoE (bonus %d)", RAID_BOE_BONUS_ID))
 		end
-		return false
-	end
-
-	-- 检查bonusID来判断来源（团本特有的bonusID）
-	if itemDetails.bonusIDs then
-		for _, bonusID in ipairs(itemDetails.bonusIDs) do
-			-- 这些是一些常见的团本bonusID，需要根据当前版本更新
-			if bonusID == 10844 or bonusID == 10353 or bonusID == 10355 or bonusID == 10356 then -- LFR, Normal, Heroic, Mythic
-				if itemID == 238033 then
-					print(format("DEBUG: 通过bonusID检查 (bonusID=%d)", bonusID))
-				end
-				return true
-			end
-		end
-		if itemID == 238033 then
-			print("DEBUG: 没有找到匹配的团本bonusID")
-		end
-	else
-		if itemID == 238033 then
-			print("DEBUG: 没有bonusIDs信息")
-		end
+		return true
 	end
 
 	if itemID == 238033 then
-		print("DEBUG: 所有检查都未通过，判定为非团本装备")
+		if not itemDetails.bonusIDs then
+			print("DEBUG: 无 bonusIDs（需 itemLink）或未含 10844")
+		else
+			print("DEBUG: bonus 中无 10844，判定为非团本 BoE")
+		end
 	end
 
 	return false
@@ -227,20 +226,23 @@ local function SaveAuctionData(auctionData)
 		table.remove(dayData.scans, 1)
 	end
 
-	-- 添加新的扫描记录
+	local replicateCount = C_AuctionHouse.GetNumReplicateItems()
+
+	-- 添加新的扫描记录（replicate 列表为 0..n-1，勿用 ipairs 以免漏掉索引 0）
 	local scanRecord = {
 		timestamp = currentTime,
-		itemCount = #auctionData,
+		itemCount = replicateCount,
 		items = {}
 	}
 
 	-- 保存物品信息（仅保存关键信息以节省空间）
-	for i, auction in ipairs(auctionData) do
-		if auction[17] then -- itemID存在
+	for i = 0, math.max(0, replicateCount - 1) do
+		local auction = auctionData[i]
+		if auction and auction[17] then -- itemID存在
 			local itemID = auction[17]
-
-			-- 先获取基本物品信息进行初步判断
-			local itemDetails = GetItemDetails(itemID, nil)
+			-- 团本 BoE 依赖链接里的 bonus（如 10844），须先取 replicate 索引对应的 itemLink
+			local itemLink = C_AuctionHouse.GetReplicateItemLink(i)
+			local itemDetails = GetItemDetails(itemID, itemLink)
 
 			local itemInfo = {
 				itemID = itemID,
@@ -250,15 +252,7 @@ local function SaveAuctionData(auctionData)
 				name = auction[1]
 			}
 
-			-- 如果是团本装备，获取完整itemLink并解析详细信息
 			if IsRaidGear(itemDetails, itemID) then
-				-- 获取完整的itemLink来解析bonusID等详细信息
-				local itemLink = C_AuctionHouse.GetReplicateItemLink(i)
-				if itemLink then
-					-- 重新解析包含itemLink的详细信息
-					itemDetails = GetItemDetails(itemID, itemLink)
-				end
-
 				itemInfo.isRaidGear = true
 				-- itemInfo.itemName = itemDetails.name
 				itemInfo.itemLevel = itemDetails.itemLevel
@@ -445,7 +439,7 @@ local function HandleSlashCommand(msg)
 				for _, item in ipairs(scan.items) do
 					if item.isRaidGear and item.itemLevel and item.itemLevel >= minLevel then
 						table.insert(raidItems, {
-							name = item.itemName or format("物品%d", item.itemID),
+							name = item.name or format("物品%d", item.itemID),
 							itemLevel = item.itemLevel,
 							difficulty = item.difficulty or "未知",
 							quality = item.quality,
