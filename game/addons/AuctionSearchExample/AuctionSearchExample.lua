@@ -21,6 +21,15 @@ local function GetCurrentTime()
 	return time()
 end
 
+-- 与 Enum.AuctionHouseTimeLeftBand 一致（见 Wiki GetTimeLeftBandInfo）：0 短 1 中 2 长 3 很长
+local function TimeLeftBandLabel(band)
+	if band == nil then
+		return "?"
+	end
+	local labels = { [0] = "短", [1] = "中", [2] = "长", [3] = "很长" }
+	return labels[band] or tostring(band)
+end
+
 -- 数据清理函数：清除过期数据
 local function CleanOldData()
 	local currentTime = GetCurrentTime()
@@ -34,176 +43,22 @@ local function CleanOldData()
 	end
 end
 
--- 获取物品详细信息的函数
-local function GetItemDetails(itemID, itemLink)
-	local itemDetails = {}
-
-	-- 获取基本物品信息
-	local itemName, itemLinkFull, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType,
-	itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType,
-	expacID, setID, isCraftingReagent = C_Item.GetItemInfo(itemID)
-
+-- 调试：仅 C_Item 基础信息（词缀等一律在后端用 itemLink 解析）
+local function GetItemInfoDebug(itemID)
+	local itemName, _, itemQuality, itemLevel, _, itemType, itemSubType,
+		_, itemEquipLoc, _, _, classID, subclassID = C_Item.GetItemInfo(itemID)
+	local d = {}
 	if itemName then
-		itemDetails.name = itemName
-		itemDetails.quality = itemQuality -- 0=灰色, 1=白色, 2=绿色, 3=蓝色, 4=紫色, 5=橙色
-		itemDetails.itemLevel = itemLevel
-		itemDetails.itemType = itemType
-		itemDetails.itemSubType = itemSubType
-		itemDetails.equipLoc = itemEquipLoc
-		itemDetails.classID = classID
-		itemDetails.subclassID = subclassID
+		d.name = itemName
+		d.quality = itemQuality
+		d.itemLevel = itemLevel
+		d.itemType = itemType
+		d.itemSubType = itemSubType
+		d.equipLoc = itemEquipLoc
+		d.classID = classID
+		d.subclassID = subclassID
 	end
-
-	-- 如果有itemLink，解析更详细信息
-	if itemLink then
-		-- 解析itemLink获取宝石、附魔、词缀等信息
-		-- itemLink格式: |cffffffff|Hitem:itemID:enchant:gem1:gem2:gem3:gem4:suffixID:uniqueID:level:specializationID:upgradeID:instanceDifficultyID:numBonusIDs:bonusID1:bonusID2:...|h[name]|h|r
-		local linkParts = { strsplit(":", itemLink) }
-		if #linkParts >= 15 then
-			itemDetails.enchantID = tonumber(linkParts[3]) or 0
-			itemDetails.suffixID = tonumber(linkParts[8]) or 0
-			itemDetails.upgradeID = tonumber(linkParts[12]) or 0
-			itemDetails.difficultyID = tonumber(linkParts[13]) or 0
-			itemDetails.numBonusIDs = tonumber(linkParts[14]) or 0
-
-			-- 解析bonusIDs (词缀)
-			itemDetails.bonusIDs = {}
-			if itemDetails.numBonusIDs > 0 then
-				for i = 1, itemDetails.numBonusIDs do
-					local bonusID = tonumber(linkParts[14 + i])
-					if bonusID then
-						table.insert(itemDetails.bonusIDs, bonusID)
-					end
-				end
-			end
-		end
-	end
-
-	return itemDetails
-end
-
--- 团本装绑(BoE)：物品链接 bonus 列表中含 10844 即视为团本可交易装
-local RAID_BOE_BONUS_ID = 10844
-
-local function BonusListContains(bonusIDs, targetId)
-	if not bonusIDs then
-		return false
-	end
-	for _, id in ipairs(bonusIDs) do
-		if id == targetId then
-			return true
-		end
-	end
-	return false
-end
-
--- 判断是否为团本装备（仅：白名单物品ID，或 bonus 含 10844）
-local function IsRaidGear(itemDetails, itemID)
-	-- 特殊处理已知的团本物品ID
-	local knownRaidItems = {
-		[238033] = true, -- 添加您确认的团本物品
-		-- 可以继续添加其他已知的团本物品ID
-	}
-
-	-- 如果是已知的团本物品，直接返回true
-	if knownRaidItems[itemID] then
-		print(format("DEBUG: 物品 %d 在已知团本物品列表中", itemID))
-		return true
-	end
-
-	-- 添加调试信息
-	if itemID == 238033 then
-		print("=== DEBUG: 分析物品 238033 ===")
-		print(format("classID: %s", tostring(itemDetails.classID)))
-		print(format("quality: %s", tostring(itemDetails.quality)))
-		print(format("itemLevel: %s", tostring(itemDetails.itemLevel)))
-		print(format("itemType: %s", tostring(itemDetails.itemType)))
-		print(format("itemSubType: %s", tostring(itemDetails.itemSubType)))
-		if itemDetails.bonusIDs then
-			print(format("bonusIDs count: %d", #itemDetails.bonusIDs))
-			for i, bonusID in ipairs(itemDetails.bonusIDs) do
-				print(format("  bonusID[%d]: %d", i, bonusID))
-			end
-		else
-			print("bonusIDs: nil")
-		end
-		print(format("difficultyID: %s", tostring(itemDetails.difficultyID)))
-	end
-
-	-- 检查装备类型和品质
-	if not itemDetails.classID or not itemDetails.quality then
-		if itemID == 238033 then
-			print("DEBUG: 物品信息不完整 (classID或quality为空)")
-		end
-		return false
-	end
-
-	-- 装备类型：2=武器, 4=护甲
-	if itemDetails.classID ~= 2 and itemDetails.classID ~= 4 then
-		if itemID == 238033 then
-			print(format("DEBUG: 物品类型不符 (classID=%d, 需要2或4)", itemDetails.classID))
-		end
-		return false
-	end
-
-	-- 品质检查：3=蓝色(稀有), 4=紫色(史诗), 5=橙色(传说)
-	if itemDetails.quality < 3 then
-		if itemID == 238033 then
-			print(format("DEBUG: 物品品质不符 (quality=%d, 需要>=3)", itemDetails.quality))
-		end
-		return false
-	end
-
-	-- 团本 BoE：链接中含 10844
-	if itemDetails.bonusIDs and BonusListContains(itemDetails.bonusIDs, RAID_BOE_BONUS_ID) then
-		if itemID == 238033 then
-			print(format("DEBUG: 团本 BoE (bonus %d)", RAID_BOE_BONUS_ID))
-		end
-		return true
-	end
-
-	if itemID == 238033 then
-		if not itemDetails.bonusIDs then
-			print("DEBUG: 无 bonusIDs（需 itemLink）或未含 10844")
-		else
-			print("DEBUG: bonus 中无 10844，判定为非团本 BoE")
-		end
-	end
-
-	return false
-end
-
--- 获取难度描述
-local function GetDifficultyText(difficultyID, bonusIDs)
-	local difficultyText = "未知"
-
-	-- 根据difficultyID判断
-	if difficultyID == 17 then
-		difficultyText = "LFR"
-	elseif difficultyID == 14 then
-		difficultyText = "普通"
-	elseif difficultyID == 15 then
-		difficultyText = "英雄"
-	elseif difficultyID == 16 then
-		difficultyText = "史诗"
-	else
-		-- 如果difficultyID不明确，根据bonusID判断
-		if bonusIDs then
-			for _, bonusID in ipairs(bonusIDs) do
-				if bonusID == 40 then
-					difficultyText = "LFR"
-				elseif bonusID == 41 then
-					difficultyText = "普通"
-				elseif bonusID == 42 then
-					difficultyText = "英雄"
-				elseif bonusID == 43 then
-					difficultyText = "史诗"
-				end
-			end
-		end
-	end
-
-	return difficultyText
+	return d
 end
 
 -- 保存拍卖数据到持久化存储
@@ -235,36 +90,26 @@ local function SaveAuctionData(auctionData)
 		items = {}
 	}
 
-	-- 保存物品信息（仅保存关键信息以节省空间）
+	-- 每条拍卖：replicate 数值 + GetReplicateItemLink；词缀等在后端用 itemLink 解析
 	for i = 0, math.max(0, replicateCount - 1) do
 		local auction = auctionData[i]
 		if auction and auction[17] then -- itemID存在
 			local itemID = auction[17]
-			-- 团本 BoE 依赖链接里的 bonus（如 10844），须先取 replicate 索引对应的 itemLink
 			local itemLink = C_AuctionHouse.GetReplicateItemLink(i)
-			local itemDetails = GetItemDetails(itemID, itemLink)
+			-- timeLeftBand：C_AuctionHouse.GetReplicateItemTimeLeft(i) 返回的是「剩余时间档位」枚举，不是秒数，也不是从本次扫描时刻起算；无单独「基准时刻」API
+			local timeLeftBand = C_AuctionHouse.GetReplicateItemTimeLeft(i)
 
+			-- GetReplicateItemInfo：… 8=minBid 9=minIncrement 10=buyoutPrice 11=bidAmount … 17=itemID 18=hasAllInfo
 			local itemInfo = {
 				itemID = itemID,
-				buyoutAmount = auction[10],
-				bidAmount = auction[8],
-				quantity = auction[3],
-				name = auction[1]
+				minBid = auction[8],
+				buyoutAmount = auction[10], -- buyoutPrice
+				bidAmount = auction[11], -- 当前最高竞价
+				quantity = auction[3], -- count
+				name = auction[1],
+				itemLink = itemLink,
+				timeLeftBand = timeLeftBand,
 			}
-
-			if IsRaidGear(itemDetails, itemID) then
-				itemInfo.isRaidGear = true
-				-- itemInfo.itemName = itemDetails.name
-				itemInfo.itemLevel = itemDetails.itemLevel
-				itemInfo.quality = itemDetails.quality
-				itemInfo.itemType = itemDetails.itemType
-				itemInfo.itemSubType = itemDetails.itemSubType
-				itemInfo.difficulty = GetDifficultyText(itemDetails.difficultyID, itemDetails.bonusIDs)
-				itemInfo.bonusIDs = itemDetails.bonusIDs
-				itemInfo.enchantID = itemDetails.enchantID
-				itemInfo.upgradeID = itemDetails.upgradeID
-				itemInfo.itemLink = itemLink -- 保存完整的itemLink
-			end
 
 			table.insert(scanRecord.items, itemInfo)
 		end
@@ -292,10 +137,13 @@ local function GetAuctionHistory(itemID, days)
 							date = dateStr,
 							timestamp = scan.timestamp,
 							itemID = item.itemID,
+							minBid = item.minBid,
 							buyoutAmount = item.buyoutAmount,
 							bidAmount = item.bidAmount,
 							quantity = item.quantity,
-							name = item.name
+							name = item.name,
+							itemLink = item.itemLink,
+							timeLeftBand = item.timeLeftBand,
 						})
 					end
 				end
@@ -359,11 +207,15 @@ local function HandleSlashCommand(msg)
 			print(format("=== 物品 %d 的拍卖历史 (最近7天) ===", itemID))
 			for i = 1, math.min(10, #history) do
 				local item = history[i]
-				print(format("%s: 一口价 %s, 竞拍价 %s, 数量 %d",
+				print(format(
+					"%s: 一口 %s | 竞拍 %s | 起拍 %s | 剩余档 %s | 数量 %d",
 					date("%m-%d %H:%M", item.timestamp),
 					item.buyoutAmount and C_CurrencyInfo.GetCoinTextureString(item.buyoutAmount) or "无",
 					item.bidAmount and C_CurrencyInfo.GetCoinTextureString(item.bidAmount) or "无",
-					item.quantity))
+					item.minBid and C_CurrencyInfo.GetCoinTextureString(item.minBid) or "无",
+					TimeLeftBandLabel(item.timeLeftBand),
+					item.quantity
+				))
 			end
 			if #history > 10 then
 				print(format("... 还有 %d 条记录", #history - 10))
@@ -375,118 +227,49 @@ local function HandleSlashCommand(msg)
 		AuctionSearchDB.auctions = {}
 		print("AuctionSearch: 已清空所有保存的数据")
 	elseif command == "test" then
-		-- 测试特定物品ID
 		local testItemID = tonumber(arg) or 238033
 		print(format("=== 测试物品 %d ===", testItemID))
-
-		-- 先获取基本物品信息
-		local itemDetails = GetItemDetails(testItemID, nil)
-		print("基本物品信息:")
+		local itemDetails = GetItemInfoDebug(testItemID)
+		print("C_Item.GetItemInfo (客户端缓存命中时才有数据):")
 		for key, value in pairs(itemDetails) do
-			if type(value) == "table" then
-				print(format("  %s: {%s}", key, table.concat(value, ", ")))
-			else
-				print(format("  %s: %s", key, tostring(value)))
+			print(format("  %s: %s", key, tostring(value)))
+		end
+		print("若拍卖行已打开且含该物品，取 itemLink（完整描述以链接为准，后端解析）:")
+		local foundIndex = nil
+		for i = 0, C_AuctionHouse.GetNumReplicateItems() - 1 do
+			local auctionInfo = { C_AuctionHouse.GetReplicateItemInfo(i) }
+			if auctionInfo[17] == testItemID then
+				foundIndex = i
+				break
 			end
 		end
-
-		-- 测试团本装备判断
-		local isRaid = IsRaidGear(itemDetails, testItemID)
-		print(format("团本装备判断结果: %s", isRaid and "是" or "否"))
-
-		-- 如果是团本装备，尝试从当前拍卖行扫描中获取itemLink
-		if isRaid then
-			print("正在查找当前拍卖行中的该物品...")
-			local foundIndex = nil
-			for i = 0, C_AuctionHouse.GetNumReplicateItems() - 1 do
-				local auctionInfo = { C_AuctionHouse.GetReplicateItemInfo(i) }
-				if auctionInfo[17] == testItemID then
-					foundIndex = i
-					break
-				end
-			end
-
-			if foundIndex then
-				local itemLink = C_AuctionHouse.GetReplicateItemLink(foundIndex)
-				print(format("找到物品，索引: %d", foundIndex))
-				print(format("ItemLink: %s", tostring(itemLink)))
-
-				if itemLink then
-					-- 重新解析包含itemLink的详细信息
-					local fullDetails = GetItemDetails(testItemID, itemLink)
-					print("完整物品信息 (包含bonusID):")
-					for key, value in pairs(fullDetails) do
-						if type(value) == "table" then
-							print(format("  %s: {%s}", key, table.concat(value, ", ")))
-						else
-							print(format("  %s: %s", key, tostring(value)))
-						end
-					end
-				end
-			else
-				print("在当前拍卖行扫描中未找到该物品")
-				print("提示: 请先打开拍卖行并进行扫描")
-			end
+		if foundIndex then
+			local itemLink = C_AuctionHouse.GetReplicateItemLink(foundIndex)
+			print(format("ItemLink: %s", tostring(itemLink)))
+		else
+			print("当前拍卖行 replicate 中无此物品（请先扫描拍卖行）")
 		end
-	elseif command == "raid" then
-		-- 查询团本装备
-		local minLevel = tonumber(arg) or 400 -- 默认最低装等400
-		print(format("=== 团本装备 (装等 >= %d) ===", minLevel))
-
-		local raidItems = {}
-		for dateStr, dayData in pairs(AuctionSearchDB.auctions) do
-			for _, scan in ipairs(dayData.scans) do
-				for _, item in ipairs(scan.items) do
-					if item.isRaidGear and item.itemLevel and item.itemLevel >= minLevel then
-						table.insert(raidItems, {
-							name = item.name or format("物品%d", item.itemID),
-							itemLevel = item.itemLevel,
-							difficulty = item.difficulty or "未知",
-							quality = item.quality,
-							buyout = item.buyoutAmount,
-							timestamp = scan.timestamp
-						})
-					end
-				end
-			end
+	elseif command == "uitest" then
+		local valid = { idle = true, started = true, scanning = true, complete = true, logout = true } -- logout 同 complete
+		local p = "started"
+		if arg and arg ~= "" then
+			p = strlower((strmatch(arg, "^%s*(%S+)") or "started"))
 		end
-
-		-- 按装等排序
-		table.sort(raidItems, function(a, b) return a.itemLevel > b.itemLevel end)
-
-		local shown = 0
-		for _, item in ipairs(raidItems) do
-			if shown >= 20 then break end -- 最多显示20件
-			local qualityColor = ""
-			if item.quality == 3 then
-				qualityColor = "|cff0070dd" -- 蓝色
-			elseif item.quality == 4 then
-				qualityColor = "|cffa335ee" -- 紫色
-			elseif item.quality == 5 then
-				qualityColor = "|cffff8000" -- 橙色
-			end
-
-			print(format("%s%s|r (%d级) [%s] - %s",
-				qualityColor,
-				item.name,
-				item.itemLevel,
-				item.difficulty,
-				item.buyout and C_CurrencyInfo.GetCoinTextureString(item.buyout) or "无一口价"))
-			shown = shown + 1
+		if not valid[p] then
+			p = "started"
 		end
-
-		if #raidItems == 0 then
-			print("未找到符合条件的团本装备")
-		elseif #raidItems > 20 then
-			print(format("... 还有 %d 件装备", #raidItems - 20))
+		if AuctionSearchOverlay and AuctionSearchOverlay.Init and AuctionSearchOverlay.SetPhase then
+			AuctionSearchOverlay.Init()
+			AuctionSearchOverlay.SetPhase(p)
+			print(format("AuctionSearch: uitest phase=%s （idle|started|scanning|complete；logout 等同 complete）", AuctionSearchOverlay.GetPhase and AuctionSearchOverlay.GetPhase() or p))
 		end
 	else
 		print("AuctionSearch 命令:")
 		print("  /auctionsearch stats - 显示数据库统计信息")
 		print("  /auctionsearch history <物品ID> - 显示物品拍卖历史")
-		print("  /auctionsearch test [物品ID] - 测试物品信息 (默认238033)")
-		print("  /auctionsearch raid [最低装等] - 显示团本装备 (默认400+)")
+		print("  /auctionsearch test [物品ID] - 查看 C_Item 缓存与 itemLink (默认238033)")
 		print("  /auctionsearch clear - 清空所有保存的数据")
+		print("  /auctionsearch uitest [phase] - 调试自动化面板 (idle|started|scanning|complete；logout=complete)")
 	end
 end
 
@@ -498,13 +281,20 @@ SlashCmdList["AUCTIONSEARCH"] = HandleSlashCommand
 -- 扫描完成后的回调函数
 local function OnScanComplete(beginTime)
 	local scanTime = debugprofilestop() - beginTime
-	print(format("Scanned %d auctions in %d milliseconds", #auctions + 1, scanTime))
+	-- 勿用 #auctions：索引从 0 起，Lua 的 # 对非 1..n 序列不可靠
+	local n = C_AuctionHouse.GetNumReplicateItems()
+	print(format("Scanned %d auctions in %d milliseconds", n, scanTime))
 
 	-- 保存扫描数据到持久化存储
 	SaveAuctionData(auctions)
 
 	-- 执行数据清理
 	CleanOldData()
+
+	-- 自动化：单屏双行 — 扫描完成 + 登出说明（与 wow-runner 一屏模板即可）
+	if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
+		AuctionSearchOverlay.SetPhase("complete")
+	end
 end
 
 -- 限流参数
@@ -586,6 +376,10 @@ local function ScanAuctions()
 
 	print(format("AuctionSearch: 开始扫描 %d 件拍卖物品", totalItems))
 
+	if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
+		AuctionSearchOverlay.SetPhase("scanning")
+	end
+
 	-- 如果物品数量超过限制，使用分批处理
 	if totalItems > REPLICATE_ITEMS_PER_FRAME then
 		print(format("AuctionSearch: 物品数量(%d)超过限制，启用分批处理模式", totalItems))
@@ -644,13 +438,27 @@ local function OnEvent(self, event, ...)
 				print(format("AuctionSearch: 数据库包含 %d 次扫描记录，%d 件物品", stats.totalScans, stats.totalItems))
 			end
 
+			if AuctionSearchOverlay and AuctionSearchOverlay.Init then
+				AuctionSearchOverlay.Init()
+			end
+
 			-- 取消注册ADDON_LOADED事件
 			self:UnregisterEvent("ADDON_LOADED")
 		end
 	elseif event == "AUCTION_HOUSE_SHOW" then
 		print("AuctionSearch: 拍卖行已打开，开始复制物品列表")
+		if AuctionSearchOverlay and AuctionSearchOverlay.Init then
+			AuctionSearchOverlay.Init()
+		end
+		if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
+			AuctionSearchOverlay.SetPhase("started")
+		end
 		C_AuctionHouse.ReplicateItems()
 		initialQuery = true
+	elseif event == "AUCTION_HOUSE_CLOSED" then
+		if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
+			AuctionSearchOverlay.SetPhase("idle")
+		end
 	elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
 		if initialQuery then
 			ScanAuctions()
@@ -662,5 +470,6 @@ end
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("AUCTION_HOUSE_SHOW")
+f:RegisterEvent("AUCTION_HOUSE_CLOSED")
 f:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
 f:SetScript("OnEvent", OnEvent)

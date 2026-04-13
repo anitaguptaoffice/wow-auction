@@ -5,7 +5,7 @@
 ## ✨ 功能特性
 
 - 🎮 **游戏内自动扫描** — WoW 插件自动采集拍卖行数据，分批处理避免卡顿
-- 🗡️ **团本装备识别** — 自动识别团本掉落装备（LFR / 普通 / 英雄 / 史诗难度）
+- 📈 **历史价格趋势** — 插件按次扫描落盘，后端聚合时间序列，前端折线图展示（可选按完整 `itemLink` 过滤词缀）
 - 📊 **实时数据缓存** — 后台每 10 秒检测数据变化，自动更新内存缓存
 - 🔐 **用户认证系统** — JWT Token + bcrypt 密码哈希，安全可靠
 - 🌓 **深色/浅色主题** — 魔兽风格 UI，支持主题切换与持久化
@@ -20,8 +20,8 @@ WoW 游戏客户端
       └── 扫描拍卖行 → 导出 SavedVariables，复制为仓库 data/auction.lua
 
 后端服务 (FastAPI，目录 backend/)
-  └── app/services/auction_cache.py → 后台线程每 10 秒检查 auction.lua，解析 Lua 并缓存
-  └── app/main.py → /query（需认证）、/register、/login 等 HTTP API
+  └── app/services/auction_cache.py → 后台线程每 10 秒检查 auction.lua；快照 + 历史序列聚合
+  └── app/main.py → /query、/query/history（需认证）、/register、/login 等 HTTP API
 
 前端 (静态 SPA，目录 frontend/，可与后端分开部署)
   └── index.html + css/ + js/ → 展示与交互；js/config.js 中配置 apiBaseUrl 指向后端
@@ -40,7 +40,8 @@ wow-auction/
 │       ├── database.py
 │       ├── models.py
 │       └── services/
-│           └── auction_cache.py
+│           ├── auction_cache.py
+│           └── auction_labels.py   # timeLeftBand → 中文档位说明等
 ├── frontend/                      # 前端静态资源
 │   ├── index.html
 │   ├── css/styles.css
@@ -48,7 +49,10 @@ wow-auction/
 ├── game/                          # 游戏侧：插件与相关脚本、参考数据
 │   ├── addons/AuctionSearchExample/
 │   ├── scripts/sync_raidbots.py   # Raidbots 静态数据同步
+│   ├── scripts/sync_auction_lua.py # SavedVariables → data/auction.lua
 │   └── data/bonus.json            # Bonus ID 等参考数据（可选）
+├── automation/                    # Windows 外部自动化（Go：wow-runner）与开发计划文档
+│   └── wow-runner/
 ├── docker/Dockerfile              # 容器构建
 ├── data/                          # 运行期数据（auction.lua、SQLite、raidbots 下载缓存等）
 ├── pyproject.toml, uv.lock        # Python 依赖（根目录仅保留必要清单）
@@ -97,7 +101,8 @@ docker run -p 8000:8000 wow-auction
 |------|------|------|------|
 | `/register` | POST | 5 次/分钟 | 用户注册（默认 10 次查询额度） |
 | `/login` | POST | 5 次/分钟 | 用户登录，返回 JWT Token |
-| `/query?itemID=xxx` | GET | 20 次/分钟 | 按物品 ID 查询拍卖数据（需认证） |
+| `/query?itemID=xxx` | GET | 20 次/分钟 | **当前快照**（最新日最新 scan）：含 `minBid` 起拍、`buyoutAmount`、`bidAmount`、`itemLink`、`timeLeftBand`（枚举）及 `timeLeftLabel`（中文档位说明） |
+| `/query/history?itemID=&days=&itemLink=` | GET | 20 次/分钟 | 历史序列：每点含 `timestamp`、`buyoutAmount`、`minBid`、`bidAmount`、`timeLeftBand`、`timeLeftLabel`、`itemLink` 等；`days` 1–90，`itemLink` 可选 |
 | `/users/me` | GET | 20 次/分钟 | 获取当前用户信息（需认证） |
 
 ### 示例请求
@@ -115,6 +120,10 @@ curl -X POST http://localhost:8000/login \
 
 # 查询物品 (携带 Token)
 curl http://localhost:8000/query?itemID=12345 \
+  -H "Authorization: Bearer <your-jwt-token>"
+
+# 历史价格序列（用于趋势图；会消耗与 /query 相同的额度）
+curl "http://localhost:8000/query/history?itemID=12345&days=7" \
   -H "Authorization: Bearer <your-jwt-token>"
 ```
 
@@ -134,23 +143,37 @@ World of Warcraft/_retail_/Interface/AddOns/AuctionSearchExample/
 |------|------|
 | `/as stats` | 显示数据库统计信息 |
 | `/as history <物品ID>` | 查看物品拍卖历史 |
-| `/as test [物品ID]` | 测试物品信息和团本装备判断 |
-| `/as raid [最低装等]` | 显示团本装备列表 |
+| `/as test [物品ID]` | 调试：`C_Item` 与当前 replicate 中的 `itemLink` |
 | `/as clear` | 清空所有扫描数据 |
+| `/as uitest [phase]` | 调试自动化状态面板（`idle` / `started` / `scanning` / `complete`） |
 
 ### 工作流程
 
 1. 进入游戏，打开拍卖行
 2. 插件自动开始扫描（大量物品会自动分批处理）
-3. 扫描数据保存到 `WTF/Account/.../SavedVariables/AuctionSearchExample.lua`
-4. 将该文件复制到项目的 `data/auction.lua`
-5. 后端自动检测文件变化并更新缓存
+3. 扫描数据保存到 `WTF/Account/<账号>/SavedVariables/AuctionSearchDB.lua`（与插件 `SavedVariables: AuctionSearchDB` 对应）
+4. 将该文件同步到项目的 `data/auction.lua`（可用脚本一键复制，见下）
+5. 后端自动检测 `data/auction.lua` 变化并更新缓存
+
+**一键同步到仓库（推荐）**（在仓库根目录执行）：
+
+```bash
+# 自动在常见安装路径下查找最新的 AuctionSearchDB.lua 并复制到 data/auction.lua
+uv run python game/scripts/sync_auction_lua.py
+
+# 仅列出本机找到的候选文件（多账号时便于确认路径）
+uv run python game/scripts/sync_auction_lua.py --list
+
+# 手动指定源文件或零售根目录（见脚本文件头说明）
+# WOW_RETAIL_ROOT="D:/Games/World of Warcraft" uv run python game/scripts/sync_auction_lua.py
+```
+
 
 ## 🛠️ 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 游戏插件 | Lua (WoW API 10.2.7) |
+| 游戏插件 | Lua（`AuctionSearchExample.toc` 中 `## Interface:` 随版本更新） |
 | 后端框架 | FastAPI + Uvicorn |
 | 数据库 | SQLite + SQLAlchemy |
 | 认证 | JWT (python-jose) + bcrypt |

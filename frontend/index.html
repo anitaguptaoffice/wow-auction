@@ -198,6 +198,44 @@
 </div>
 </div>
 </div>
+<!-- API 登录（查询 / 历史趋势需 JWT） -->
+<div class="bg-wow-card border border-wow-border p-5 rounded-sm shadow-lg">
+<div class="flex items-center gap-2 mb-4 border-b border-wow-border pb-2">
+<span class="material-symbols-outlined text-wow-accent text-xl">key</span>
+<h3 class="text-wow-accent font-bold uppercase tracking-tighter text-sm">API 登录</h3>
+</div>
+<div class="space-y-2 text-xs">
+<input class="w-full bg-wow-bg border-wow-border rounded-sm px-2 py-1.5" id="api-username" placeholder="用户名" type="text"/>
+<input class="w-full bg-wow-bg border-wow-border rounded-sm px-2 py-1.5" id="api-password" placeholder="密码" type="password"/>
+<button class="w-full bg-wow-accent text-white dark:text-black font-bold py-2 rounded-sm" onclick="apiLogin()" type="button">登录获取 Token</button>
+<p class="text-gray-500 break-all" id="api-auth-status">未登录</p>
+</div>
+</div>
+<!-- 历史价格趋势 -->
+<div class="bg-wow-card border border-wow-border p-5 rounded-sm shadow-lg">
+<div class="flex items-center gap-2 mb-4 border-b border-wow-border pb-2">
+<span class="material-symbols-outlined text-wow-accent text-xl">show_chart</span>
+<h3 class="text-wow-accent font-bold uppercase tracking-tighter text-sm">价格趋势</h3>
+</div>
+<div class="space-y-2 text-xs">
+<label class="text-gray-500 font-bold uppercase block">物品 ID</label>
+<input class="w-full bg-wow-bg border-wow-border rounded-sm px-2 py-1.5 font-mono" id="trend-item-id" placeholder="例如 194784" type="number"/>
+<label class="text-gray-500 font-bold uppercase block mt-2">回溯天数</label>
+<select class="w-full bg-wow-bg border-wow-border rounded-sm px-2 py-1.5" id="trend-days">
+<option value="1">1 天</option>
+<option selected value="7">7 天</option>
+<option value="14">14 天</option>
+<option value="30">30 天</option>
+</select>
+<label class="text-gray-500 font-bold uppercase block mt-2">itemLink（可选，精确到词缀）</label>
+<input class="w-full bg-wow-bg border-wow-border rounded-sm px-2 py-1.5 font-mono text-[10px]" id="trend-item-link" placeholder="留空则合并该物品 ID 下所有记录" type="text"/>
+<button class="w-full mt-2 bg-wow-border text-wow-text font-bold py-2 rounded-sm hover:bg-wow-accent hover:text-white dark:hover:text-black transition-colors" onclick="loadPriceTrend()" type="button">加载趋势</button>
+<p class="text-gray-500" id="trend-meta"></p>
+<div class="relative h-48 w-full mt-2">
+<canvas id="price-chart"></canvas>
+</div>
+</div>
+</div>
 </aside>
 <!-- Results Section -->
 <section class="flex-1 min-w-0">
@@ -407,6 +445,7 @@
 </div>
 </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 </body></html>

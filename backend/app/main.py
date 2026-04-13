@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from app import auth, models
 from app.database import create_db_and_tables, get_db
-from app.services.auction_cache import get_cached_auction_items, start_monitoring
+from app.services.auction_cache import get_auction_history, get_cached_auction_items, start_monitoring
+from app.services.auction_labels import enrich_auction_item_dict
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -87,9 +88,43 @@ def query_data(
     db.refresh(current_user)
 
     all_items = get_cached_auction_items()
-    filtered_items = [item for item in all_items if item.get("itemID") == itemID]
+    filtered_items = [
+        enrich_auction_item_dict(dict(item)) for item in all_items if item.get("itemID") == itemID
+    ]
 
     return {"data": filtered_items, "count": len(filtered_items), "remaining_uses": current_user.usage_count}
+
+
+@app.get("/query/history")
+@limiter.limit("20/minute")
+def query_history(
+    request: Request,
+    current_user: Annotated[models.User, Depends(auth.get_current_active_user)],
+    itemID: int,
+    days: int = 7,
+    itemLink: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """按物品 ID 返回保留期内的历史拍卖点（时间戳 + 一口价等），可选按完整 itemLink 过滤词缀。"""
+    if current_user.usage_count <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Usage limit exceeded. No more access attempts allowed."
+        )
+
+    current_user.usage_count -= 1
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+
+    d = max(1, min(days, 90))
+    series = get_auction_history(itemID, days=d, item_link=itemLink)
+    return {
+        "itemID": itemID,
+        "days": d,
+        "count": len(series),
+        "series": series,
+        "remaining_uses": current_user.usage_count,
+    }
 
 
 @app.get("/users/me")
