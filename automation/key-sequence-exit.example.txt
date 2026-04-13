@@ -1,0 +1,13 @@
+# 退出游戏示例：仍须与游戏内「按键绑定」一致。
+# 常见：打开菜单 Esc → 点退出；或绑定 /logout、/exit 等（以你客户端为准）。
+#
+# ACTIVATE
+# DELAY 1
+# ESC
+# DELAY 1
+# KEYSTROKE /logout
+# ENTER
+
+ACTIVATE
+DELAY 1
+ESC

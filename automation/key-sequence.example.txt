@@ -1,0 +1,16 @@
+# 按键序列：每行一条指令，# 开头为注释。
+# 角色需在能打开拍卖行的位置（NPC 旁或已写好打开 AH 的宏）。
+#
+# 指令格式：
+#   DELAY <秒>
+#   ACTIVATE       — 激活魔兽世界窗口
+#   KEYSTROKE <文本> — 输入一串字符（斜杠命令、聊天等）
+#   ENTER          — 回车
+#   ESC            — Esc
+#
+# 示例占位：把下面 KEYSTROKE 换成你游戏内实际用来「打开拍卖行」的宏或对话
+
+ACTIVATE
+DELAY 2
+KEYSTROKE /script print("AH automation: replace this line with your macro")
+ENTER

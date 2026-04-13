@@ -31,3 +31,6 @@ certs/
 
 # Raidbots synced data (large JSON files, use sync script to download)
 data/raidbots/
+
+# wow-runner failure debug screenshots (see config debug.failure_capture_dir)
+automation/wow-runner/captures/
