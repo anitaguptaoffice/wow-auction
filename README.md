@@ -151,14 +151,14 @@ World of Warcraft/_retail_/Interface/AddOns/AuctionSearchExample/
 
 1. 进入游戏，打开拍卖行
 2. 插件自动开始扫描（大量物品会自动分批处理）
-3. 扫描数据保存到 `WTF/Account/<账号>/SavedVariables/AuctionSearchDB.lua`（与插件 `SavedVariables: AuctionSearchDB` 对应）
+3. 退出游戏或执行 `/reload` 后，数据写入 `WTF/Account/<账号>/SavedVariables/AuctionSearchExample.lua`（文件内变量名为 `AuctionSearchDB`）
 4. 将该文件同步到项目的 `data/auction.lua`（可用脚本一键复制，见下）
 5. 后端自动检测 `data/auction.lua` 变化并更新缓存
 
 **一键同步到仓库（推荐）**（在仓库根目录执行）：
 
 ```bash
-# 自动在常见安装路径下查找最新的 AuctionSearchDB.lua 并复制到 data/auction.lua
+# 自动在常见安装路径下查找最新的 AuctionSearchExample.lua 并复制到 data/auction.lua
 uv run python game/scripts/sync_auction_lua.py
 
 # 仅列出本机找到的候选文件（多账号时便于确认路径）

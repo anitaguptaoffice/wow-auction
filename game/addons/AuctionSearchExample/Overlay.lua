@@ -1,114 +1,226 @@
---[[
-  自动化可见 UI（DEVELOPMENT_PLAN §7）：大字号中文状态 + 背景色区分，供 wow-runner 截屏模板匹配。
-  「扫描完成」与「登出提示」合并在同一屏双行，减少一个模板。
-]]
+-- 拍卖行扫描状态面板。常规扫描状态只显示在面板中，不刷聊天框。
 
 AuctionSearchOverlay = AuctionSearchOverlay or {}
 
-local frame ---@type Frame
+local frame
+local currentPhase = "idle"
 
--- l2 仅 complete 使用；started/scanning 仅单行
 local PHASE = {
-	idle = { l1 = "", l2 = "", r = 0.05, g = 0.05, b = 0.05, a = 0.85 },
+	idle = {
+		title = "拍卖行数据",
+		detail = "等待打开拍卖行",
+		color = { 0.45, 0.45, 0.45 },
+	},
 	started = {
-		l1 = "[扫描] 已开始扫描",
-		l2 = "",
-		r = 0.15, g = 0.25, b = 0.55, a = 0.92,
+		title = "正在请求拍卖快照",
+		detail = "等待服务器返回全量拍卖列表（接口有 15 分钟限流）",
+		color = { 0.20, 0.55, 0.95 },
 	},
 	scanning = {
-		l1 = "[扫描] 扫描中",
-		l2 = "",
-		r = 0.55, g = 0.45, b = 0.1, a = 0.92,
+		title = "正在采集拍卖数据",
+		detail = "正在读取物品、价格与剩余时间",
+		color = { 0.95, 0.68, 0.15 },
 	},
-	-- 单屏：上行=扫描完成，下行=登出说明（均为插件控制，一张截图即可覆盖 wow-runner 的 scan_complete + 登出链前状态）
 	complete = {
-		l1 = "[扫描] 扫描完成",
-		l2 = "[登出] 请配合外部脚本返回角色",
-		r = 0.12, g = 0.42, b = 0.28, a = 0.92,
+		title = "扫描完成",
+		detail = "拍卖数据已保存在游戏中",
+		color = { 0.20, 0.80, 0.46 },
+	},
+	warning = {
+		title = "扫描完成，但存在缺失",
+		detail = "快照已保存，请查看缺失计数后再导出",
+		color = { 0.95, 0.55, 0.12 },
+	},
+	error = {
+		title = "扫描未完成",
+		detail = "未能取得拍卖快照，请稍后重新打开拍卖行",
+		color = { 0.90, 0.25, 0.22 },
 	},
 }
 
-local currentPhase = "idle"
+local function FormatNumber(value)
+	value = math.max(0, math.floor(tonumber(value) or 0))
+	if BreakUpLargeNumbers then
+		return BreakUpLargeNumbers(value)
+	end
+	local formatted = tostring(value)
+	while true do
+		local replaced, count = formatted:gsub("^(%-?%d+)(%d%d%d)", "%1,%2")
+		formatted = replaced
+		if count == 0 then
+			return formatted
+		end
+	end
+end
 
-local function DebugPhase(name)
-	print(format("[AuctionSearch] automation_phase=%s", name))
+local function ApplyPhaseStyle(key)
+	local phase = PHASE[key] or PHASE.idle
+	frame.title:SetText(phase.title)
+	frame.detail:SetText(phase.detail)
+	frame.statusBar:SetStatusBarColor(phase.color[1], phase.color[2], phase.color[3], 1)
+	frame.accent:SetColorTexture(phase.color[1], phase.color[2], phase.color[3], 1)
 end
 
 function AuctionSearchOverlay.GetPhase()
 	return currentPhase
 end
 
---- @param key "idle"|"started"|"scanning"|"complete"|"logout"（logout 视为 complete，兼容旧 uitest）
-function AuctionSearchOverlay.SetPhase(key)
+function AuctionSearchOverlay.SetPhase(key, detail)
 	if key == "logout" then
 		key = "complete"
 	end
-	local p = PHASE[key] or PHASE.idle
+	if not PHASE[key] then
+		key = "idle"
+	end
 	currentPhase = key
 	if not frame then
 		return
 	end
 	if key == "idle" then
 		frame:Hide()
-		DebugPhase(key)
 		return
 	end
-	local bg = frame.bg
-	if bg then
-		bg:SetColorTexture(p.r, p.g, p.b, p.a)
+
+	ApplyPhaseStyle(key)
+	if detail and detail ~= "" then
+		frame.detail:SetText(detail)
 	end
-	frame.statusLine1:SetText(p.l1 or "")
-	local l2 = p.l2 or ""
-	frame.statusLine2:SetText(l2)
-	if l2 ~= "" then
-		frame.statusLine2:Show()
-	else
-		frame.statusLine2:Hide()
+	if key == "started" or key == "error" then
+		frame.statusBar:SetMinMaxValues(0, 1)
+		frame.statusBar:SetValue(0)
+		frame.progress:SetText(key == "started" and "等待服务器" or "需要重试")
+		frame.count:SetText("")
+	elseif key == "complete" then
+		frame.statusBar:SetMinMaxValues(0, 1)
+		frame.statusBar:SetValue(1)
+		frame.progress:SetText("100%")
 	end
 	frame:Show()
-	DebugPhase(key)
+end
+
+function AuctionSearchOverlay.SetProgress(processed, total, detail)
+	if not frame then
+		return
+	end
+	processed = math.max(0, tonumber(processed) or 0)
+	total = math.max(0, tonumber(total) or 0)
+	local denominator = math.max(1, total)
+	local bounded = math.min(processed, denominator)
+	local percent = math.min(100, math.floor((bounded / denominator) * 100 + 0.5))
+
+	frame.statusBar:SetMinMaxValues(0, denominator)
+	frame.statusBar:SetValue(bounded)
+	frame.progress:SetText(format("%d%%", percent))
+	frame.count:SetText(format("%s / %s 条", FormatNumber(math.min(processed, total)), FormatNumber(total)))
+	if detail and detail ~= "" then
+		frame.detail:SetText(detail)
+	end
+	frame:Show()
+end
+
+function AuctionSearchOverlay.SetComplete(
+	total,
+	elapsedMs,
+	linkedItems,
+	missingCoreCount,
+	incompleteInfoCount,
+	apiErrorCount
+)
+	local seconds = (tonumber(elapsedMs) or 0) / 1000
+	missingCoreCount = math.max(0, tonumber(missingCoreCount) or 0)
+	incompleteInfoCount = math.max(0, tonumber(incompleteInfoCount) or 0)
+	apiErrorCount = math.max(0, tonumber(apiErrorCount) or 0)
+	local detail = format("已保存 %s 条 · 用时 %.1f 秒", FormatNumber(total), seconds)
+	if linkedItems and linkedItems < total then
+		detail = detail .. format(" · %s 条含物品链接", FormatNumber(linkedItems))
+	end
+	if missingCoreCount > 0 then
+		detail = detail .. format(" · 核心字段缺失 %s 条", FormatNumber(missingCoreCount))
+	end
+	if incompleteInfoCount > 0 then
+		detail = detail .. format(" · 详情未就绪 %s 条", FormatNumber(incompleteInfoCount))
+	end
+	if apiErrorCount > 0 then
+		detail = detail .. format(" · 读取异常 %s 条", FormatNumber(apiErrorCount))
+	end
+	local hasWarning = missingCoreCount > 0 or incompleteInfoCount > 0 or apiErrorCount > 0
+	AuctionSearchOverlay.SetPhase(hasWarning and "warning" or "complete", detail)
+	AuctionSearchOverlay.SetProgress(total, total)
 end
 
 function AuctionSearchOverlay.Init()
 	if frame then
 		return
 	end
-	local f = CreateFrame("Frame", "AuctionSearchAutomationOverlay", UIParent)
-	f:SetSize(560, 118)
-	f:SetPoint("TOP", UIParent, "TOP", 0, -72)
+
+	local f = CreateFrame("Frame", "AuctionSearchStatusPanel", UIParent)
+	f:SetSize(470, 106)
+	f:SetPoint("TOP", UIParent, "TOP", 0, -28)
 	f:SetFrameStrata("FULLSCREEN_DIALOG")
 	f:SetFrameLevel(5000)
 	f:SetClampedToScreen(true)
-	f:SetMovable(false)
 	f:EnableMouse(false)
+
+	f.shadow = f:CreateTexture(nil, "BACKGROUND", nil, -2)
+	f.shadow:SetPoint("TOPLEFT", -5, 5)
+	f.shadow:SetPoint("BOTTOMRIGHT", 5, -5)
+	f.shadow:SetColorTexture(0, 0, 0, 0.55)
+
+	f.border = f:CreateTexture(nil, "BACKGROUND", nil, -1)
+	f.border:SetPoint("TOPLEFT", -1, 1)
+	f.border:SetPoint("BOTTOMRIGHT", 1, -1)
+	f.border:SetColorTexture(0.58, 0.51, 0.32, 0.95)
 
 	f.bg = f:CreateTexture(nil, "BACKGROUND")
 	f.bg:SetAllPoints()
-	f.bg:SetColorTexture(0.05, 0.05, 0.05, 0.85)
+	f.bg:SetColorTexture(0.035, 0.045, 0.065, 0.96)
 
-	local border = f:CreateTexture(nil, "BORDER")
-	border:SetPoint("TOPLEFT", -2, 2)
-	border:SetPoint("BOTTOMRIGHT", 2, -2)
-	border:SetColorTexture(1, 1, 1, 0.25)
+	f.accent = f:CreateTexture(nil, "ARTWORK")
+	f.accent:SetPoint("TOPLEFT")
+	f.accent:SetPoint("BOTTOMLEFT")
+	f.accent:SetWidth(4)
 
-	f.statusLine1 = f:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-	f.statusLine1:SetPoint("TOP", f, "TOP", 0, -20)
-	f.statusLine1:SetWidth(520)
-	f.statusLine1:SetTextColor(1, 1, 1)
-	f.statusLine1:SetJustifyH("CENTER")
+	f.title = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+	f.title:SetPoint("TOPLEFT", 18, -13)
+	f.title:SetTextColor(1, 0.88, 0.48)
+	f.title:SetJustifyH("LEFT")
 
-	f.statusLine2 = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	f.statusLine2:SetPoint("TOP", f.statusLine1, "BOTTOM", 0, -10)
-	f.statusLine2:SetWidth(520)
-	f.statusLine2:SetTextColor(0.95, 0.95, 0.85)
-	f.statusLine2:SetJustifyH("CENTER")
+	f.progress = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+	f.progress:SetPoint("TOPRIGHT", -18, -13)
+	f.progress:SetTextColor(1, 1, 1)
+	f.progress:SetJustifyH("RIGHT")
 
-	local sub = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	sub:SetPoint("BOTTOM", 0, 10)
-	sub:SetText("AuctionSearch / 自动化状态面板")
-	sub:SetTextColor(0.85, 0.85, 0.85)
+	f.detail = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	f.detail:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -5)
+	f.detail:SetWidth(305)
+	f.detail:SetTextColor(0.76, 0.80, 0.88)
+	f.detail:SetJustifyH("LEFT")
+
+	f.count = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	f.count:SetPoint("TOPRIGHT", f.progress, "BOTTOMRIGHT", 0, -5)
+	f.count:SetTextColor(0.76, 0.80, 0.88)
+	f.count:SetJustifyH("RIGHT")
+
+	f.barBackground = f:CreateTexture(nil, "ARTWORK")
+	f.barBackground:SetPoint("BOTTOMLEFT", 18, 15)
+	f.barBackground:SetPoint("BOTTOMRIGHT", -18, 15)
+	f.barBackground:SetHeight(17)
+	f.barBackground:SetColorTexture(0.12, 0.14, 0.18, 1)
+
+	f.statusBar = CreateFrame("StatusBar", nil, f)
+	f.statusBar:SetPoint("TOPLEFT", f.barBackground, "TOPLEFT", 2, -2)
+	f.statusBar:SetPoint("BOTTOMRIGHT", f.barBackground, "BOTTOMRIGHT", -2, 2)
+	f.statusBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	f.statusBar:SetMinMaxValues(0, 1)
+	f.statusBar:SetValue(0)
+
+	f.spark = f.statusBar:CreateTexture(nil, "OVERLAY")
+	f.spark:SetTexture("Interface\\CastingBar\\UI-CastingBar-Spark")
+	f.spark:SetBlendMode("ADD")
+	f.spark:SetSize(16, 26)
+	f.spark:SetPoint("CENTER", f.statusBar:GetStatusBarTexture(), "RIGHT", 0, 0)
 
 	f:Hide()
 	frame = f
-	AuctionSearchOverlay.SetPhase("idle")
+	ApplyPhaseStyle("idle")
 end

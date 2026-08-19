@@ -1,13 +1,13 @@
-"""拍卖行 replicate 中与客户端 Enum.AuctionHouseTimeLeftBand 一致的档位说明（见 Warcraft Wiki GetTimeLeftBandInfo）。"""
+"""拍卖行 replicate 接口返回的剩余时间档位说明。"""
 
 from typing import Any
 
-# 值 0–3 与 C_AuctionHouse.GetReplicateItemTimeLeft / GetTimeLeftBandInfo 文档一致
+# GetReplicateItemTimeLeft 沿用旧拍卖 API 的 1–4 值；它不是新版枚举的 0–3。
 _TIME_LEFT_BAND_ZH: dict[int, str] = {
-    0: "短档 (约 30 分钟内)",
-    1: "中档 (约 2 小时级)",
-    2: "长档 (约 12 小时级)",
-    3: "很长档 (约 48 小时 / 2 天级)",
+    1: "短档 (约 30 分钟内)",
+    2: "中档 (约 2 小时级)",
+    3: "长档 (约 12 小时级)",
+    4: "很长档 (约 48 小时 / 2 天级)",
 }
 
 

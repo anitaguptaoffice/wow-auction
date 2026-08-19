@@ -1,137 +1,468 @@
-local initialQuery
-local auctions = {}
+local ADDON_NAME = "AuctionSearchExample"
+local SCAN_BATCH_SIZE = 1000 -- 低于 replicate 接口约 2000 次/帧的经验上限
+local BATCH_DETAIL_TIMEOUT_SECONDS = 1
+local BATTLE_PET_CAGE_ITEM_ID = 82800
 
--- 数据库初始化
-AuctionSearchDB = AuctionSearchDB or {
-	auctions = {},
-	lastScanTime = 0,
-	settings = {
-		maxHistoryDays = 7, -- 保留7天的历史数据
-		maxRecordsPerDay = 1000 -- 每天最多保存1000条记录
-	}
-}
+local waitingForReplicate = false
+local requestSerial = 0
+local activeJob
 
--- 工具函数：获取当前日期字符串
+AuctionSearchDB = AuctionSearchDB or {}
+
+local function EnsureDatabase()
+	AuctionSearchDB.auctions = AuctionSearchDB.auctions or {}
+	AuctionSearchDB.lastScanTime = AuctionSearchDB.lastScanTime or 0
+	AuctionSearchDB.settings = AuctionSearchDB.settings or {}
+	AuctionSearchDB.settings.maxHistoryDays = AuctionSearchDB.settings.maxHistoryDays or 7
+	-- 单次全量快照体积很大；同一天默认只保留最新一份，避免 SavedVariables 无限膨胀。
+	AuctionSearchDB.settings.maxScansPerDay = AuctionSearchDB.settings.maxScansPerDay or 1
+end
+
 local function GetDateString()
 	return date("%Y-%m-%d")
 end
 
--- 工具函数：获取当前时间戳
-local function GetCurrentTime()
-	return time()
-end
-
--- 与 Enum.AuctionHouseTimeLeftBand 一致（见 Wiki GetTimeLeftBandInfo）：0 短 1 中 2 长 3 很长
-local function TimeLeftBandLabel(band)
-	if band == nil then
-		return "?"
+local function OverlayCall(method, ...)
+	local callback = AuctionSearchOverlay and AuctionSearchOverlay[method]
+	if type(callback) ~= "function" then
+		return false
 	end
-	local labels = { [0] = "短", [1] = "中", [2] = "长", [3] = "很长" }
-	return labels[band] or tostring(band)
+	return pcall(callback, ...)
 end
 
--- 数据清理函数：清除过期数据
 local function CleanOldData()
-	local currentTime = GetCurrentTime()
-	local maxAge = AuctionSearchDB.settings.maxHistoryDays * 24 * 60 * 60 -- 转换为秒
-
+	local currentTime = time()
+	local maxAge = AuctionSearchDB.settings.maxHistoryDays * 24 * 60 * 60
 	for dateStr, dayData in pairs(AuctionSearchDB.auctions) do
 		if dayData.timestamp and (currentTime - dayData.timestamp) > maxAge then
 			AuctionSearchDB.auctions[dateStr] = nil
-			print(format("AuctionSearch: 清理过期数据 %s", dateStr))
 		end
 	end
 end
 
--- 调试：仅 C_Item 基础信息（词缀等一律在后端用 itemLink 解析）
+-- Replicate 接口沿用旧 Auction API 的 1..4 值，而不是 AuctionHouseTimeLeftBand 的 0..3。
+local function TimeLeftLabel(value)
+	local labels = {
+		[1] = "短（30 分钟内）",
+		[2] = "中（2 小时内）",
+		[3] = "长（12 小时内）",
+		[4] = "很长（48 小时内）",
+	}
+	return labels[tonumber(value)] or tostring(value or "?")
+end
+
 local function GetItemInfoDebug(itemID)
 	local itemName, _, itemQuality, itemLevel, _, itemType, itemSubType,
 		_, itemEquipLoc, _, _, classID, subclassID = C_Item.GetItemInfo(itemID)
-	local d = {}
+	local result = {}
 	if itemName then
-		d.name = itemName
-		d.quality = itemQuality
-		d.itemLevel = itemLevel
-		d.itemType = itemType
-		d.itemSubType = itemSubType
-		d.equipLoc = itemEquipLoc
-		d.classID = classID
-		d.subclassID = subclassID
+		result.name = itemName
+		result.quality = itemQuality
+		result.itemLevel = itemLevel
+		result.itemType = itemType
+		result.itemSubType = itemSubType
+		result.equipLoc = itemEquipLoc
+		result.classID = classID
+		result.subclassID = subclassID
 	end
-	return d
+	return result
 end
 
--- 保存拍卖数据到持久化存储
-local function SaveAuctionData(auctionData)
-	local dateStr = GetDateString()
-	local currentTime = GetCurrentTime()
-
-	-- 初始化当天数据结构
-	if not AuctionSearchDB.auctions[dateStr] then
-		AuctionSearchDB.auctions[dateStr] = {
-			scans = {},
-			timestamp = currentTime
-		}
+local function MarkApiError(job, index)
+	if job and job.apiErrors then
+		job.apiErrors[index + 1] = true
 	end
+end
 
-	-- 检查当天记录数量限制
-	local dayData = AuctionSearchDB.auctions[dateStr]
-	if #dayData.scans >= AuctionSearchDB.settings.maxRecordsPerDay then
-		-- 移除最旧的记录
-		table.remove(dayData.scans, 1)
+local function ReadReplicateInfo(job, index)
+	local values = { pcall(C_AuctionHouse.GetReplicateItemInfo, index) }
+	if not values[1] then
+		MarkApiError(job, index)
+		return {}
 	end
+	local info = {}
+	for valueIndex = 1, 18 do
+		info[valueIndex] = values[valueIndex + 1]
+	end
+	return info
+end
 
-	local replicateCount = C_AuctionHouse.GetNumReplicateItems()
+local function ReadReplicateValue(job, index, api)
+	local ok, value = pcall(api, index)
+	if not ok then
+		MarkApiError(job, index)
+		return nil
+	end
+	return value
+end
 
-	-- 添加新的扫描记录（replicate 列表为 0..n-1，勿用 ipairs 以免漏掉索引 0）
-	local scanRecord = {
-		timestamp = currentTime,
-		itemCount = replicateCount,
-		items = {}
-	}
-
-	-- 每条拍卖：replicate 数值 + GetReplicateItemLink；词缀等在后端用 itemLink 解析
-	for i = 0, math.max(0, replicateCount - 1) do
-		local auction = auctionData[i]
-		if auction and auction[17] then -- itemID存在
-			local itemID = auction[17]
-			local itemLink = C_AuctionHouse.GetReplicateItemLink(i)
-			-- timeLeftBand：C_AuctionHouse.GetReplicateItemTimeLeft(i) 返回的是「剩余时间档位」枚举，不是秒数，也不是从本次扫描时刻起算；无单独「基准时刻」API
-			local timeLeftBand = C_AuctionHouse.GetReplicateItemTimeLeft(i)
-
-			-- GetReplicateItemInfo：… 8=minBid 9=minIncrement 10=buyoutPrice 11=bidAmount … 17=itemID 18=hasAllInfo
-			local itemInfo = {
-				itemID = itemID,
-				minBid = auction[8],
-				buyoutAmount = auction[10], -- buyoutPrice
-				bidAmount = auction[11], -- 当前最高竞价
-				quantity = auction[3], -- count
-				name = auction[1],
-				itemLink = itemLink,
-				timeLeftBand = timeLeftBand,
-			}
-
-			table.insert(scanRecord.items, itemInfo)
+local function BuildRecord(job, index, info)
+	local itemLink = ReadReplicateValue(job, index, C_AuctionHouse.GetReplicateItemLink)
+	local timeLeft = ReadReplicateValue(job, index, C_AuctionHouse.GetReplicateItemTimeLeft)
+	local creatureID, displayID
+	if info[17] == BATTLE_PET_CAGE_ITEM_ID then
+		local ok
+		ok, creatureID, displayID = pcall(C_AuctionHouse.GetReplicateItemBattlePetInfo, index)
+		if not ok then
+			creatureID, displayID = nil, nil
+			MarkApiError(job, index)
 		end
 	end
 
-	table.insert(dayData.scans, scanRecord)
-	AuctionSearchDB.lastScanTime = currentTime
-
-	print(format("AuctionSearch: 已保存 %d 件物品信息到 %s", scanRecord.itemCount, dateStr))
+	return {
+		itemID = info[17],
+		name = info[1],
+		texture = info[2],
+		quantity = info[3],
+		qualityID = info[4],
+		usable = info[5],
+		level = info[6],
+		levelType = info[7],
+		minBid = info[8],
+		minIncrement = info[9],
+		buyoutAmount = info[10],
+		bidAmount = info[11],
+		highBidder = info[12],
+		bidderFullName = info[13],
+		owner = info[14],
+		ownerFullName = info[15],
+		saleStatus = info[16],
+		hasAllInfo = info[18] and true or false,
+		itemLink = itemLink,
+		timeLeftBand = timeLeft,
+		battlePetCreatureID = creatureID,
+		battlePetDisplayID = displayID,
+	}, itemLink ~= nil
 end
 
--- 数据查询函数
-local function GetAuctionHistory(itemID, days)
-	days = days or 7
-	local results = {}
-	local currentTime = GetCurrentTime()
-	local timeLimit = currentTime - (days * 24 * 60 * 60)
+local function StoreRecord(job, index, info)
+	local record, hasLink = BuildRecord(job, index, info)
+	local slot = index + 1
+	local previouslyLinked = job.linkedBySlot[slot] == true
+	job.records[slot] = record
+	job.linkedBySlot[slot] = hasLink
+	if hasLink and not previouslyLinked then
+		job.linkedItems = job.linkedItems + 1
+	elseif previouslyLinked and not hasLink then
+		job.linkedItems = job.linkedItems - 1
+	end
+	if not record.hasAllInfo then
+		job.incompleteInfo[slot] = true
+	else
+		job.incompleteInfo[slot] = nil
+	end
+	if record.itemID == nil
+		or record.name == nil
+		or record.quantity == nil
+		or record.minBid == nil
+		or record.buyoutAmount == nil
+		or record.bidAmount == nil
+		or record.timeLeftBand == nil then
+		job.missingCore[slot] = true
+	else
+		job.missingCore[slot] = nil
+	end
+end
 
+local function CancelBatchContinuations(batch)
+	if not batch or not batch.cancelByIndex then
+		return
+	end
+	local cancelByIndex = batch.cancelByIndex
+	batch.cancelByIndex = {}
+	batch.unresolved = {}
+	batch.pending = 0
+	for _, cancel in pairs(cancelByIndex) do
+		if type(cancel) == "function" then
+			pcall(cancel)
+		end
+	end
+end
+
+local function AbortJob(job, reason)
+	if activeJob ~= job then
+		return
+	end
+	job.finished = true
+	if job.activeBatch then
+		job.activeBatch.done = true
+		CancelBatchContinuations(job.activeBatch)
+	end
+	activeJob = nil
+	AuctionSearchDB.lastError = {
+		timestamp = time(),
+		message = tostring(reason or "unknown error"),
+	}
+	OverlayCall("SetPhase", "error", "扫描遇到客户端异常，任务已安全停止；请关闭并重新打开拍卖行")
+end
+
+local function CommitJob(job)
+	if activeJob ~= job or job.finished then
+		return
+	end
+	job.finished = true
+
+	-- 防御性补齐：即使某个异步回调永不返回，也绝不丢失该拍卖行。
+	for index = 0, job.total - 1 do
+		if not job.records[index + 1] then
+			StoreRecord(job, index, ReadReplicateInfo(job, index))
+		end
+	end
+
+	local currentTime = time()
+	local dateStr = GetDateString()
+	local dayData = AuctionSearchDB.auctions[dateStr]
+	if not dayData then
+		dayData = { scans = {}, timestamp = currentTime }
+		AuctionSearchDB.auctions[dateStr] = dayData
+	end
+	dayData.scans = dayData.scans or {}
+	dayData.timestamp = currentTime
+
+	local limit = math.max(1, tonumber(AuctionSearchDB.settings.maxScansPerDay) or 1)
+	while #dayData.scans >= limit do
+		table.remove(dayData.scans, 1)
+	end
+
+	local elapsedMs = debugprofilestop() - job.beginMs
+	local incompleteCount = 0
+	for _ in pairs(job.incompleteInfo) do
+		incompleteCount = incompleteCount + 1
+	end
+	local missingCoreCount = 0
+	for _ in pairs(job.missingCore) do
+		missingCoreCount = missingCoreCount + 1
+	end
+	local apiErrorCount = 0
+	for _ in pairs(job.apiErrors) do
+		apiErrorCount = apiErrorCount + 1
+	end
+	local scanRecord = {
+		timestamp = currentTime,
+		itemCount = job.total,
+		recordCount = #job.records,
+		linkedItemCount = job.linkedItems,
+		incompleteInfoCount = incompleteCount,
+		missingCoreCount = missingCoreCount,
+		apiErrorCount = apiErrorCount,
+		durationMs = elapsedMs,
+		items = job.records,
+	}
+	table.insert(dayData.scans, scanRecord)
+	AuctionSearchDB.lastScanTime = currentTime
+	AuctionSearchDB.lastScan = {
+		itemCount = job.total,
+		recordCount = #job.records,
+		linkedItemCount = job.linkedItems,
+		incompleteInfoCount = incompleteCount,
+		missingCoreCount = missingCoreCount,
+		apiErrorCount = apiErrorCount,
+		durationMs = elapsedMs,
+	}
+	AuctionSearchDB.lastError = nil
+	CleanOldData()
+
+	activeJob = nil
+	OverlayCall(
+		"SetComplete",
+		job.total,
+		elapsedMs,
+		job.linkedItems,
+		missingCoreCount,
+		incompleteCount,
+		apiErrorCount
+	)
+end
+
+local ProcessNextBatch
+local RunNextBatch
+
+local function FinishBatch(job, batch)
+	if activeJob ~= job or job.finished or batch.done or batch.enumerating or batch.pending > 0 then
+		return
+	end
+	batch.done = true
+	job.activeBatch = nil
+	job.processed = batch.lastIndex + 1
+	OverlayCall("SetProgress", job.processed, job.total)
+	job.nextIndex = batch.lastIndex + 1
+	if job.nextIndex >= job.total then
+		CommitJob(job)
+	else
+		C_Timer.After(0, function()
+			if activeJob == job and not job.finished then
+				RunNextBatch(job)
+			end
+		end)
+	end
+end
+
+local function ResolveBatchIndex(job, batch, index, cancelPending)
+	if activeJob ~= job or job.finished or batch.done or not batch.unresolved[index] then
+		return
+	end
+	batch.unresolved[index] = nil
+	local cancel = batch.cancelByIndex[index]
+	batch.cancelByIndex[index] = nil
+	if cancelPending and type(cancel) == "function" then
+		pcall(cancel)
+	end
+	StoreRecord(job, index, ReadReplicateInfo(job, index))
+	batch.pending = math.max(0, batch.pending - 1)
+	FinishBatch(job, batch)
+end
+
+local function ResolveBatchIndexSafely(job, batch, index, cancelPending)
+	local ok, reason = pcall(ResolveBatchIndex, job, batch, index, cancelPending)
+	if not ok then
+		AbortJob(job, reason)
+	end
+end
+
+ProcessNextBatch = function(job)
+	if activeJob ~= job or job.finished then
+		return
+	end
+	local firstIndex = job.nextIndex
+	local lastIndex = math.min(firstIndex + SCAN_BATCH_SIZE - 1, job.total - 1)
+	local batch = {
+		firstIndex = firstIndex,
+		lastIndex = lastIndex,
+		pending = 0,
+		enumerating = true,
+		done = false,
+		unresolved = {},
+		cancelByIndex = {},
+	}
+	job.activeBatch = batch
+
+	for index = firstIndex, lastIndex do
+		if activeJob ~= job or job.finished then
+			break
+		end
+		local currentIndex = index
+		local info = ReadReplicateInfo(job, currentIndex)
+		StoreRecord(job, currentIndex, info)
+		if info[17] and not info[18] then
+			batch.pending = batch.pending + 1
+			batch.unresolved[currentIndex] = true
+			local ok = pcall(function()
+				local item = Item:CreateFromItemID(info[17])
+				if not item.ContinueWithCancelOnItemLoad then
+					error("ContinueWithCancelOnItemLoad is unavailable")
+				end
+				local cancel = item:ContinueWithCancelOnItemLoad(function()
+					ResolveBatchIndexSafely(job, batch, currentIndex, false)
+				end)
+				-- 回调可能同步执行；只有仍未完成的索引才需要保存 cancel。
+				if batch.unresolved[currentIndex] and type(cancel) == "function" then
+					batch.cancelByIndex[currentIndex] = cancel
+				elseif type(cancel) == "function" then
+					pcall(cancel)
+				end
+			end)
+			if not ok then
+				MarkApiError(job, currentIndex)
+				ResolveBatchIndexSafely(job, batch, currentIndex, true)
+			end
+		end
+	end
+	if activeJob ~= job or job.finished then
+		batch.enumerating = false
+		CancelBatchContinuations(batch)
+		return
+	end
+	batch.enumerating = false
+	FinishBatch(job, batch)
+
+	if batch.pending > 0 then
+		C_Timer.After(BATCH_DETAIL_TIMEOUT_SECONDS, function()
+			local ok, reason = pcall(function()
+				if activeJob ~= job or job.finished or batch.done then
+					return
+				end
+				-- 部分物品可能永远没有完整缓存；保留其核心价格行并继续，不让整次扫描卡死。
+				local unresolved = {}
+				for index in pairs(batch.unresolved) do
+					table.insert(unresolved, index)
+				end
+				for _, index in ipairs(unresolved) do
+					ResolveBatchIndex(job, batch, index, true)
+				end
+			end)
+			if not ok then
+				AbortJob(job, reason)
+			end
+		end)
+	end
+end
+
+RunNextBatch = function(job)
+	if activeJob ~= job or job.finished then
+		return
+	end
+	local ok, reason = pcall(ProcessNextBatch, job)
+	if not ok then
+		AbortJob(job, reason)
+	end
+end
+
+local function StartScan()
+	local ok, total = pcall(C_AuctionHouse.GetNumReplicateItems)
+	if not ok or not total or total <= 0 then
+		OverlayCall("SetPhase", "error", "服务器返回了空快照，请等待接口限流结束后重试")
+		return
+	end
+
+	local job = {
+		id = requestSerial,
+		total = total,
+		nextIndex = 0,
+		processed = 0,
+		records = {},
+		linkedBySlot = {},
+		linkedItems = 0,
+		incompleteInfo = {},
+		missingCore = {},
+		apiErrors = {},
+		finished = false,
+		beginMs = debugprofilestop(),
+	}
+	activeJob = job
+	OverlayCall("SetPhase", "scanning")
+	OverlayCall("SetProgress", 0, total)
+	RunNextBatch(job)
+end
+
+local function GetDatabaseStats()
+	local totalScans, totalItems, totalLinks = 0, 0, 0
+	local oldestDate, newestDate
 	for dateStr, dayData in pairs(AuctionSearchDB.auctions) do
-		if dayData.timestamp >= timeLimit then
-			for _, scan in ipairs(dayData.scans) do
-				for _, item in ipairs(scan.items) do
+		for _, scan in ipairs(dayData.scans or {}) do
+			totalScans = totalScans + 1
+			totalItems = totalItems + #(scan.items or {})
+			totalLinks = totalLinks + (scan.linkedItemCount or 0)
+		end
+		oldestDate = (not oldestDate or dateStr < oldestDate) and dateStr or oldestDate
+		newestDate = (not newestDate or dateStr > newestDate) and dateStr or newestDate
+	end
+	return {
+		totalScans = totalScans,
+		totalItems = totalItems,
+		totalLinks = totalLinks,
+		oldestDate = oldestDate,
+		newestDate = newestDate,
+		lastScanTime = AuctionSearchDB.lastScanTime,
+	}
+end
+
+local function GetAuctionHistory(itemID, days)
+	local results = {}
+	local timeLimit = time() - ((days or 7) * 24 * 60 * 60)
+	for dateStr, dayData in pairs(AuctionSearchDB.auctions) do
+		if (dayData.timestamp or 0) >= timeLimit then
+			for _, scan in ipairs(dayData.scans or {}) do
+				for _, item in ipairs(scan.items or {}) do
 					if not itemID or item.itemID == itemID then
 						table.insert(results, {
 							date = dateStr,
@@ -150,326 +481,121 @@ local function GetAuctionHistory(itemID, days)
 			end
 		end
 	end
-
-	-- 按时间排序
 	table.sort(results, function(a, b) return a.timestamp > b.timestamp end)
 	return results
 end
 
--- 获取数据库统计信息
-local function GetDatabaseStats()
-	local totalScans = 0
-	local totalItems = 0
-	local oldestDate = nil
-	local newestDate = nil
-
-	for dateStr, dayData in pairs(AuctionSearchDB.auctions) do
-		totalScans = totalScans + #dayData.scans
-		for _, scan in ipairs(dayData.scans) do
-			totalItems = totalItems + scan.itemCount
-		end
-
-		if not oldestDate or dateStr < oldestDate then
-			oldestDate = dateStr
-		end
-		if not newestDate or dateStr > newestDate then
-			newestDate = dateStr
-		end
-	end
-
-	return {
-		totalScans = totalScans,
-		totalItems = totalItems,
-		oldestDate = oldestDate,
-		newestDate = newestDate,
-		lastScanTime = AuctionSearchDB.lastScanTime
-	}
-end
-
--- 斜杠命令处理
 local function HandleSlashCommand(msg)
 	local command, arg = msg:match("^(%S*)%s*(.-)$")
 	command = command:lower()
-
 	if command == "stats" then
 		local stats = GetDatabaseStats()
 		print("=== AuctionSearch 数据库统计 ===")
 		print(format("总扫描次数: %d", stats.totalScans))
-		print(format("总物品记录: %d", stats.totalItems))
+		print(format("总拍卖记录: %d（含 itemLink: %d）", stats.totalItems, stats.totalLinks))
 		print(format("数据范围: %s 到 %s", stats.oldestDate or "无", stats.newestDate or "无"))
 		if stats.lastScanTime > 0 then
 			print(format("最后扫描时间: %s", date("%Y-%m-%d %H:%M:%S", stats.lastScanTime)))
 		end
 	elseif command == "history" then
 		local itemID = tonumber(arg)
-		if itemID then
-			local history = GetAuctionHistory(itemID, 7)
-			print(format("=== 物品 %d 的拍卖历史 (最近7天) ===", itemID))
-			for i = 1, math.min(10, #history) do
-				local item = history[i]
-				print(format(
-					"%s: 一口 %s | 竞拍 %s | 起拍 %s | 剩余档 %s | 数量 %d",
-					date("%m-%d %H:%M", item.timestamp),
-					item.buyoutAmount and C_CurrencyInfo.GetCoinTextureString(item.buyoutAmount) or "无",
-					item.bidAmount and C_CurrencyInfo.GetCoinTextureString(item.bidAmount) or "无",
-					item.minBid and C_CurrencyInfo.GetCoinTextureString(item.minBid) or "无",
-					TimeLeftBandLabel(item.timeLeftBand),
-					item.quantity
-				))
-			end
-			if #history > 10 then
-				print(format("... 还有 %d 条记录", #history - 10))
-			end
-		else
+		if not itemID then
 			print("用法: /auctionsearch history <物品ID>")
+			return
+		end
+		local history = GetAuctionHistory(itemID, 7)
+		print(format("=== 物品 %d 的拍卖历史（最近 7 天）===", itemID))
+		for index = 1, math.min(10, #history) do
+			local item = history[index]
+			print(format(
+				"%s: 一口 %s | 起拍 %s | 剩余 %s | 数量 %d",
+				date("%m-%d %H:%M", item.timestamp),
+				item.buyoutAmount and C_CurrencyInfo.GetCoinTextureString(item.buyoutAmount) or "无",
+				item.minBid and C_CurrencyInfo.GetCoinTextureString(item.minBid) or "无",
+				TimeLeftLabel(item.timeLeftBand),
+				item.quantity or 0
+			))
 		end
 	elseif command == "clear" then
 		AuctionSearchDB.auctions = {}
+		AuctionSearchDB.lastScanTime = 0
+		AuctionSearchDB.lastScan = nil
 		print("AuctionSearch: 已清空所有保存的数据")
 	elseif command == "test" then
 		local testItemID = tonumber(arg) or 238033
 		print(format("=== 测试物品 %d ===", testItemID))
-		local itemDetails = GetItemInfoDebug(testItemID)
-		print("C_Item.GetItemInfo (客户端缓存命中时才有数据):")
-		for key, value in pairs(itemDetails) do
+		for key, value in pairs(GetItemInfoDebug(testItemID)) do
 			print(format("  %s: %s", key, tostring(value)))
 		end
-		print("若拍卖行已打开且含该物品，取 itemLink（完整描述以链接为准，后端解析）:")
-		local foundIndex = nil
-		for i = 0, C_AuctionHouse.GetNumReplicateItems() - 1 do
-			local auctionInfo = { C_AuctionHouse.GetReplicateItemInfo(i) }
-			if auctionInfo[17] == testItemID then
-				foundIndex = i
-				break
-			end
-		end
-		if foundIndex then
-			local itemLink = C_AuctionHouse.GetReplicateItemLink(foundIndex)
-			print(format("ItemLink: %s", tostring(itemLink)))
-		else
-			print("当前拍卖行 replicate 中无此物品（请先扫描拍卖行）")
-		end
 	elseif command == "uitest" then
-		local valid = { idle = true, started = true, scanning = true, complete = true, logout = true } -- logout 同 complete
-		local p = "started"
-		if arg and arg ~= "" then
-			p = strlower((strmatch(arg, "^%s*(%S+)") or "started"))
-		end
-		if not valid[p] then
-			p = "started"
-		end
-		if AuctionSearchOverlay and AuctionSearchOverlay.Init and AuctionSearchOverlay.SetPhase then
-			AuctionSearchOverlay.Init()
-			AuctionSearchOverlay.SetPhase(p)
-			print(format("AuctionSearch: uitest phase=%s （idle|started|scanning|complete；logout 等同 complete）", AuctionSearchOverlay.GetPhase and AuctionSearchOverlay.GetPhase() or p))
+		local phase = arg ~= "" and strlower(arg) or "scanning"
+		OverlayCall("Init")
+		OverlayCall("SetPhase", phase)
+		if phase == "scanning" then
+			OverlayCall("SetProgress", 157500, 384992)
 		end
 	else
 		print("AuctionSearch 命令:")
-		print("  /auctionsearch stats - 显示数据库统计信息")
-		print("  /auctionsearch history <物品ID> - 显示物品拍卖历史")
-		print("  /auctionsearch test [物品ID] - 查看 C_Item 缓存与 itemLink (默认238033)")
-		print("  /auctionsearch clear - 清空所有保存的数据")
-		print("  /auctionsearch uitest [phase] - 调试自动化面板 (idle|started|scanning|complete；logout=complete)")
+		print("  /as stats - 显示数据库统计")
+		print("  /as history <物品ID> - 显示最近历史")
+		print("  /as test [物品ID] - 调试物品缓存")
+		print("  /as clear - 清空保存的数据")
+		print("  /as uitest [started|scanning|complete|error] - 测试状态面板")
 	end
 end
 
--- 注册斜杠命令
 SLASH_AUCTIONSEARCH1 = "/auctionsearch"
 SLASH_AUCTIONSEARCH2 = "/as"
 SlashCmdList["AUCTIONSEARCH"] = HandleSlashCommand
 
--- 扫描完成后的回调函数
-local function OnScanComplete(beginTime)
-	local scanTime = debugprofilestop() - beginTime
-	-- 勿用 #auctions：索引从 0 起，Lua 的 # 对非 1..n 序列不可靠
-	local n = C_AuctionHouse.GetNumReplicateItems()
-	print(format("Scanned %d auctions in %d milliseconds", n, scanTime))
-
-	-- 保存扫描数据到持久化存储
-	SaveAuctionData(auctions)
-
-	-- 执行数据清理
-	CleanOldData()
-
-	-- 自动化：单屏双行 — 扫描完成 + 登出说明（与 wow-runner 一屏模板即可）
-	if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
-		AuctionSearchOverlay.SetPhase("complete")
-	end
-end
-
--- 限流参数
-local REPLICATE_ITEMS_PER_FRAME = 1800 -- 每帧最多处理1800个物品（留点余量）
-local SCAN_BATCH_SIZE = 500            -- 每批处理的物品数量
-local scanIndex = 0
-local totalItems = 0
-local currentBatchContinuables = {}
-
--- 分批处理函数
-local function ScanBatch(beginTime, allContinuables)
-	local batchStart = scanIndex
-	local batchEnd = math.min(scanIndex + SCAN_BATCH_SIZE - 1, totalItems - 1)
-	local batchHasAsync = false
-
-	print(format("AuctionSearch: 处理批次 %d-%d", batchStart, batchEnd))
-
-	-- 处理当前批次
-	for i = batchStart, batchEnd do
-		auctions[i] = { C_AuctionHouse.GetReplicateItemInfo(i) }
-		if not auctions[i][18] then                    -- hasAllInfo
-			batchHasAsync = true
-			local item = Item:CreateFromItemID(auctions[i][17]) -- itemID
-			allContinuables[item] = true
-			currentBatchContinuables[item] = true
-
-			item:ContinueOnItemLoad(function()
-				auctions[i] = { C_AuctionHouse.GetReplicateItemInfo(i) }
-				allContinuables[item] = nil
-				currentBatchContinuables[item] = nil
-
-				-- 检查当前批次是否完成
-				if not next(currentBatchContinuables) then
-					-- 当前批次完成，继续下一批次
-					scanIndex = batchEnd + 1
-					if scanIndex < totalItems then
-						-- 延迟执行下一批次，避免单帧处理过多
-						C_Timer.After(0.1, function()
-							ScanBatch(beginTime, allContinuables)
-						end)
-					else
-						-- 所有批次完成，检查是否还有其他异步任务
-						if not next(allContinuables) then
-							OnScanComplete(beginTime)
-						end
-					end
-				end
-			end)
-		end
-	end
-
-	-- 如果当前批次没有异步任务，直接继续下一批次
-	if not batchHasAsync then
-		scanIndex = batchEnd + 1
-		if scanIndex < totalItems then
-			-- 延迟执行下一批次
-			C_Timer.After(0.1, function()
-				ScanBatch(beginTime, allContinuables)
-			end)
-		else
-			-- 所有批次完成
-			if not next(allContinuables) then
-				OnScanComplete(beginTime)
-			end
-		end
-	end
-end
-
-local function ScanAuctions()
-	local beginTime = debugprofilestop()
-	local continuables = {}
-	local hasAsyncItems = false
-	wipe(auctions)
-
-	-- 重置扫描状态
-	scanIndex = 0
-	totalItems = C_AuctionHouse.GetNumReplicateItems()
-	currentBatchContinuables = {}
-
-	print(format("AuctionSearch: 开始扫描 %d 件拍卖物品", totalItems))
-
-	if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
-		AuctionSearchOverlay.SetPhase("scanning")
-	end
-
-	-- 如果物品数量超过限制，使用分批处理
-	if totalItems > REPLICATE_ITEMS_PER_FRAME then
-		print(format("AuctionSearch: 物品数量(%d)超过限制，启用分批处理模式", totalItems))
-		ScanBatch(beginTime, continuables)
-	else
-		-- 物品数量在限制内，直接处理
-		for i = 0, totalItems - 1 do
-			auctions[i] = { C_AuctionHouse.GetReplicateItemInfo(i) }
-			if not auctions[i][18] then                 -- hasAllInfo
-				hasAsyncItems = true
-				local item = Item:CreateFromItemID(auctions[i][17]) -- itemID
-				continuables[item] = true
-
-				item:ContinueOnItemLoad(function()
-					auctions[i] = { C_AuctionHouse.GetReplicateItemInfo(i) }
-					continuables[item] = nil
-					-- 检查是否所有异步加载都完成了
-					if not next(continuables) then
-						OnScanComplete(beginTime)
-					end
-				end)
-			end
-		end
-
-		-- 只有在完全没有异步加载任务时才直接完成
-		if not hasAsyncItems then
-			OnScanComplete(beginTime)
-		end
-	end
-end
-
 local function OnEvent(self, event, ...)
 	if event == "ADDON_LOADED" then
-		local addonName = ...
-		if addonName == "AuctionSearchExample" then
-			print("AuctionSearch: 插件已加载")
-
-			-- 初始化数据库
-			if not AuctionSearchDB then
-				AuctionSearchDB = {
-					auctions = {},
-					lastScanTime = 0,
-					settings = {
-						maxHistoryDays = 7,
-						maxRecordsPerDay = 1000
-					}
-				}
-			end
-
-			-- 启动时清理过期数据
-			CleanOldData()
-
-			-- 显示统计信息
-			local stats = GetDatabaseStats()
-			if stats.totalScans > 0 then
-				print(format("AuctionSearch: 数据库包含 %d 次扫描记录，%d 件物品", stats.totalScans, stats.totalItems))
-			end
-
-			if AuctionSearchOverlay and AuctionSearchOverlay.Init then
-				AuctionSearchOverlay.Init()
-			end
-
-			-- 取消注册ADDON_LOADED事件
-			self:UnregisterEvent("ADDON_LOADED")
+		if ... ~= ADDON_NAME then
+			return
 		end
+		EnsureDatabase()
+		CleanOldData()
+		OverlayCall("Init")
+		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "AUCTION_HOUSE_SHOW" then
-		print("AuctionSearch: 拍卖行已打开，开始复制物品列表")
-		if AuctionSearchOverlay and AuctionSearchOverlay.Init then
-			AuctionSearchOverlay.Init()
+		if activeJob or waitingForReplicate then
+			return
 		end
-		if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
-			AuctionSearchOverlay.SetPhase("started")
+		requestSerial = requestSerial + 1
+		waitingForReplicate = true
+		OverlayCall("Init")
+		OverlayCall("SetPhase", "started")
+		local ok, reason = pcall(C_AuctionHouse.ReplicateItems)
+		if not ok then
+			waitingForReplicate = false
+			AuctionSearchDB.lastError = { timestamp = time(), message = tostring(reason) }
+			OverlayCall("SetPhase", "error", "客户端拒绝了全量快照请求，请关闭拍卖行后重试")
 		end
-		C_AuctionHouse.ReplicateItems()
-		initialQuery = true
+		local thisRequest = requestSerial
+		C_Timer.After(20, function()
+			if waitingForReplicate and requestSerial == thisRequest and not activeJob then
+				OverlayCall(
+					"SetPhase",
+					"started",
+					"仍在等待服务器；全量接口可能处于 15 分钟限流，请保持拍卖行开启"
+				)
+			end
+		end)
 	elseif event == "AUCTION_HOUSE_CLOSED" then
-		if AuctionSearchOverlay and AuctionSearchOverlay.SetPhase then
-			AuctionSearchOverlay.SetPhase("idle")
+		if not activeJob then
+			waitingForReplicate = false
+			requestSerial = requestSerial + 1
+			OverlayCall("SetPhase", "idle")
 		end
-	elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
-		if initialQuery then
-			ScanAuctions()
-			initialQuery = false
-		end
+	elseif event == "REPLICATE_ITEM_LIST_UPDATE" and waitingForReplicate then
+		waitingForReplicate = false
+		StartScan()
 	end
 end
 
-local f = CreateFrame("Frame")
-f:RegisterEvent("ADDON_LOADED")
-f:RegisterEvent("AUCTION_HOUSE_SHOW")
-f:RegisterEvent("AUCTION_HOUSE_CLOSED")
-f:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
-f:SetScript("OnEvent", OnEvent)
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
+eventFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
+eventFrame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+eventFrame:SetScript("OnEvent", OnEvent)

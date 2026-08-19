@@ -3,14 +3,14 @@
 将魔兽客户端里的拍卖扫描 SavedVariables 复制到仓库 data/auction.lua，供后端解析与缓存。
 
 游戏内数据保存在（示例）:
-  <零售客户端>/_retail_/WTF/Account/<账号数字>/SavedVariables/AuctionSearchDB.lua
+  <零售客户端>/_retail_/WTF/Account/<账号数字>/SavedVariables/AuctionSearchExample.lua
 
-与插件 AuctionSearchExample.toc 中 `## SavedVariables: AuctionSearchDB` 一致。
+SavedVariables 文件名由插件目录名决定；文件内容中的顶层变量仍为 `AuctionSearchDB`。
 
 使用方式:
   python game/scripts/sync_auction_lua.py              # 自动发现最新一份并复制
   python game/scripts/sync_auction_lua.py --list       # 仅列出候选文件
-  python game/scripts/sync_auction_lua.py -s /path/to/AuctionSearchDB.lua
+  python game/scripts/sync_auction_lua.py -s /path/to/AuctionSearchExample.lua
 
 环境变量（可选）:
   WOW_RETAIL_ROOT   零售客户端根目录（含 _retail_），例如 Windows 下 .../World of Warcraft
@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
+import string
 import sys
 from pathlib import Path
 
@@ -29,7 +30,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DEST = PROJECT_ROOT / "data" / "auction.lua"
 
-SV_NAME = "AuctionSearchDB.lua"
+SV_NAME = "AuctionSearchExample.lua"
 RETAIL_SEG = Path("_retail_")
 
 
@@ -49,16 +50,20 @@ def _default_retail_roots() -> list[Path]:
     if sys.platform == "darwin":
         return [Path("/Applications/World of Warcraft")]
     if sys.platform == "win32":
+        candidates: list[Path] = []
         pf = os.environ.get("PROGRAMFILES(X86)") or os.environ.get("PROGRAMFILES")
         if pf:
-            return [Path(pf) / "World of Warcraft"]
-        return [Path("C:/Program Files (x86)/World of Warcraft")]
+            candidates.append(Path(pf) / "World of Warcraft")
+        candidates.append(Path("C:/Program Files (x86)/World of Warcraft"))
+        # 战网允许安装到任意盘；覆盖最常见的 <盘符>:/World of Warcraft 布局。
+        candidates.extend(Path(f"{drive}:/World of Warcraft") for drive in string.ascii_uppercase)
+        return list(dict.fromkeys(path for path in candidates if path.is_dir()))
     # Linux 等：常见为 ~/Games 或用户自定义，仅依赖环境变量
     return []
 
 
 def _iter_sv_candidates() -> list[Path]:
-    """枚举 Account/*/SavedVariables/AuctionSearchDB.lua。"""
+    """枚举 Account/*/SavedVariables/AuctionSearchExample.lua。"""
     found: list[Path] = []
     for base in _default_retail_roots():
         retail = base / RETAIL_SEG if (base / RETAIL_SEG).is_dir() else base
@@ -84,7 +89,7 @@ def _pick_source(candidates: list[Path], account_substr: str | None) -> Path | N
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="复制 AuctionSearchDB.lua → 仓库 data/auction.lua",
+        description="复制 AuctionSearchExample.lua → 仓库 data/auction.lua",
     )
     parser.add_argument(
         "-s",

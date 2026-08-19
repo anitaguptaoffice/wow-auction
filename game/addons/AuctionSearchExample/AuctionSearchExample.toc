@@ -1,8 +1,8 @@
-## Interface: 110002
+## Interface: 120100
 ## Title: Auction Search Example
-## Notes: 拍卖扫描 + 自动化可见状态面板（wow-runner 模板）
-## Author: Your Name
-## Version: 2.0
+## Notes: WoW 12.1 全量拍卖快照采集与进度面板
+## Author: wow-auction
+## Version: 2.1.0
 ## DefaultState: enabled
 ## SavedVariables: AuctionSearchDB
 

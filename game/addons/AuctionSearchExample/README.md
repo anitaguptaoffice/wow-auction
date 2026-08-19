@@ -1,15 +1,20 @@
-# AuctionSearchExample（自动化联调）
+# AuctionSearchExample
 
-与 `automation/wow-runner` 配合时，请在游戏内 **系统 → 插件** 勾选本插件；打开拍卖行后顶部状态条会随阶段变化，便于截取 PNG 填入 `config.yaml`。
+打开拍卖行后，插件通过 `C_AuctionHouse.ReplicateItems()` 请求当前服务器的完整拍卖快照，并在屏幕顶部显示状态面板：
 
-| 阶段 (`automation_phase` 日志) | 面板内容 |
-|-------------------------------|----------|
-| `started` | 单行：`[扫描] 已开始扫描` |
-| `scanning` | 单行：`[扫描] 扫描中` |
-| `complete` | **同一屏双行**：上行 `[扫描] 扫描完成`，下行 `[登出] 请配合外部脚本返回角色` |
+- 请求阶段：等待服务器返回快照（该接口有约 15 分钟账号级限流）
+- 扫描阶段：显示已处理数量、总数、百分比和进度条
+- 完成阶段：显示实际保存条数、耗时及包含 `itemLink` 的条数；核心字段有缺失时会显示橙色警告
 
-**`complete` 一屏即可** 同时给 wow-runner 用作「扫描完成」识别与登出链前的视觉锚点，无需再切一屏。
+正常扫描不会向聊天框输出批次日志。调试命令：
 
-调试：`/auctionsearch uitest complete`（或 `uitest logout`，与 `complete` 相同）。
+- `/as stats`：查看已保存扫描统计
+- `/as history <物品ID>`：查看指定物品的最近记录
+- `/as test [物品ID]`：检查客户端物品缓存
+- `/as uitest scanning`：预览进度面板
+- `/as clear`：清空插件保存的数据
 
-若插件显示「过期」，把 `AuctionSearchExample.toc` 里的 `## Interface:` 改成与你客户端一致。
+完成后退出游戏或执行一次 `/reload`，WoW 才会把本次快照写入磁盘上的 `AuctionSearchExample.lua`。
+全量快照体积较大，插件默认保留最近 7 天，并且同一天只保留最新一次扫描。
+
+插件面向 WoW 12.1，TOC 接口版本为 `120100`。
