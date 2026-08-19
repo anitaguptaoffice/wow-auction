@@ -1,0 +1,13 @@
+{
+  "name": "wow-auction-web-assets",
+  "private": true,
+  "scripts": {
+    "build:cloudbase": "esbuild frontend/js/cloudbase-sdk-entry.js --bundle --minify --format=iife --target=chrome100,firefox100,safari15 --legal-comments=inline --outfile=frontend/vendor/cloudbase-auth.bundle.js"
+  },
+  "dependencies": {
+    "@cloudbase/js-sdk": "3.8.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

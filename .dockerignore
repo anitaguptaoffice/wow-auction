@@ -1,5 +1,11 @@
 # 虚拟环境
 .venv
+node_modules/
+
+# 本地环境变量与密钥（仅保留可提交的 .env.example）
+.env
+.env.local
+.env.*.local
 
 # Python 缓存
 __pycache__/
@@ -24,3 +30,15 @@ __pycache__/
 # Docker（构建上下文在仓库根目录时，仍使用根目录本文件）
 docker/Dockerfile
 .dockerignore
+
+# 仅构建 FastAPI 服务；大体积快照由私有对象存储提供
+data/
+game/
+automation/
+frontend/
+certs/
+
+# 文档与本地开发产物
+*.png
+*.log
+CLOUDBASE.md

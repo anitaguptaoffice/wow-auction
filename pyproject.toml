@@ -8,17 +8,16 @@ where = ["backend"]
 [project]
 name = "wow-auction"
 version = "0.1.0"
-description = "Add your description here"
+description = "WoW auction snapshot importer and CloudBase market API"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "bcrypt==4.0.1",
     "fastapi>=0.116.1",
-    "passlib[bcrypt]>=1.7.4",
-    "python-jose[cryptography]>=3.5.0",
-    "python-multipart>=0.0.20",
-    "slowapi>=0.1.9",
+    "pymysql>=1.1.1",
     "slpp>=1.2.3",
     "sqlalchemy>=2.0.43",
     "uvicorn[standard]>=0.35.0",
 ]
+
+[project.scripts]
+wow-auction-import = "import_auction:main"

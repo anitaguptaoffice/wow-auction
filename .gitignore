@@ -1,6 +1,12 @@
 # Virtual environments
 .venv
 
+# Local environment variables and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
 # Python cache
 __pycache__/
 *.py[cod]
@@ -11,13 +17,19 @@ dist/
 wheels/
 *.egg-info/
 
+# Frontend build dependencies
+node_modules/
+
 # Local database files
 *.db
 *.db-journal*
+*.db-shm
+*.db-wal
 
 # Runtime auction snapshots (large WoW SavedVariables exports)
 data/auction.lua
 data/auction.lua.*
+data/archive/
 
 # uv cache
 .uv_cache/
@@ -38,3 +50,5 @@ data/raidbots/
 
 # wow-runner failure debug screenshots (see config debug.failure_capture_dir)
 automation/wow-runner/captures/
+automation/wow-runner/config.yaml
+automation/wow-runner/*.local.yaml

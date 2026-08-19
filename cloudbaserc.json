@@ -1,0 +1,8 @@
+{
+  "version": "2.0",
+  "envId": "raidbot-5gh3h2nx762bedc5",
+  "region": "ap-shanghai",
+  "cloudrun": {
+    "name": "wow-auction-api"
+  }
+}

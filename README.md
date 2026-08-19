@@ -1,218 +1,115 @@
-# 🏰 艾泽拉斯交易所 (Wow Auction)
+# 艾泽拉斯交易所（WoW Auction）
 
-魔兽世界拍卖行数据采集、存储与查询系统 —— 从游戏内自动扫描拍卖行数据，到后端解析缓存，再到前端可视化展示的完整数据管线。
+魔兽世界拍卖行快照采集、完整性校验、持久化和在线查询项目。游戏插件负责调用 WoW 拍卖行 API 获取快照；本项目后半段将快照保存到 CloudBase 私有对象存储，校验后写入 MySQL，再由 FastAPI 和静态网站展示真实数据。
 
-## ✨ 功能特性
+## 当前状态
 
-- 🎮 **游戏内自动扫描** — WoW 插件自动采集拍卖行数据，分批处理避免卡顿
-- 📈 **历史价格趋势** — 插件按次扫描落盘，后端聚合时间序列，前端折线图展示（可选按完整 `itemLink` 过滤词缀）
-- 📊 **实时数据缓存** — 后台每 10 秒检测数据变化，自动更新内存缓存
-- 🔐 **用户认证系统** — JWT Token + bcrypt 密码哈希，安全可靠
-- 🌓 **深色/浅色主题** — 魔兽风格 UI，支持主题切换与持久化
-- 🎨 **物品稀有度颜色** — 完整还原游戏内物品品质颜色系统
-- ⚡ **API 限流保护** — 基于 IP 的请求频率限制，防止滥用
+2026-08-20 的第一份生产快照已经完成端到端验证：
 
-## 🏗️ 系统架构
+- 原始拍卖记录：`380,668`
+- 基础物品 ID：`12,759`
+- 网站市场条目：`13,303`（战斗宠物按物种拆分）
+- 战斗宠物：`545` 个市场分组、`1,210` 条明细
+- 总数量：`42,894,416`
+- 核心字段缺失、API 错误、单价差异、聚合差异：均为 `0`
+- 快照 SHA-256：`8c60305ed1c19b7031b150012b72cab809a474dc45c1d6a14857d596ce67f961`
 
-```
-WoW 游戏客户端
-  └── game/addons/AuctionSearchExample 插件
-      └── 扫描拍卖行 → 导出 SavedVariables，复制为仓库 data/auction.lua
+线上入口：
 
-后端服务 (FastAPI，目录 backend/)
-  └── app/services/auction_cache.py → 后台线程每 10 秒检查 auction.lua；快照 + 历史序列聚合
-  └── app/main.py → /query、/query/history（需认证）、/register、/login 等 HTTP API
+- 网站：<https://raidbot-5gh3h2nx762bedc5-1251932919.tcloudbaseapp.com/wow-auction/>
+- API 健康检查：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/health>
+- 市场状态：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/api/market/status>
 
-前端 (静态 SPA，目录 frontend/，可与后端分开部署)
-  └── index.html + css/ + js/ → 展示与交互；js/config.js 中配置 apiBaseUrl 指向后端
-```
+服务器/连接区元数据尚未写入本次插件快照，因此网站会明确显示“未标注”，不会猜测服务器。
 
-## 📁 项目结构
+## 数据流
 
-```
-wow-auction/
-├── backend/                       # 后端（Python 包，导入名 app）
-│   ├── run_dev.py                 # 本地 HTTP 开发启动
-│   └── app/
-│       ├── main.py                # FastAPI 应用与路由
-│       ├── auth.py
-│       ├── config.py
-│       ├── database.py
-│       ├── models.py
-│       └── services/
-│           ├── auction_cache.py
-│           └── auction_labels.py   # timeLeftBand → 中文档位说明等
-├── frontend/                      # 前端静态资源
-│   ├── index.html
-│   ├── css/styles.css
-│   └── js/config.js, app.js
-├── game/                          # 游戏侧：插件与相关脚本、参考数据
-│   ├── addons/AuctionSearchExample/
-│   ├── scripts/sync_raidbots.py   # Raidbots 静态数据同步
-│   ├── scripts/sync_auction_lua.py # SavedVariables → data/auction.lua
-│   └── data/bonus.json            # Bonus ID 等参考数据（可选）
-├── automation/                    # Windows 外部自动化（Go：wow-runner）与开发计划文档
-│   └── wow-runner/
-├── docker/Dockerfile              # 容器构建
-├── data/                          # 运行期数据（auction.lua、SQLite、raidbots 下载缓存等）
-├── pyproject.toml, uv.lock        # Python 依赖（根目录仅保留必要清单）
-└── README.md
+```text
+WoW 客户端
+  -> AuctionSearchExample 插件生成 SavedVariables 快照
+  -> auction.lua + SHA/manifest
+  -> CloudBase 私有对象存储 wow-auction/snapshots/
+  -> FastAPI 管理导入（校验、去重、事务、批量写入）
+  -> CloudBase MySQL 的 wow_auction_* 表
+  -> 公开只读市场 API
+  -> CloudBase 静态托管 /wow-auction/
 ```
 
-## 🚀 快速开始
+原始数据每一行都会保存到 `wow_auction_listings`，网站摘要是额外的物化视图，不会替代或丢弃原始行。普通装备按基础 `itemID` 汇总，并返回 `variantCount`；完整 `itemLink` 保留在明细中。笼装战斗宠物共享 `itemID=82800`，因此额外按 `battlePetCreatureID` 分组。
 
-### 环境要求
+## 用户体系
 
-- Python >= 3.13
-- [uv](https://github.com/astral-sh/uv) 包管理器
+用户注册和登录完全使用 CloudBase 原生身份认证，不在本项目数据库中保存密码：
 
-### 本地运行
+- 邮箱验证码注册
+- 邮箱或用户名 + 密码登录
+- 会话恢复与退出
+- 邮箱验证码找回密码
 
-```bash
-# 1. 克隆仓库
-git clone https://github.com/your-username/wow-auction.git
-cd wow-auction
+市场浏览保持公开只读。浏览器只包含 CloudBase Publishable Key；Server API Key、Client Secret、数据库密码和导入令牌均不进入前端或 Git。
 
-# 2. 安装依赖
-uv sync
+## 公开 API
 
-# 3. 设置环境变量（可选，生产环境必须设置）
-export SECRET_KEY="your-secure-secret-key"
+- `GET /api/market/status`
+- `GET /api/market/items?q=&page=&page_size=&sort=`
+- `GET /api/market/items/{item_id}/listings?page=&page_size=&battle_pet_creature_id=`
 
-# 4. 启动服务
-uv run python backend/run_dev.py
+排序支持 `price_asc`、`price_desc`、`quantity_desc`、`listings_desc`、`name_asc`。查询战斗宠物详情时必须带回列表返回的 `battlePetCreatureID`。
+
+管理导入接口使用独立 Bearer 令牌：
+
+- `POST /api/admin/import`：提交私有对象存储签名 URL 和解压后 Lua 的 SHA-256，返回 HTTP 202 + `jobId`
+- `GET /api/admin/import/{jobId}`：查询导入进度
+
+管理接口只接受腾讯 COS/CloudBase 的 HTTPS 地址，并限制重定向、端口、下载时间、压缩包和解压大小。
+
+## 本地开发
+
+要求 Python 3.13、[uv](https://docs.astral.sh/uv/) 和 Node.js。
+
+```powershell
+uv sync --frozen
+$env:PYTHONPATH = "backend"
+uv run --frozen wow-auction-import data/auction.lua --json
+uv run --frozen uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-服务将在 `http://0.0.0.0:8000` 启动。
+认证 SDK 已固定并打包为同源静态文件：
 
-### Docker 运行
-
-```bash
-# 构建镜像（构建上下文为仓库根目录）
-docker build -f docker/Dockerfile -t wow-auction .
-
-# 运行容器（镜像内为 HTTP :8000，生产环境建议前置反向代理做 TLS）
-docker run -p 8000:8000 wow-auction
+```powershell
+npm ci
+npm run build:cloudbase
 ```
 
-## 📡 API 接口
+运行测试：
 
-| 端点 | 方法 | 限流 | 说明 |
-|------|------|------|------|
-| `/register` | POST | 5 次/分钟 | 用户注册（默认 10 次查询额度） |
-| `/login` | POST | 5 次/分钟 | 用户登录，返回 JWT Token |
-| `/query?itemID=xxx` | GET | 20 次/分钟 | **当前快照**（最新日最新 scan）：含 `minBid` 起拍、`buyoutAmount`、`bidAmount`、`itemLink`、`timeLeftBand`（枚举）及 `timeLeftLabel`（中文档位说明） |
-| `/query/history?itemID=&days=&itemLink=` | GET | 20 次/分钟 | 历史序列：每点含 `timestamp`、`buyoutAmount`、`minBid`、`bidAmount`、`timeLeftBand`、`timeLeftLabel`、`itemLink` 等；`days` 1–90，`itemLink` 可选 |
-| `/users/me` | GET | 20 次/分钟 | 获取当前用户信息（需认证） |
-
-### 示例请求
-
-```bash
-# 注册
-curl -X POST http://localhost:8000/register \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=player1&password=mypassword"
-
-# 登录
-curl -X POST http://localhost:8000/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=player1&password=mypassword"
-
-# 查询物品 (携带 Token)
-curl http://localhost:8000/query?itemID=12345 \
-  -H "Authorization: Bearer <your-jwt-token>"
-
-# 历史价格序列（用于趋势图；会消耗与 /query 相同的额度）
-curl "http://localhost:8000/query/history?itemID=12345&days=7" \
-  -H "Authorization: Bearer <your-jwt-token>"
+```powershell
+$env:PYTHONPATH = "backend"
+uv run --frozen python -m unittest discover -s backend/tests -v
+node --check frontend/js/app.js
+node --check frontend/js/auth.js
+npm audit
 ```
 
-## 🎮 游戏内插件使用
+## 目录
 
-### 安装
+- `game/addons/AuctionSearchExample/`：游戏插件（当前由独立任务继续加固）
+- `backend/`：FastAPI、导入器、SQLAlchemy 模型和测试
+- `frontend/`：无框架静态网站和本地打包的 CloudBase Auth SDK
+- `data/`：本地快照、SQLite 和归档；大文件均被 `.gitignore` 排除
+- `automation/`：Windows 外部自动化；不属于本次网站部署改动
+- `CLOUDBASE.md`：CloudBase 资源、部署和更新运行手册
 
-将 `game/addons/AuctionSearchExample/` 复制到 WoW 插件目录（保持文件夹名为 `AuctionSearchExample`）：
+## 部署约束
 
-```
-World of Warcraft/_retail_/Interface/AddOns/AuctionSearchExample/
-```
+- CloudRun 服务固定 `MaxNum=1`；导入任务状态当前保存在进程内存，不能多实例轮询。
+- 导入期间临时设 `MinNum=1`，完成后恢复 `MinNum=0`。
+- CloudRun 规格为 1 CPU / 2 GiB；真实快照解析峰值约 1.37 GiB。
+- MySQL 只开放私网地址，应用账号只拥有目标数据库权限。
+- 开启定时更新前需要确定历史快照保留数量；当前不会自动删除历史数据。
 
-### 斜杠命令
+详细运行手册见 [CLOUDBASE.md](CLOUDBASE.md)，后端契约见 [backend/README.md](backend/README.md)。
 
-| 命令 | 功能 |
-|------|------|
-| `/as stats` | 显示数据库统计信息 |
-| `/as history <物品ID>` | 查看物品拍卖历史 |
-| `/as test [物品ID]` | 调试：`C_Item` 与当前 replicate 中的 `itemLink` |
-| `/as clear` | 清空所有扫描数据 |
-| `/as uitest [phase]` | 调试自动化状态面板（`idle` / `started` / `scanning` / `complete`） |
-
-### 工作流程
-
-1. 进入游戏，打开拍卖行
-2. 插件自动开始扫描（大量物品会自动分批处理）
-3. 退出游戏或执行 `/reload` 后，数据写入 `WTF/Account/<账号>/SavedVariables/AuctionSearchExample.lua`（文件内变量名为 `AuctionSearchDB`）
-4. 将该文件同步到项目的 `data/auction.lua`（可用脚本一键复制，见下）
-5. 后端自动检测 `data/auction.lua` 变化并更新缓存
-
-**一键同步到仓库（推荐）**（在仓库根目录执行）：
-
-```bash
-# 自动在常见安装路径下查找最新的 AuctionSearchExample.lua 并复制到 data/auction.lua
-uv run python game/scripts/sync_auction_lua.py
-
-# 仅列出本机找到的候选文件（多账号时便于确认路径）
-uv run python game/scripts/sync_auction_lua.py --list
-
-# 手动指定源文件或零售根目录（见脚本文件头说明）
-# WOW_RETAIL_ROOT="D:/Games/World of Warcraft" uv run python game/scripts/sync_auction_lua.py
-```
-
-
-## 🛠️ 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| 游戏插件 | Lua（`AuctionSearchExample.toc` 中 `## Interface:` 随版本更新） |
-| 后端框架 | FastAPI + Uvicorn |
-| 数据库 | SQLite + SQLAlchemy |
-| 认证 | JWT (python-jose) + bcrypt |
-| 数据解析 | slpp (Lua → Python) |
-| API 限流 | SlowAPI |
-| 前端 | HTML + Tailwind CSS + 原生 JS |
-| 部署 | Docker / GitHub Pages (前端) |
-
-## 📦 Raidbots 数据同步
-
-项目包含一个数据同步脚本，从 [Raidbots](https://www.raidbots.com/developers) 下载最新的游戏静态数据（物品信息、Bonus ID 映射、副本数据等），用于将拍卖行中的物品 ID 翻译为人类可读的信息。
-
-```bash
-# 查看可同步的文件列表和状态
-python game/scripts/sync_raidbots.py --list
-
-# 一次性同步所有数据
-python game/scripts/sync_raidbots.py
-
-# 只同步核心数据（物品/词缀/图标）
-python game/scripts/sync_raidbots.py --priority core
-
-# 强制重新下载（忽略缓存）
-python game/scripts/sync_raidbots.py --force
-
-# 定时同步（每 6 小时自动检查更新）
-python game/scripts/sync_raidbots.py --schedule
-```
-
-同步的数据文件按优先级分为三级：
-
-| 优先级 | 文件 | 用途 |
-|--------|------|------|
-| ★★★ 核心 | `equippable-items.json`, `item-names.json`, `bonuses.json`, `icon-lookup.json` | 物品展示必备 |
-| ★★☆ 重要 | `enchantments.json`, `gems.json`, `instances.json`, `crafting.json` 等 | 增强数据丰富度 |
-| ★☆☆ 可选 | `encounter-items.json`, `seasons.json` 等 | 辅助功能 |
-
-数据保存在 `data/raidbots/` 目录下（已加入 `.gitignore`）。
-
-## 📄 License
+## License
 
 MIT
