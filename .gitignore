@@ -15,6 +15,10 @@ wheels/
 *.db
 *.db-journal*
 
+# Runtime auction snapshots (large WoW SavedVariables exports)
+data/auction.lua
+data/auction.lua.*
+
 # uv cache
 .uv_cache/
 
