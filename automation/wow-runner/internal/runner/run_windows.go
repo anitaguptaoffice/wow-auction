@@ -5,13 +5,13 @@ package runner
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"wow-auction/automation/wow-runner/internal/config"
 	"wow-auction/automation/wow-runner/internal/fsm"
 	"wow-auction/automation/wow-runner/internal/input"
 	"wow-auction/automation/wow-runner/internal/logx"
-	"wow-auction/automation/wow-runner/internal/proc"
 	"wow-auction/automation/wow-runner/internal/winutil"
 )
 
@@ -19,7 +19,7 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 	emitTrans(log, fsm.INIT, fsm.BNETStart, "run_fsm", nil)
 
 	indices := effectiveIndices(cfg)
-	killRestarts := 0
+	restartCount := 0
 	charPos := 0
 
 	for charPos < len(indices) {
@@ -60,64 +60,105 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 			}
 
 			emitTrans(log, fsm.AHPrep, fsm.AHOpen, "open_ah", map[string]any{"char_index": charPos, "slot": slot, "state": fsm.AHOpen})
-			if err := keyTapByName(log, cfg.Keys.AuctionTarMacro, "auction_tar_macro"); err != nil {
-				return err
+			if target := strings.TrimSpace(cfg.Keys.AuctioneerTarget); target != "" {
+				if err := sendWowSlashCommand(log, hwnd, "/targetexact "+target, charPos); err != nil {
+					return err
+				}
+			} else {
+				if err := keyTapByName(log, cfg.Keys.AuctionTarMacro, "auction_tar_macro"); err != nil {
+					return err
+				}
 			}
 			time.Sleep(150 * time.Millisecond)
 			if err := keyTapByName(log, cfg.Keys.InteractTarget, "interact_target"); err != nil {
 				return err
 			}
 
-			if err := waitAuctionHouseOpen(log, cfg, hwnd, charPos); err != nil {
-				return err
-			}
-
 			ts := time.Now()
+			if !cfg.OCR.Enabled {
+				if err := waitAuctionHouseOpen(log, cfg, hwnd, charPos); err != nil {
+					return err
+				}
+			}
 			scanTS := ts.Format(time.RFC3339Nano)
 			log.Emit("INFO", "scan_trigger_recorded", "AH_OPEN success, scan timer started", map[string]any{
 				"scan_trigger_ts": scanTS,
 				"char_index":      charPos,
 				"slot":            slot,
-				"state":           fsm.WaitPluginLogout,
+				"state":           fsm.WaitPluginScan,
 			})
 
-			emitTrans(log, fsm.AHOpen, fsm.WaitPluginLogout, "wait_templates", map[string]any{
+			emitTrans(log, fsm.AHOpen, fsm.WaitPluginScan, "wait_plugin_state", map[string]any{
 				"char_index": charPos,
 				"slot":       slot,
-				"state":      fsm.WaitPluginLogout,
+				"state":      fsm.WaitPluginScan,
 			})
-			err = waitPluginLogout(log, cfg, hwnd, pid, charPos, ts)
+			err = waitPluginScan(log, cfg, hwnd, pid, charPos, ts)
 			if err == nil {
+				emitTrans(log, fsm.WaitPluginScan, fsm.GracefulExit, "scan_complete", map[string]any{
+					"char_index": charPos, "slot": slot,
+				})
 				if charPos == len(indices)-1 {
-					return roundDoneKillWow(log, pid, charPos, slot)
+					if err := gracefulQuit(log, cfg, hwnd, pid, charPos); err != nil {
+						return err
+					}
+					emitTrans(log, fsm.GracefulExit, fsm.SnapshotValidate, "process_exited_normally", map[string]any{
+						"char_index": charPos, "slot": slot,
+					})
+					if err := syncSnapshotAfterExit(log, cfg, ts); err != nil {
+						return err
+					}
+					emitTrans(log, fsm.SnapshotValidate, fsm.Done, "snapshot_validated", map[string]any{
+						"char_index": charPos, "slot": slot, "state": fsm.Done,
+					})
+					return nil
 				}
+				if err := gracefulLogout(log, cfg, hwnd, charPos); err != nil {
+					return err
+				}
+				emitTrans(log, fsm.GracefulExit, fsm.BNETStart, "next_character", map[string]any{
+					"char_index": charPos + 1,
+				})
 				charPos++
 				break
 			}
 
-			if errors.Is(err, ErrPluginTimeoutKill) {
-				killRestarts++
+			if errors.Is(err, ErrPluginTimeout) {
+				restartCount++
 				perCharRetries++
-				log.Emit("WARN", "transition", "PLUGIN_STUCK: will full restart same character", map[string]any{
+				var budgetErr error
+				budgetTrigger := ""
+				if restartCount > maxRestartTotal(cfg) {
+					budgetTrigger = "restart_budget"
+					budgetErr = fmt.Errorf("exceeded retry.max_restart_total (%d)", maxRestartTotal(cfg))
+				} else if perCharRetries > maxRetriesPerCharacter(cfg) {
+					budgetTrigger = "per_char_retry_budget"
+					budgetErr = fmt.Errorf("exceeded retry.max_retries_per_character (%d) for slot %d", maxRetriesPerCharacter(cfg), slot)
+				}
+				log.Emit("WARN", "transition", "PLUGIN_STUCK: normal quit before retry decision", map[string]any{
 					"char_index":        charPos,
 					"slot":              slot,
-					"kill_restart_seq":  killRestarts,
+					"restart_seq":       restartCount,
 					"per_char_retry":    perCharRetries,
-					"max_kill_total":    maxKillRestartTotal(cfg),
+					"max_restart_total": maxRestartTotal(cfg),
 					"max_per_character": maxRetriesPerCharacter(cfg),
+					"will_retry":        budgetErr == nil,
 				})
-				if killRestarts > maxKillRestartTotal(cfg) {
-					emitTrans(log, fsm.WaitPluginLogout, fsm.Failed, "kill_restart_budget", map[string]any{"char_index": charPos})
-					return fmt.Errorf("exceeded retry.max_kill_restart_total (%d)", maxKillRestartTotal(cfg))
+				// A stuck scan is also shut down through WoW itself. Never force-kill a
+				// successful or potentially flushing client.
+				emitTrans(log, fsm.WaitPluginScan, fsm.GracefulExit, "scan_timeout", map[string]any{
+					"char_index": charPos, "slot": slot,
+				})
+				if qerr := gracefulQuit(log, cfg, hwnd, pid, charPos); qerr != nil {
+					return fmt.Errorf("plugin timeout and normal retry shutdown failed: %w", qerr)
 				}
-				if perCharRetries > maxRetriesPerCharacter(cfg) {
-					emitTrans(log, fsm.WaitPluginLogout, fsm.Failed, "per_char_retry_budget", map[string]any{"char_index": charPos})
-					return fmt.Errorf("exceeded retry.max_retries_per_character (%d) for slot %d", maxRetriesPerCharacter(cfg), slot)
+				if budgetErr != nil {
+					emitTrans(log, fsm.GracefulExit, fsm.Failed, budgetTrigger, map[string]any{"char_index": charPos})
+					return budgetErr
 				}
-				deadline := time.Now().Add(45 * time.Second)
-				if werr := proc.WaitProcessGone(pid, deadline); werr != nil {
-					log.Emit("WARN", "process_poll", "WaitProcessGone", map[string]any{"pid": pid, "error": werr.Error()})
-				}
+				emitTrans(log, fsm.GracefulExit, fsm.BNETStart, "retry_after_normal_exit", map[string]any{
+					"char_index": charPos, "slot": slot,
+				})
 				time.Sleep(2 * time.Second)
 				continue
 			}
@@ -132,6 +173,12 @@ func selectCharacterForRound(log *logx.Logger, cfg *config.Root, indices []int, 
 	if err := waitCharSelectScreenBeforeNavigate(log, cfg, hwnd, charPos); err != nil {
 		return err
 	}
+	if cfg.Characters.Mode == "current" {
+		emitTrans(log, fsm.WOWForeground, fsm.CharSelect, "keep_current_character", map[string]any{
+			"char_index": charPos, "state": fsm.CharSelect,
+		})
+		return nil
+	}
 
 	if charPos == 0 || perCharRetries > 0 {
 		emitTrans(log, fsm.WOWForeground, fsm.CharSelect, "start_char_select", map[string]any{
@@ -142,7 +189,7 @@ func selectCharacterForRound(log *logx.Logger, cfg *config.Root, indices []int, 
 		return doCharSelect(log, cfg, slot)
 	}
 
-	from := fsm.WaitPluginLogout
+	from := fsm.WOWForeground
 	emitTrans(log, from, fsm.CharSelectAgain, "next_character", map[string]any{
 		"char_index": charPos,
 		"slot":       slot,
@@ -158,29 +205,6 @@ func selectCharacterForRound(log *logx.Logger, cfg *config.Root, indices []int, 
 		return doCharSelect(log, cfg, slot)
 	}
 	return doCharSelectAgain(log, cfg, slot-prev)
-}
-
-func roundDoneKillWow(log *logx.Logger, pid int32, charPos, slot int) error {
-	emitTrans(log, fsm.WaitPluginLogout, fsm.RoundDone, "last_char_on_char_select", map[string]any{
-		"char_index": charPos,
-		"slot":       slot,
-		"state":      fsm.RoundDone,
-	})
-	log.Emit("INFO", "process_kill", "taskkill Wow.exe after last character scan (ROUND_DONE)", map[string]any{
-		"pid":        pid,
-		"char_index": charPos,
-		"slot":       slot,
-	})
-	if err := proc.KillPID(pid); err != nil {
-		emitTrans(log, fsm.RoundDone, fsm.Failed, "kill_failed", map[string]any{"pid": pid})
-		return fmt.Errorf("ROUND_DONE KillPID: %w", err)
-	}
-	log.Emit("INFO", "transition", "ROUND_DONE → success", map[string]any{
-		"from_state": fsm.RoundDone,
-		"to_state":   "EXIT",
-		"trigger":    "wow_terminated",
-	})
-	return nil
 }
 
 func emitTrans(log *logx.Logger, from, to, trigger string, extra map[string]any) {
@@ -231,7 +255,7 @@ func doCharSelectAgain(log *logx.Logger, cfg *config.Root, downCount int) error 
 }
 
 func keyTapByName(log *logx.Logger, keyName, field string) error {
-	vk, err := input.VK(keyName)
+	chord, err := input.ParseChord(keyName)
 	if err != nil {
 		return fmt.Errorf("key %s (%s): %w", field, keyName, err)
 	}
@@ -239,5 +263,5 @@ func keyTapByName(log *logx.Logger, keyName, field string) error {
 		"keys":  []string{keyName},
 		"field": field,
 	})
-	return winutil.KeyTap(vk)
+	return winutil.KeyChord(chord.Modifiers, chord.Key)
 }

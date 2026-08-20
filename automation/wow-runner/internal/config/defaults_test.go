@@ -26,3 +26,22 @@ func TestApplyDefaultTemplatePaths_preservesExplicit(t *testing.T) {
 		t.Fatal("expected other fields still defaulted")
 	}
 }
+
+func TestApplyOCRDefaults(t *testing.T) {
+	r := &Root{}
+	r.applyOCRDefaults()
+	if r.OCR.Language != "zh-Hans-CN" || r.OCR.PollIntervalMS != 750 || r.OCR.StableReads != 2 {
+		t.Fatalf("unexpected OCR defaults: %+v", r.OCR)
+	}
+	if len(r.OCR.CompleteTokens) != 1 || r.OCR.CompleteTokens[0] != "AS_COMPLETE" {
+		t.Fatalf("complete tokens: %#v", r.OCR.CompleteTokens)
+	}
+}
+
+func TestApplyBnetDefaults(t *testing.T) {
+	r := &Root{}
+	r.applyBnetDefaults()
+	if len(r.Bnet.GameLabels) < 1 || len(r.Bnet.PlayLabels) < 1 {
+		t.Fatalf("unexpected Battle.net defaults: %+v", r.Bnet)
+	}
+}

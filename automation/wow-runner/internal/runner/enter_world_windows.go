@@ -23,6 +23,18 @@ func enterWorldTimeout(cfg *config.Root) time.Duration {
 
 // waitEnterWorld 在按下进世界键后轮询 enter_world_actionbar 模板；成功后可选再睡 enter_world_load 秒。
 func waitEnterWorld(log *logx.Logger, cfg *config.Root, hwnd winutil.HWND, charPos int) error {
+	if cfg.OCR.Enabled {
+		if err := waitForOCRTokens(
+			log, cfg, hwnd, cfg.OCR.ReadyTokens, "addon_ready_ocr",
+			time.Now().Add(enterWorldTimeout(cfg)), true,
+		); err != nil {
+			return err
+		}
+		// The addon event proves PLAYER_ENTERING_WORLD has fired. A brief grace
+		// lets action bindings become responsive before targeting the auctioneer.
+		time.Sleep(800 * time.Millisecond)
+		return nil
+	}
 	p := cfg.ResolvePath(cfg.Templates.EnterWorldActionbar)
 	roi := searchROI(cfg)
 	th := visionThreshold(cfg)

@@ -1,43 +1,69 @@
 # wow-runner
 
-Windows 用 Go 主控：战网 → 魔兽 → 多角色拍卖扫描 → 插件小退，约定见上级目录文档。
+Windows 自动采集链路：启动或复用 Battle.net → OCR 选择《魔兽世界》并点击「进入游戏」→ 选角 → 等待插件进入世界 → 定位拍卖师并交互 → OCR 观察扫描状态 → 正常退出 → 校验并原子同步 SavedVariables。
 
-- **开发计划**：[../DEVELOPMENT_PLAN.md](../DEVELOPMENT_PLAN.md)
-- **流程与异常**：[../FLOW_AND_EXCEPTIONS.md](../FLOW_AND_EXCEPTIONS.md)
-- **日志规范**：[../LOGGING_SPEC.md](../LOGGING_SPEC.md)
+## 安全与成功条件
 
-## 当前状态
-
-完整 FSM：**选角前强校验**（`char_select_screen`）→ 进世界（`enter_world_actionbar`）→ 拍卖与插件登出链 → 多角循环与 **`ROUND_DONE` 杀进程**；战网点「进入游戏」前可选 **就绪模板**；模板默认占位 PNG，实机需替换并校准 ROI。
+- 不自动登录账号，不输入账号、密码或验证码。
+- 不调用 `TerminateProcess`。中间角色使用 `/logout`，最后一角及超时重试使用 `/quit`；自然退出超时会报错并保留客户端。
+- OCR 看到完成只代表插件已在内存中生成快照，不代表文件已落盘。
+- 最终成功必须在 WoW 正常退出后同时满足：
+  - 最新扫描时间不早于本轮打开拍卖行的时间；
+  - `itemCount == recordCount == items` 实际记录数，且大于 0；
+  - `missingCoreCount == 0`、`apiErrorCount == 0`；
+  - 校验通过后才原子替换目标 `data/auction.lua`。
+- `linkedItemCount` 不足或 `incompleteInfoCount > 0` 只记警告；价格、数量等核心拍卖行记录仍须完整。
 
 ## 使用
 
-```bash
-cp config.example.yaml config.yaml
-# 编辑 config.yaml 后（在 Windows 目标机上）：
-go run ./cmd/wow-runner -config config.yaml
+```powershell
+Copy-Item config.example.yaml config.yaml
+# 编辑 config.yaml 后先做只读预检
+go run ./cmd/wow-runner -config config.yaml -check
+# 执行完整采集流程
+go run ./cmd/wow-runner -config config.yaml -run
 ```
 
-- `-version`：打印版本占位。
-- `-check`：加载配置后查询 **战网 / Wow** 进程是否存活，向 stderr 输出 **NDJSON**（`process_poll`），用于预检。
-- `-run`：**仅 Windows**：全流程自动化（见上）。`debug.failure_capture_dir` 非空时，多处失败会落盘 **PNG 截图**。macOS/Linux 上会打日志并跳过。
+`config.yaml` 包含本机路径和账号目录，已被 `.gitignore` 忽略。
 
-## 已实现
+## OCR 状态
 
-- YAML：`config.DefaultPlaceholderTemplate`、**NCC 模板**（`vision.match_method: ncc`，等价 OpenCV TM_CCOEFF_NORMED 映射到 [0,1]）、可选 **`color_gate_max_avg_channel_diff`**。
-- **战网**：`bnet.ready_template`、`bnet.search_roi`、`timeouts_seconds.bnet_ui_ready`。
-- **失败截图**：`debug.failure_capture_dir`（相对配置文件目录，仓库默认 `captures/` 已 gitignore）。
-- **进程**、**重试**、**多角**、**ROUND_DONE** 等见代码与 `config.example.yaml`。
+主路径使用系统自带 `Windows.Media.Ocr`（默认 `zh-Hans-CN`），无需 OpenCV。插件面板提供稳定的 ASCII 令牌：
 
-## 待实现（见 `../DEVELOPMENT_PLAN.md`）
+- `AS_READY`：角色已进入世界，插件可工作；
+- `AS_WAITING`：已请求拍卖快照，等待服务器；
+- `AS_SCANNING`：正在写入扫描记录；
+- `AS_COMPLETE`：核心数据完整；
+- `AS_WARNING`：核心记录已保存，但部分物品详情尚未就绪；
+- `AS_ERROR`：扫描失败。
 
-更细的战网异常恢复、HSV/更复杂颜色策略等（当前已有 RGB 门控）。
+runner 只接受先观察到 `AS_SCANNING`、再连续稳定读到 `AS_COMPLETE` 或 `AS_WARNING` 的单调序列，避免把上一次残留的完成面板误判为本轮成功。`AS_WARNING` 仍会正常退出，最终由磁盘快照门禁决定成功或失败。
 
-## 布局
+Battle.net 同样由 OCR 定位“魔兽世界”和“进入游戏”；若当前时间落在可识别的维护公告窗口内，runner 会安全停止，不点击进入游戏。`cmd/wow-ocr` 可只读截取指定窗口并输出 OCR 文本，便于校准：
 
+```powershell
+go run ./cmd/wow-ocr -exe Battle.net.exe -language zh-Hans-CN
 ```
-cmd/wow-runner/    # main
-internal/config/   # YAML 解析与校验
-internal/vision/   # 截图与 NCC / rgb_mean 匹配
-config.example.yaml
+
+## 角色与拍卖行
+
+- `characters.mode: current`：保持选角页当前角色；适合单角色稳定采集。
+- `single`：按 Home 后根据 `indices[0]` 向下定位。
+- `all`：按 `indices` 顺序逐个角色运行；中间角色正常 `/logout` 回选角页。
+- `keys.auctioneer_target` 非空时发送 `/targetexact <名称>`；否则使用 `auction_tar_macro`。
+- `interact_target` 支持单键和组合键，如 `ALT-CTRL-H`。
+
+## 模板回退
+
+`ocr.enabled: false` 时才使用 NCC 模板回退。占位 PNG 不能证明任何真实界面状态，必须替换成目标机器上的实机截图。推荐保持 OCR 开启。
+
+## 验证
+
+```powershell
+go test ./...
+go vet ./...
+$env:WOW_SNAPSHOT_TEST_FILE='C:\path\to\AuctionSearchExample.lua'
+go test -run TestValidateExternalSnapshot -v ./internal/snapshot
 ```
+
+详细状态设计见 [DEVELOPMENT_PLAN.md](../DEVELOPMENT_PLAN.md)，异常与恢复见 [FLOW_AND_EXCEPTIONS.md](../FLOW_AND_EXCEPTIONS.md)。

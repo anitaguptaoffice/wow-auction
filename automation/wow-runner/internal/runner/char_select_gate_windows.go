@@ -15,6 +15,12 @@ import (
 
 // waitCharSelectScreenBeforeNavigate 在发送 Home / ↓ 之前，强校验当前已在选角界面（char_select_screen 模板）。
 func waitCharSelectScreenBeforeNavigate(log *logx.Logger, cfg *config.Root, hwnd winutil.HWND, charPos int) error {
+	if cfg.OCR.Enabled {
+		return waitForOCRTokens(
+			log, cfg, hwnd, cfg.OCR.CharSelectTokens, "char_select_ocr",
+			time.Now().Add(charSelectGateTimeout(cfg)), false,
+		)
+	}
 	p := cfg.ResolvePath(cfg.Templates.CharSelectScreen)
 	roi := searchROI(cfg)
 	th := visionThreshold(cfg)

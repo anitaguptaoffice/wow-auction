@@ -26,6 +26,8 @@ type Root struct {
 	Characters Characters `yaml:"characters"`
 	Templates  Templates  `yaml:"templates"`
 	Vision     Vision     `yaml:"vision"`
+	OCR        OCR        `yaml:"ocr"`
+	Snapshot   Snapshot   `yaml:"snapshot"`
 	Debug      Debug      `yaml:"debug"`
 	Logging    Logging    `yaml:"logging"`
 }
@@ -43,7 +45,12 @@ type Process struct {
 }
 
 type Bnet struct {
-	EnterGameClick Point `yaml:"enter_game_click"`
+	// GameSelectClick：战网左侧/顶部的「魔兽世界」入口；(0,0) 表示当前已在游戏页。
+	GameSelectClick Point `yaml:"game_select_click"`
+	EnterGameClick  Point `yaml:"enter_game_click"`
+	// OCR 标签用于自动定位游戏入口和「进入游戏」按钮；坐标作为 OCR 失败时的回退。
+	GameLabels []string `yaml:"game_labels"`
+	PlayLabels []string `yaml:"play_labels"`
 	// ReadyTemplate：战网主界面就绪（再点「进入游戏」）；占位 PNG，实机替换。
 	ReadyTemplate string `yaml:"ready_template"`
 	SearchROI     *ROI   `yaml:"search_roi"`
@@ -55,11 +62,12 @@ type Point struct {
 }
 
 type Keys struct {
-	AuctionTarMacro string `yaml:"auction_tar_macro"`
-	InteractTarget  string `yaml:"interact_target"`
-	CharHome        string `yaml:"char_home"`
-	CharSelectDown  string `yaml:"char_select_down"`
-	EnterWorld      string `yaml:"enter_world"`
+	AuctionTarMacro  string `yaml:"auction_tar_macro"`
+	AuctioneerTarget string `yaml:"auctioneer_target"`
+	InteractTarget   string `yaml:"interact_target"`
+	CharHome         string `yaml:"char_home"`
+	CharSelectDown   string `yaml:"char_select_down"`
+	EnterWorld       string `yaml:"enter_world"`
 }
 
 type Timeouts struct {
@@ -74,11 +82,13 @@ type Timeouts struct {
 	AHOpen              int `yaml:"ah_open"`
 	AHPrep              int `yaml:"ah_prep"`
 	MaxSinceScanTrigger int `yaml:"max_since_scan_trigger"`
+	// GracefulExit：/logout 或 /quit 后等待选角界面/进程自然退出的最长时间。
+	GracefulExit int `yaml:"graceful_exit"`
 }
 
 type Retry struct {
 	MaxRetriesPerCharacter int `yaml:"max_retries_per_character"`
-	MaxKillRestartTotal    int `yaml:"max_kill_restart_total"`
+	MaxRestartTotal        int `yaml:"max_restart_total"`
 }
 
 type Characters struct {
@@ -87,18 +97,11 @@ type Characters struct {
 }
 
 type Templates struct {
-	AHOpenOK            string       `yaml:"ah_open_ok"`
-	PluginScanStarted   string       `yaml:"plugin_scan_started"`
-	PluginScanComplete  string       `yaml:"plugin_scan_complete"`
-	CharSelectScreen    string       `yaml:"char_select_screen"`
-	EnterWorldActionbar string       `yaml:"enter_world_actionbar"`
-	LogoutUISteps       []LogoutStep `yaml:"logout_ui_steps"`
-}
-
-// LogoutStep: 先等到 template 在 ROI 内匹配（若 template 非空），再可选点击（客户端坐标相对窗口客户区原点）。
-type LogoutStep struct {
-	Template string `yaml:"template"`
-	Click    *Point `yaml:"click"`
+	AHOpenOK            string `yaml:"ah_open_ok"`
+	PluginScanStarted   string `yaml:"plugin_scan_started"`
+	PluginScanComplete  string `yaml:"plugin_scan_complete"`
+	CharSelectScreen    string `yaml:"char_select_screen"`
+	EnterWorldActionbar string `yaml:"enter_world_actionbar"`
 }
 
 // Vision 控制模板轮询与 ROI；阈值为 0 时 runner 使用默认值。
@@ -110,6 +113,34 @@ type Vision struct {
 	MatchMethod string `yaml:"match_method"`
 	// ColorGateMaxAvgChannelDiff：>0 时在候选位置校验 RGB 平均绝对差（每通道 0–255 再对三通道取平均），超过则否决该位置。
 	ColorGateMaxAvgChannelDiff float64 `yaml:"color_gate_max_avg_channel_diff"`
+}
+
+// OCR 使用 Windows.Media.Ocr 识别插件状态面板。模板匹配仍用于选角、动作条和拍卖行门禁。
+type OCR struct {
+	Enabled          bool     `yaml:"enabled"`
+	Language         string   `yaml:"language"`
+	SearchROI        *ROI     `yaml:"search_roi"`
+	PollIntervalMS   int      `yaml:"poll_interval_ms"`
+	StableReads      int      `yaml:"stable_reads"`
+	WaitingTokens    []string `yaml:"waiting_tokens"`
+	ScanningTokens   []string `yaml:"scanning_tokens"`
+	CompleteTokens   []string `yaml:"complete_tokens"`
+	WarningTokens    []string `yaml:"warning_tokens"`
+	ErrorTokens      []string `yaml:"error_tokens"`
+	ReadyTokens      []string `yaml:"ready_tokens"`
+	CharSelectTokens []string `yaml:"char_select_tokens"`
+}
+
+// Snapshot 控制正常退出后 SavedVariables 的发现、验证与原子同步。
+type Snapshot struct {
+	// Source 可直接指定 .../SavedVariables/AuctionSearchExample.lua；非空时优先。
+	Source string `yaml:"source"`
+	// RetailRoot 例如 F:\\World of Warcraft；Source 为空时从该目录下发现账号文件。
+	RetailRoot string `yaml:"retail_root"`
+	// Account 是 WTF/Account 下的目录名或其唯一子串，用于避免多账号串档。
+	Account string `yaml:"account"`
+	// Destination 通常为仓库 data/auction.lua，可相对配置文件目录。
+	Destination string `yaml:"destination"`
 }
 
 // Debug 调试输出。
@@ -146,6 +177,8 @@ func Load(path string) (*Root, error) {
 	}
 	root.ConfigDir = filepath.Dir(abs)
 	root.applyDefaultTemplatePaths()
+	root.applyOCRDefaults()
+	root.applyBnetDefaults()
 	if err := root.Validate(); err != nil {
 		return nil, err
 	}
@@ -162,12 +195,54 @@ func (r *Root) applyDefaultTemplatePaths() {
 	}
 	t := &r.Templates
 	set(&t.AHOpenOK)
-	set(&t.PluginScanStarted)
-	set(&t.PluginScanComplete)
 	set(&t.CharSelectScreen)
 	set(&t.EnterWorldActionbar)
-	b := &r.Bnet
-	set(&b.ReadyTemplate)
+}
+
+func (r *Root) applyOCRDefaults() {
+	o := &r.OCR
+	if strings.TrimSpace(o.Language) == "" {
+		o.Language = "zh-Hans-CN"
+	}
+	if o.PollIntervalMS <= 0 {
+		o.PollIntervalMS = 750
+	}
+	if o.StableReads <= 0 {
+		o.StableReads = 2
+	}
+	if len(o.WaitingTokens) == 0 {
+		o.WaitingTokens = []string{"AS_WAITING"}
+	}
+	if len(o.ScanningTokens) == 0 {
+		o.ScanningTokens = []string{"AS_SCANNING"}
+	}
+	if len(o.CompleteTokens) == 0 {
+		o.CompleteTokens = []string{"AS_COMPLETE"}
+	}
+	if len(o.WarningTokens) == 0 {
+		o.WarningTokens = []string{"AS_WARNING"}
+	}
+	if len(o.ErrorTokens) == 0 {
+		o.ErrorTokens = []string{"AS_ERROR"}
+	}
+	if len(o.ReadyTokens) == 0 {
+		o.ReadyTokens = []string{"AS_READY"}
+	}
+	if len(o.CharSelectTokens) == 0 {
+		o.CharSelectTokens = []string{"进入魔兽世界", "Enter World"}
+	}
+}
+
+func (r *Root) applyBnetDefaults() {
+	if len(r.Bnet.GameLabels) == 0 {
+		r.Bnet.GameLabels = []string{"魔兽世界", "World of Warcraft"}
+	}
+	if len(r.Bnet.PlayLabels) == 0 {
+		r.Bnet.PlayLabels = []string{"进入游戏", "Play"}
+	}
+	if strings.TrimSpace(r.Snapshot.Destination) == "" {
+		r.Snapshot.Destination = "../../data/auction.lua"
+	}
 }
 
 // ResolvePath joins p with the config file directory when p is not absolute.
@@ -181,10 +256,15 @@ func (r *Root) ResolvePath(p string) string {
 	return filepath.Join(r.ConfigDir, filepath.Clean(p))
 }
 
+// ResolveSnapshotPath 与 ResolvePath 相同，但保留空值，便于自动发现源文件。
+func (r *Root) ResolveSnapshotPath(p string) string {
+	return r.ResolvePath(strings.TrimSpace(p))
+}
+
 // Validate checks required fields for a minimal runnable config.
 func (r *Root) Validate() error {
-	if r.Keys.AuctionTarMacro == "" {
-		return fmt.Errorf("keys.auction_tar_macro is required")
+	if strings.TrimSpace(r.Keys.AuctionTarMacro) == "" && strings.TrimSpace(r.Keys.AuctioneerTarget) == "" {
+		return fmt.Errorf("keys.auction_tar_macro or keys.auctioneer_target is required")
 	}
 	if r.Keys.InteractTarget == "" {
 		return fmt.Errorf("keys.interact_target is required")
@@ -195,8 +275,8 @@ func (r *Root) Validate() error {
 	if r.Process.BattleNetExe == "" {
 		return fmt.Errorf("process.battle_net_exe is required")
 	}
-	if r.Characters.Mode != "all" && r.Characters.Mode != "single" {
-		return fmt.Errorf("characters.mode must be all or single")
+	if r.Characters.Mode != "all" && r.Characters.Mode != "single" && r.Characters.Mode != "current" {
+		return fmt.Errorf("characters.mode must be all, single, or current")
 	}
 	if len(r.Characters.Indices) == 0 {
 		return fmt.Errorf("characters.indices must be non-empty")

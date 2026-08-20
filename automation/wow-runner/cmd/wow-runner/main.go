@@ -18,7 +18,7 @@ func main() {
 	configPath := flag.String("config", "config.yaml", "path to YAML config")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	checkOnly := flag.Bool("check", false, "load config, poll Battle.net and Wow processes, emit logs, exit")
-	runFSM := flag.Bool("run", false, "Windows: run full FSM (multi-char, ROUND_DONE kill, retry on PLUGIN_STUCK; needs Wow or bnet+enter_game_click)")
+	runFSM := flag.Bool("run", false, "Windows: run Battle.net → WoW → auction scan → graceful exit → snapshot validation")
 	flag.Parse()
 
 	if *showVersion {

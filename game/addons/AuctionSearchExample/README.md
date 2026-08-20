@@ -6,12 +6,14 @@
 - 扫描阶段：显示已处理数量、总数、百分比和进度条
 - 完成阶段：显示实际保存条数、耗时及包含 `itemLink` 的条数；核心字段有缺失时会显示橙色警告
 
+进入角色后先显示 `AS_READY`；打开拍卖行后，状态面板会在固定位置显示供自动化 OCR 识别的稳定标签：`AS_WAITING`、`AS_SCANNING`、`AS_COMPLETE`、`AS_WARNING` 或 `AS_ERROR`。这些标签只显示在面板中，不会写入聊天框。
+
 正常扫描不会向聊天框输出批次日志。调试命令：
 
 - `/as stats`：查看已保存扫描统计
 - `/as history <物品ID>`：查看指定物品的最近记录
 - `/as test [物品ID]`：检查客户端物品缓存
-- `/as uitest scanning`：预览进度面板
+- `/as uitest scanning`：预览进度面板（也可传入 `started`、`complete`、`warning` 或 `error`）
 - `/as clear`：清空插件保存的数据
 
 完成后退出游戏或执行一次 `/reload`，WoW 才会把本次快照写入磁盘上的 `AuctionSearchExample.lua`。

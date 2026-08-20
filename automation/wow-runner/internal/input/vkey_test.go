@@ -21,3 +21,16 @@ func TestVK(t *testing.T) {
 		}
 	}
 }
+
+func TestParseChord(t *testing.T) {
+	chord, err := ParseChord("ALT-CTRL-H")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if chord.Key != 0x48 || len(chord.Modifiers) != 2 || chord.Modifiers[0] != 0x12 || chord.Modifiers[1] != 0x11 {
+		t.Fatalf("unexpected chord: %+v", chord)
+	}
+	if _, err := ParseChord("Ctrl+NoSuchKey"); err == nil {
+		t.Fatal("expected invalid key error")
+	}
+}

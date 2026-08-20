@@ -1,84 +1,96 @@
-# wow-runner 示例配置 — 完整约定见 ../DEVELOPMENT_PLAN.md、../FLOW_AND_EXCEPTIONS.md
-# 复制为 config.yaml 后按实机修改；模板路径可先指向 assets/placeholder.png，后续用实机截图替换。
+# wow-runner 示例配置。复制为 config.yaml，并按本机安装路径、账号和键位修改。
 
 display:
-  # 与截模板、ROI 校准时一致的分辨率与缩放（文档层记录，首版可不解析）
-  resolution: "1920x1080"
-  windows_scaling_percent: 100
+  # 仅作校准记录；runner 自身会启用 Per-Monitor DPI Awareness V2。
+  resolution: "3840x2160"
+  windows_scaling_percent: 200
 
 process:
   battle_net_exe: "Battle.net.exe"
-  # 可选：战网未运行时由此路径启动（如 "C:\\Program Files (x86)\\Battle.net\\Battle.net.exe"）。
-  # 规范：WoW 须从战网「进入游戏」拉起；若仅有 Wow 进程而无战网，runner 会杀光 Wow 后从战网重走。
-  battle_net_launch_exe: ""
+  battle_net_launch_exe: 'C:\Program Files (x86)\Battle.net\Battle.net Launcher.exe'
   wow_exe: "Wow.exe"
 
 bnet:
-  # 全屏战网「进入游戏」像素坐标（待校准）
+  # OCR 主路径会识别并点击这些文字。坐标保持 (0,0) 即不使用坐标回退。
+  game_select_click: { x: 0, y: 0 }
   enter_game_click: { x: 0, y: 0 }
-  # 战网就绪模板（占位）；常驻战网时一般无需处理弹窗
-  ready_template: "assets/placeholder.png"
-  search_roi: { x: 0, y: 0, w: 0, h: 0 }
+  game_labels: ["魔兽世界", "World of Warcraft"]
+  play_labels: ["进入游戏", "Play"]
+  # 仅 ocr.enabled=false 时可配置已校准模板；OCR 主路径应留空。
+  ready_template: ""
 
 keys:
-  # 拍卖行：仅两项 — /tar 拍卖 NPC 的宏键、与目标交互（打开拍卖）
-  auction_tar_macro: "1"
-  interact_target: "2"
-  # 选角 / 进世界（示例，与动作条 ROI 校准时一致）
+  # 推荐直接给 NPC 名称，runner 会发送 /targetexact；也可留空并配置宏键。
+  auctioneer_target: "拍卖师费奇"
+  auction_tar_macro: ""
+  # 支持单键和 WoW 风格组合键，例如 ALT-CTRL-H、Ctrl+Alt+H。
+  interact_target: "ALT-CTRL-H"
   char_home: "Home"
   char_select_down: "Down"
   enter_world: "Enter"
 
 timeouts_seconds:
-  bnet_start: 120
-  # 战网就绪模板最长等待（秒）
-  bnet_ui_ready: 45
-  wow_foreground: 15
-  char_select: 60
-  enter_world: 120
-  # 无进世界模板前：按 Enter 后固定等待秒数（蓝条/加载）
-  enter_world_load: 5
+  bnet_start: 180
+  bnet_ui_ready: 60
+  wow_foreground: 90
+  char_select: 120
+  enter_world: 180
+  enter_world_load: 1
   ah_open: 30
-  ah_prep: 3
-  # WAIT_PLUGIN_LOGOUT 总死线：自 AH_OPEN 成功 (scan_trigger_ts) 起
-  max_since_scan_trigger: 600
+  ah_prep: 2
+  # ReplicateItems 有服务端限流，需覆盖约 15 分钟等待窗口。
+  max_since_scan_trigger: 1200
+  # /logout 或 /quit 后等待选角界面/进程自然退出；超时不会强杀。
+  graceful_exit: 90
 
 retry:
-  max_retries_per_character: 3
-  max_kill_restart_total: 10
+  max_retries_per_character: 1
+  max_restart_total: 1
 
 characters:
-  # all：按 indices 顺序；single：只跑第一个索引
-  mode: all
-  indices: [0, 1]
+  # current：保持选角页当前角色；single：Home 后选 indices[0]；all：按 indices 依次扫描。
+  mode: current
+  # 0 表示 Home 后第一个角色，1 表示向下 1 次，以此类推。
+  indices: [0]
 
-# 模板匹配：占位 PNG 由 tools/genplaceholder 生成（默认文件名见 config.DefaultPlaceholderTemplate）。
-# 顶层模板键可留空字符串，Load 时自动填为 assets/placeholder.png；也可显式写同一路径。
+# OCR 关闭时才使用这些模板作为回退。真实使用必须换成实机截图，不能用占位图判成功。
 templates:
-  ah_open_ok: "assets/placeholder.png"
-  plugin_scan_started: "assets/placeholder.png"
-  plugin_scan_complete: "assets/placeholder.png"
-  char_select_screen: "assets/placeholder.png"
-  enter_world_actionbar: "assets/placeholder.png"
-  logout_ui_steps: []
-  # 登出链示例（template 亦用占位，实机再换）；仅点击不写 template:
-  # logout_ui_steps:
-  #   - { template: "assets/placeholder.png", click: { x: 0, y: 0 } }
+  ah_open_ok: ""
+  plugin_scan_started: ""
+  plugin_scan_complete: ""
+  char_select_screen: ""
+  enter_world_actionbar: ""
 
 vision:
-  poll_interval_ms: 400
+  poll_interval_ms: 500
   match_threshold: 0.88
-  # ncc：与 OpenCV TM_CCOEFF_NORMED 等价映射到 [0,1]；rgb_mean 为旧版 RGB 均值相似度
   match_method: ncc
-  # 0 表示关闭；例如 35 表示每通道平均绝对差上限（0–255 尺度）
   color_gate_max_avg_channel_diff: 0
-  # 相对客户区左上角；w/h 为 0 表示整窗客户区
   search_roi: { x: 0, y: 0, w: 0, h: 0 }
 
-# 失败时把当前窗口客户区截图写入此目录（相对配置文件目录）；调试用
+ocr:
+  enabled: true
+  language: "zh-Hans-CN"
+  poll_interval_ms: 750
+  stable_reads: 2
+  ready_tokens: ["AS_READY"]
+  char_select_tokens: ["进入魔兽世界", "Enter World"]
+  waiting_tokens: ["AS_WAITING"]
+  scanning_tokens: ["AS_SCANNING"]
+  complete_tokens: ["AS_COMPLETE"]
+  warning_tokens: ["AS_WARNING"]
+  error_tokens: ["AS_ERROR"]
+
+snapshot:
+  # source 非空时优先；否则从 retail_root + account 自动发现 SavedVariables。
+  source: ''
+  retail_root: 'F:\World of Warcraft'
+  # 多账号机器必须明确填写 WTF/Account 下的目录名或唯一子串。
+  account: 'YOUR_ACCOUNT_ID'
+  destination: '../../data/auction.lua'
+
 debug:
   failure_capture_dir: "captures"
 
 logging:
-  # 见 ../LOGGING_SPEC.md；默认 stderr NDJSON
   level: INFO

@@ -165,18 +165,23 @@ local function StoreRecord(job, index, info)
 end
 
 local function CancelBatchContinuations(batch)
-	if not batch or not batch.cancelByIndex then
+	if not batch then
 		return
 	end
-	local cancelByIndex = batch.cancelByIndex
+	local cancelByIndex = batch.cancelByIndex or {}
 	batch.cancelByIndex = {}
-	batch.unresolved = {}
-	batch.pending = 0
 	for _, cancel in pairs(cancelByIndex) do
 		if type(cancel) == "function" then
 			pcall(cancel)
 		end
 	end
+	-- 原地清空，确保已经捕获旧表的回调也看不到未决项；没有 cancelFunc 的索引同样会被清理。
+	if batch.unresolved then
+		wipe(batch.unresolved)
+	else
+		batch.unresolved = {}
+	end
+	batch.pending = 0
 end
 
 local function AbortJob(job, reason)
@@ -366,6 +371,10 @@ ProcessNextBatch = function(job)
 				ResolveBatchIndexSafely(job, batch, currentIndex, true)
 			end
 		end
+		-- ContinueWithCancelOnItemLoad 可能同步回调并在异常时中止 job；不要再枚举下一行。
+		if activeJob ~= job or job.finished then
+			break
+		end
 	end
 	if activeJob ~= job or job.finished then
 		batch.enumerating = false
@@ -429,9 +438,23 @@ local function StartScan()
 		beginMs = debugprofilestop(),
 	}
 	activeJob = job
+	-- OverlayCall 会隔离 UI 错误；即使面板绘制失败，也必须继续采集完整快照。
 	OverlayCall("SetPhase", "scanning")
 	OverlayCall("SetProgress", 0, total)
 	RunNextBatch(job)
+end
+
+local function StartScanSafely()
+	local ok, reason = pcall(StartScan)
+	if ok then
+		return
+	end
+	if activeJob then
+		AbortJob(activeJob, reason)
+	else
+		AuctionSearchDB.lastError = { timestamp = time(), message = tostring(reason) }
+		OverlayCall("SetPhase", "error", "启动扫描时遇到客户端异常，请关闭并重新打开拍卖行")
+	end
 end
 
 local function GetDatabaseStats()
@@ -540,7 +563,7 @@ local function HandleSlashCommand(msg)
 		print("  /as history <物品ID> - 显示最近历史")
 		print("  /as test [物品ID] - 调试物品缓存")
 		print("  /as clear - 清空保存的数据")
-		print("  /as uitest [started|scanning|complete|error] - 测试状态面板")
+		print("  /as uitest [ready|started|scanning|complete|warning|error] - 测试状态面板")
 	end
 end
 
@@ -557,6 +580,11 @@ local function OnEvent(self, event, ...)
 		CleanOldData()
 		OverlayCall("Init")
 		self:UnregisterEvent("ADDON_LOADED")
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		if not activeJob and not waitingForReplicate then
+			OverlayCall("Init")
+			OverlayCall("SetPhase", "ready")
+		end
 	elseif event == "AUCTION_HOUSE_SHOW" then
 		if activeJob or waitingForReplicate then
 			return
@@ -585,16 +613,17 @@ local function OnEvent(self, event, ...)
 		if not activeJob then
 			waitingForReplicate = false
 			requestSerial = requestSerial + 1
-			OverlayCall("SetPhase", "idle")
+			OverlayCall("SetPhase", "ready")
 		end
 	elseif event == "REPLICATE_ITEM_LIST_UPDATE" and waitingForReplicate then
 		waitingForReplicate = false
-		StartScan()
+		StartScanSafely()
 	end
 end
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
 eventFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
 eventFrame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")

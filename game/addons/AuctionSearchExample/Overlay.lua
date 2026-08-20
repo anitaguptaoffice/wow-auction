@@ -9,31 +9,43 @@ local PHASE = {
 	idle = {
 		title = "拍卖行数据",
 		detail = "等待打开拍卖行",
+		token = "AS_IDLE",
 		color = { 0.45, 0.45, 0.45 },
+	},
+	ready = {
+		title = "拍卖采集已就绪",
+		detail = "角色已进入世界，等待打开拍卖行",
+		token = "AS_READY",
+		color = { 0.32, 0.72, 0.88 },
 	},
 	started = {
 		title = "正在请求拍卖快照",
 		detail = "等待服务器返回全量拍卖列表（接口有 15 分钟限流）",
+		token = "AS_WAITING",
 		color = { 0.20, 0.55, 0.95 },
 	},
 	scanning = {
 		title = "正在采集拍卖数据",
 		detail = "正在读取物品、价格与剩余时间",
+		token = "AS_SCANNING",
 		color = { 0.95, 0.68, 0.15 },
 	},
 	complete = {
 		title = "扫描完成",
 		detail = "拍卖数据已保存在游戏中",
+		token = "AS_COMPLETE",
 		color = { 0.20, 0.80, 0.46 },
 	},
 	warning = {
 		title = "扫描完成，但存在缺失",
 		detail = "快照已保存，请查看缺失计数后再导出",
+		token = "AS_WARNING",
 		color = { 0.95, 0.55, 0.12 },
 	},
 	error = {
 		title = "扫描未完成",
 		detail = "未能取得拍卖快照，请稍后重新打开拍卖行",
+		token = "AS_ERROR",
 		color = { 0.90, 0.25, 0.22 },
 	},
 }
@@ -57,6 +69,9 @@ local function ApplyPhaseStyle(key)
 	local phase = PHASE[key] or PHASE.idle
 	frame.title:SetText(phase.title)
 	frame.detail:SetText(phase.detail)
+	frame.token:SetText(phase.token)
+	-- OCR 标签始终使用最高对比度；阶段颜色由左侧强调条与进度条表达。
+	frame.token:SetTextColor(1, 1, 1, 1)
 	frame.statusBar:SetStatusBarColor(phase.color[1], phase.color[2], phase.color[3], 1)
 	frame.accent:SetColorTexture(phase.color[1], phase.color[2], phase.color[3], 1)
 end
@@ -85,7 +100,12 @@ function AuctionSearchOverlay.SetPhase(key, detail)
 	if detail and detail ~= "" then
 		frame.detail:SetText(detail)
 	end
-	if key == "started" or key == "error" then
+	if key == "ready" then
+		frame.statusBar:SetMinMaxValues(0, 1)
+		frame.statusBar:SetValue(0)
+		frame.progress:SetText("就绪")
+		frame.count:SetText("")
+	elseif key == "started" or key == "error" then
 		frame.statusBar:SetMinMaxValues(0, 1)
 		frame.statusBar:SetValue(0)
 		frame.progress:SetText(key == "started" and "等待服务器" or "需要重试")
@@ -154,7 +174,7 @@ function AuctionSearchOverlay.Init()
 	end
 
 	local f = CreateFrame("Frame", "AuctionSearchStatusPanel", UIParent)
-	f:SetSize(470, 106)
+	f:SetSize(470, 124)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -28)
 	f:SetFrameStrata("FULLSCREEN_DIALOG")
 	f:SetFrameLevel(5000)
@@ -190,14 +210,19 @@ function AuctionSearchOverlay.Init()
 	f.progress:SetTextColor(1, 1, 1)
 	f.progress:SetJustifyH("RIGHT")
 
+	-- 固定位置的 ASCII 标签供 Windows OCR 稳定识别；中文标题仍作为主要用户界面。
+	f.token = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	f.token:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -4)
+	f.token:SetJustifyH("LEFT")
+
 	f.detail = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	f.detail:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -5)
-	f.detail:SetWidth(305)
+	f.detail:SetPoint("TOPLEFT", f.token, "BOTTOMLEFT", 0, -3)
+	f.detail:SetWidth(434)
 	f.detail:SetTextColor(0.76, 0.80, 0.88)
 	f.detail:SetJustifyH("LEFT")
 
 	f.count = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	f.count:SetPoint("TOPRIGHT", f.progress, "BOTTOMRIGHT", 0, -5)
+	f.count:SetPoint("TOPRIGHT", f.progress, "BOTTOMRIGHT", 0, -7)
 	f.count:SetTextColor(0.76, 0.80, 0.88)
 	f.count:SetJustifyH("RIGHT")
 

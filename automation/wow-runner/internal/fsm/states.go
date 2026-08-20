@@ -9,8 +9,10 @@ const (
 	EnterWorld       = "ENTER_WORLD"
 	AHPrep           = "AH_PREP"
 	AHOpen           = "AH_OPEN"
-	WaitPluginLogout = "WAIT_PLUGIN_LOGOUT"
+	WaitPluginScan   = "WAIT_PLUGIN_SCAN"
+	GracefulExit     = "GRACEFUL_EXIT"
+	SnapshotValidate = "SNAPSHOT_VALIDATE"
 	CharSelectAgain  = "CHAR_SELECT_AGAIN"
-	RoundDone        = "ROUND_DONE"
+	Done             = "DONE"
 	Failed           = "FAILED"
 )
