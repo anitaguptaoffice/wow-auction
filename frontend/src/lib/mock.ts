@@ -48,6 +48,8 @@ const items: MarketItem[] = names.map((name, index) => {
   const unitPrice = 450 + index * index * 83 + (index % 4) * 3_700;
   return {
     scanId: 1,
+    scannedAt: new Date(Date.now() - 4 * 60_000).toISOString(),
+    scannedAtUnix: Math.floor(Date.now() / 1000) - 240,
     realm: "本地演示数据",
     realmID: 707,
     region: "CN",

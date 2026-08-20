@@ -786,6 +786,10 @@ def _unified_market_items(
             item.update(
                 {
                     "scanId": scan.id,
+                    "scannedAt": datetime.fromtimestamp(
+                        scan.scanned_at_unix, tz=timezone.utc
+                    ).isoformat().replace("+00:00", "Z"),
+                    "scannedAtUnix": scan.scanned_at_unix,
                     "realm": context.realm_name,
                     "realmID": context.realm_id,
                     "region": context.region_name,

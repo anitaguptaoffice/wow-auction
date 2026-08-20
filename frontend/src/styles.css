@@ -624,6 +624,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .item-title-line strong { min-width: 0; }
 .crafting-quality { flex: 0 0 auto; color: #d99a24; font-size: 11px; font-weight: 900; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 5px color-mix(in srgb, #d99a24 28%, transparent); }
 .details-title-line .crafting-quality { font-size: 13px; }
+.details-market-context { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 7px; color: var(--muted); font-size: 9px; font-weight: 700; }
+.details-market-context span { display: inline-flex; align-items: center; gap: 4px; }
+.details-market-context span:first-child { color: var(--gold); }
 .variant-stats strong { font-size: 10px; }
 .variant-stats small { color: var(--gold); }
 .pet-variant strong { color: #3f8957; font-size: 10px; }

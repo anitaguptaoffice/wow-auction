@@ -340,6 +340,8 @@ class MarketPipelineTest(unittest.TestCase):
             self.assertEqual(shared["total"], 1)
             self.assertEqual(shared["items"][0]["marketScope"], "region")
             self.assertEqual(shared["items"][0]["realmID"], 456)
+            self.assertEqual(shared["items"][0]["scannedAtUnix"], 1_700_003_600)
+            self.assertTrue(shared["items"][0]["scannedAt"].endswith("Z"))
 
             realm_only = market_items(db, q="仅竞价物品", page=1, page_size=20, sort="price_asc")
             self.assertEqual(realm_only["total"], 2)

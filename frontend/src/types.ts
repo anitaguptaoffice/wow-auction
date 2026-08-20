@@ -52,6 +52,8 @@ export interface MarketCatalog {
 
 export interface MarketItem {
   scanId: number;
+  scannedAt: string;
+  scannedAtUnix: number;
   realm?: string | null;
   realmID?: number | null;
   region?: string | null;

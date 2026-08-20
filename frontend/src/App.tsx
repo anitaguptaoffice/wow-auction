@@ -634,7 +634,7 @@ function MarketTable({
 }
 
 function MarketScopeBadge({ scope, realm }: { scope: MarketItem["marketScope"]; realm?: string | null }) {
-  const label = scope === "region" ? "区域共享" : scope === "realm" ? `${realm || "本服"}独有` : "范围待确认";
+  const label = scope === "region" ? "区域共享" : scope === "realm" ? `${realm || "本服"}报价` : "范围待确认";
   return <span className={`market-scope-badge scope-${scope}`}>{label}</span>;
 }
 
@@ -770,6 +770,11 @@ function ItemDetails({ item, onClose }: { item: MarketItem; onClose: () => void 
                   : ""}
                 {` · ${formatInteger(item.listingCount)} 条挂单`}
               </small>
+              <div className="details-market-context" aria-label="当前挂单数据范围">
+                <span><Database size={13} />{item.marketScope === "region" ? `${item.region || "区域"}共享市场` : item.realm || "服务器未知"}</span>
+                <span><Clock3 size={13} />数据时间 {formatDate(item.scannedAt)}</span>
+                <span>Scan #{item.scanId}</span>
+              </div>
             </div>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭挂单详情"><X size={19} /></button>
@@ -787,6 +792,7 @@ function ItemDetails({ item, onClose }: { item: MarketItem; onClose: () => void 
               <h3>最新挂单</h3>
               <p>
                 按{item.marketScope === "realm" && item.realm ? `${item.realm}最新` : "最新区域"}快照的单位价格排列
+                {` · 数据时间 ${formatDate(item.scannedAt)} · Scan #${item.scanId}`}
                 {item.difficulty
                   ? ` · 仅显示${item.difficulty}档`
                   : listingFeatureLabels.length
