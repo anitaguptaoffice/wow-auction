@@ -72,22 +72,6 @@ PET_BREEDS = {
 }
 
 
-def _load_offline_market_scopes() -> dict[int, str]:
-    path = Path(__file__).resolve().parents[1] / "market-scope-map.json"
-    if not path.is_file():
-        return {}
-    with path.open(encoding="utf-8") as source:
-        decoded = json.load(source)
-    return {
-        int(item_id): scope
-        for item_id, scope in decoded.items()
-        if scope in {"region", "realm", "unknown"}
-    }
-
-
-OFFLINE_MARKET_SCOPES = _load_offline_market_scopes()
-
-
 def _load_pet_breed_species() -> dict[str, dict[str, Any]]:
     path = Path(__file__).resolve().parents[1] / "pet-breed-data.json"
     with path.open(encoding="utf-8") as source:
@@ -232,14 +216,82 @@ def latest_complete_scan(db: Session) -> models.AuctionScan | None:
     )
 
 
+def resolve_complete_scan(db: Session, scan_id: int | None = None) -> models.AuctionScan | None:
+    if scan_id is None:
+        return latest_complete_scan(db)
+    return db.scalar(
+        select(models.AuctionScan).where(
+            models.AuctionScan.id == scan_id,
+            models.AuctionScan.complete.is_(True),
+        )
+    )
+
+
+def market_catalog(db: Session) -> dict[str, Any]:
+    """Return plugin-labelled realms and every available capture time."""
+    rows = db.execute(
+        select(models.AuctionScan, models.AuctionScanContext)
+        .join(models.AuctionScanContext, models.AuctionScanContext.scan_id == models.AuctionScan.id)
+        .where(
+            models.AuctionScan.complete.is_(True),
+            models.AuctionScanContext.realm_name.is_not(None),
+            models.AuctionScanContext.realm_id.is_not(None),
+            models.AuctionScanContext.region_id.is_not(None),
+        )
+        .order_by(models.AuctionScan.scanned_at_unix.desc(), models.AuctionScan.id.desc())
+    ).all()
+    realms: dict[tuple[int, int], dict[str, Any]] = {}
+    for scan, context in rows:
+        key = (int(context.region_id), int(context.realm_id))
+        realm = realms.setdefault(
+            key,
+            {
+                "key": f"{key[0]}:{key[1]}",
+                "region": context.region_name,
+                "regionID": key[0],
+                "realm": context.realm_name,
+                "normalizedRealm": context.normalized_realm_name,
+                "realmID": key[1],
+                "latestScanId": scan.id,
+                "scans": [],
+            },
+        )
+        scanned_at = datetime.fromtimestamp(scan.scanned_at_unix, tz=timezone.utc)
+        realm["scans"].append(
+            {
+                "scanId": scan.id,
+                "scannedAt": scanned_at.isoformat().replace("+00:00", "Z"),
+                "scannedAtUnix": scan.scanned_at_unix,
+                "listingCount": scan.imported_listing_count,
+            }
+        )
+    return {"realms": list(realms.values())}
+
+
+def _history_scan_ids(db: Session, selected_scan: models.AuctionScan) -> list[int]:
+    """History is isolated to the selected plugin-labelled realm and time horizon."""
+    context = db.get(models.AuctionScanContext, selected_scan.id)
+    if context is None or context.region_id is None or context.realm_id is None:
+        return [selected_scan.id]
+    return list(
+        db.scalars(
+            select(models.AuctionScan.id)
+            .join(models.AuctionScanContext, models.AuctionScanContext.scan_id == models.AuctionScan.id)
+            .where(
+                models.AuctionScan.complete.is_(True),
+                models.AuctionScan.scanned_at_unix <= selected_scan.scanned_at_unix,
+                models.AuctionScanContext.region_id == context.region_id,
+                models.AuctionScanContext.realm_id == context.realm_id,
+            )
+            .order_by(models.AuctionScan.scanned_at_unix.asc(), models.AuctionScan.id.asc())
+        ).all()
+    )
+
+
 def _market_scopes_for_items(db: Session, scan_id: int, item_ids: set[int]) -> dict[int, str]:
     if not item_ids:
         return {}
-    result = {
-        item_id: OFFLINE_MARKET_SCOPES[item_id]
-        for item_id in item_ids
-        if item_id in OFFLINE_MARKET_SCOPES
-    }
+    result: dict[int, str] = {}
     rows = db.execute(
         select(
             models.AuctionItemMarketScope.item_id,
@@ -257,8 +309,8 @@ def _market_scopes_for_items(db: Session, scan_id: int, item_ids: set[int]) -> d
     return result
 
 
-def market_status(db: Session) -> dict[str, Any]:
-    scan = latest_complete_scan(db)
+def market_status(db: Session, scan_id: int | None = None) -> dict[str, Any]:
+    scan = resolve_complete_scan(db, scan_id)
     if scan is None:
         return {"available": False, "complete": False}
     scanned_at = datetime.fromtimestamp(scan.scanned_at_unix, tz=timezone.utc)
@@ -318,14 +370,20 @@ def item_history(
     battle_pet_creature_id: int | None,
     item_context: int | None = None,
     pet_variant_key: str | None = None,
+    scan_id: int | None = None,
 ) -> dict[str, Any] | None:
     """Return one aggregate point per complete scan for a market item."""
+    selected_scan = resolve_complete_scan(db, scan_id)
+    if selected_scan is None:
+        return None
+    history_scan_ids = _history_scan_ids(db, selected_scan)
     if pet_variant_key is not None:
         return _item_history_by_pet_variant(
             db,
             item_id=item_id,
             battle_pet_creature_id=battle_pet_creature_id,
             pet_variant_key=pet_variant_key,
+            scan_ids=history_scan_ids,
         )
     if item_context is not None:
         return _item_history_by_context(
@@ -333,6 +391,7 @@ def item_history(
             item_id=item_id,
             battle_pet_creature_id=battle_pet_creature_id,
             item_context=item_context,
+            scan_ids=history_scan_ids,
         )
     scan = models.AuctionScan
     summary = models.AuctionItemSummary
@@ -354,6 +413,7 @@ def item_history(
         .join(summary, summary.scan_id == scan.id)
         .where(
             scan.complete.is_(True),
+            scan.id.in_(history_scan_ids),
             summary.item_id == item_id,
             summary.battle_pet_creature_id == pet_key,
         )
@@ -420,8 +480,9 @@ def market_items(
     page_size: int,
     sort: str,
     collection: str | None = None,
+    scan_id: int | None = None,
 ) -> dict[str, Any]:
-    scan = latest_complete_scan(db)
+    scan = resolve_complete_scan(db, scan_id)
     if scan is None:
         return {"scanId": None, "page": page, "pageSize": page_size, "total": 0, "totalPages": 0, "items": []}
     if sort not in SUPPORTED_SORTS:
@@ -748,10 +809,11 @@ def _item_history_by_context(
     item_id: int,
     battle_pet_creature_id: int | None,
     item_context: int,
+    scan_ids: list[int],
 ) -> dict[str, Any] | None:
     scan = models.AuctionScan
     listing = models.AuctionListing
-    filters = [scan.complete.is_(True), listing.item_id == item_id]
+    filters = [scan.complete.is_(True), scan.id.in_(scan_ids), listing.item_id == item_id]
     if battle_pet_creature_id is not None:
         filters.append(listing.battle_pet_creature_id == battle_pet_creature_id)
     rows = db.execute(
@@ -819,10 +881,11 @@ def _item_history_by_pet_variant(
     item_id: int,
     battle_pet_creature_id: int | None,
     pet_variant_key: str,
+    scan_ids: list[int],
 ) -> dict[str, Any] | None:
     scan = models.AuctionScan
     listing = models.AuctionListing
-    filters = [scan.complete.is_(True), listing.item_id == item_id]
+    filters = [scan.complete.is_(True), scan.id.in_(scan_ids), listing.item_id == item_id]
     if battle_pet_creature_id is not None:
         filters.append(listing.battle_pet_creature_id == battle_pet_creature_id)
     rows = db.execute(
@@ -896,8 +959,9 @@ def item_listings(
     pet_variant_key: str | None = None,
     page: int,
     page_size: int,
+    scan_id: int | None = None,
 ) -> dict[str, Any] | None:
-    scan = latest_complete_scan(db)
+    scan = resolve_complete_scan(db, scan_id)
     if scan is None:
         return None
     listing = models.AuctionListing

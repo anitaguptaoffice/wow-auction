@@ -19,7 +19,11 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
+from app import models
+from app.database import Base, get_db
 from app.services.auction_importer import SnapshotValidationError, import_snapshot
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -36,6 +40,10 @@ _IMPORT_JOBS: dict[str, dict] = {}
 class ImportRequest(BaseModel):
     sourceUrl: str = Field(min_length=12, max_length=4096)
     expectedSha256: str = Field(min_length=64, max_length=64)
+
+
+class ResetMarketRequest(BaseModel):
+    confirm: str
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -231,3 +239,23 @@ def queue_market_snapshot(request: ImportRequest, background_tasks: BackgroundTa
 @router.get("/import/{job_id}", dependencies=[Depends(_require_admin_token)])
 def read_import_job(job_id: str):
     return _public_job(job_id)
+
+
+@router.post("/reset-market", dependencies=[Depends(_require_admin_token)])
+def reset_market_data(request: ResetMarketRequest, db: Session = Depends(get_db)):
+    """Delete only this project's auction namespace before a deliberate full reload."""
+    if request.confirm != "DELETE_WOW_AUCTION_MARKET_DATA":
+        raise HTTPException(status_code=422, detail="confirm 不匹配，拒绝清理")
+    counts = {
+        "snapshots": int(db.scalar(select(func.count()).select_from(models.AuctionSnapshot)) or 0),
+        "scans": int(db.scalar(select(func.count()).select_from(models.AuctionScan)) or 0),
+        "listings": int(db.scalar(select(func.count()).select_from(models.AuctionListing)) or 0),
+    }
+    try:
+        bind = db.get_bind()
+        db.close()
+        Base.metadata.drop_all(bind=bind)
+        Base.metadata.create_all(bind=bind)
+    except Exception:
+        raise
+    return {"cleared": True, **counts}

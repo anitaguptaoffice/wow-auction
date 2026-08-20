@@ -21,6 +21,7 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 	indices := effectiveIndices(cfg)
 	restartCount := 0
 	charPos := 0
+	processedSnapshots := make(map[string]string)
 
 	for charPos < len(indices) {
 		slot := indices[charPos]
@@ -80,6 +81,12 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 					return err
 				}
 			}
+			// 打开拍卖行不再隐式触发全量接口；自动化也必须显式发出一次扫描命令。
+			time.Sleep(500 * time.Millisecond)
+			if err := sendWowSlashCommand(log, hwnd, "/as scan", charPos); err != nil {
+				return err
+			}
+			ts = time.Now()
 			scanTS := ts.Format(time.RFC3339Nano)
 			log.Emit("INFO", "scan_trigger_recorded", "AH_OPEN success, scan timer started", map[string]any{
 				"scan_trigger_ts": scanTS,
@@ -105,7 +112,12 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 					emitTrans(log, fsm.GracefulExit, fsm.SnapshotValidate, "process_exited_normally", map[string]any{
 						"char_index": charPos, "slot": slot,
 					})
-					if err := syncSnapshotAfterExit(log, cfg, ts); err != nil {
+					processed, err := syncSnapshotAfterFlush(log, cfg, ts)
+					if err != nil {
+						return err
+					}
+					processedSnapshots[processed.Source] = processed.SnapshotSHA256
+					if err := clearProcessedSnapshotSources(log, cfg, processedSnapshots); err != nil {
 						return err
 					}
 					emitTrans(log, fsm.SnapshotValidate, fsm.Done, "snapshot_validated", map[string]any{
@@ -116,7 +128,17 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 				if err := gracefulLogout(log, cfg, hwnd, charPos); err != nil {
 					return err
 				}
-				emitTrans(log, fsm.GracefulExit, fsm.BNETStart, "next_character", map[string]any{
+				emitTrans(log, fsm.GracefulExit, fsm.SnapshotValidate, "character_logged_out", map[string]any{
+					"char_index": charPos, "slot": slot,
+				})
+				// 中间角色在选角页已完成 SavedVariables 刷盘：立即归档和入库，
+				// 但只有最后一个角色彻底退出 Wow.exe 后才允许清空源文件。
+				processed, err := syncSnapshotAfterFlush(log, cfg, ts)
+				if err != nil {
+					return err
+				}
+				processedSnapshots[processed.Source] = processed.SnapshotSHA256
+				emitTrans(log, fsm.SnapshotValidate, fsm.BNETStart, "next_character", map[string]any{
 					"char_index": charPos + 1,
 				})
 				charPos++

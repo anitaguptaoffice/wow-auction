@@ -3,6 +3,7 @@ import type {
   ItemListingsResponse,
   ItemHistoryResponse,
   MarketItem,
+  MarketCatalog,
   MarketItemsResponse,
   MarketQuery,
   MarketStatus,
@@ -60,6 +61,22 @@ const items: MarketItem[] = names.map((name, index) => {
     minBuyout: unitPrice * (1 + (index % 12)),
   };
 });
+
+export async function mockCatalog(): Promise<MarketCatalog> {
+  const scannedAt = new Date(Date.now() - 4 * 60_000).toISOString();
+  return {
+    realms: [{
+      key: "5:707",
+      region: "CN",
+      regionID: 5,
+      realm: "本地演示数据",
+      normalizedRealm: "本地演示数据",
+      realmID: 707,
+      latestScanId: 1,
+      scans: [{ scanId: 1, scannedAt, scannedAtUnix: Math.floor(Date.now() / 1000) - 240, listingCount: 380_668 }],
+    }],
+  };
+}
 
 export async function mockStatus(): Promise<MarketStatus> {
   await delay(180);

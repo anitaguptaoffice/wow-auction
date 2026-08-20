@@ -4,21 +4,20 @@
 
 ## 当前状态
 
-2026-08-20 的第一份生产快照已经完成端到端验证：
+2026-08-21 已完成三组服务器、四个时间点的端到端验证：
 
-- 原始拍卖记录：`380,668`
-- 基础物品 ID：`12,759`
-- 网站市场条目：`13,303`（战斗宠物按物种拆分）
-- 战斗宠物：`545` 个市场分组、`1,210` 条明细
-- 总数量：`42,894,416`
-- 核心字段缺失、API 错误、单价差异、聚合差异：均为 `0`
-- 快照 SHA-256：`8c60305ed1c19b7031b150012b72cab809a474dc45c1d6a14857d596ce67f961`
+- 白银之手：`509,620`、`503,601` 条（两个时间点）
+- 熊猫酒仙：`457,472` 条
+- 凤凰之神：`491,099` 条
+- 云端总记录：`1,961,792`
+- 核心字段缺失、API 错误和插件范围未知项：均为 `0`
 
 线上入口：
 
 - 网站：<https://raidbot-5gh3h2nx762bedc5-1251932919.tcloudbaseapp.com/wow-auction/>
 - API 健康检查：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/health>
 - 市场状态：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/api/market/status>
+- 服务器与时间点：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/api/market/catalog>
 
 新版插件会把区域、服务器以及每个物品的市场范围写入快照。范围直接采用游戏客户端的
 `C_AuctionHouse.GetItemKeyInfo(...).isCommodity`：商品标记为“区域共享”，非商品标记为
@@ -39,6 +38,8 @@ WoW 客户端
 
 原始数据每一行都会保存到 `wow_auction_listings`，网站摘要是额外的物化视图，不会替代或丢弃原始行。普通装备按基础 `itemID` 汇总，并返回 `variantCount`；完整 `itemLink` 保留在明细中。笼装战斗宠物共享 `itemID=82800`，因此额外按 `battlePetCreatureID` 分组。
 
+本地采集时插件使用角色级 SavedVariables，并且每个角色只保留最新一份快照。Windows runner 在每个角色正常刷盘后立即执行完整性校验、gzip 归档、数据库幂等导入和条数复核；仅最后一个角色令 `Wow.exe` 完全退出且上述步骤全部成功后，才按各文件 SHA-256 原子清空本轮已处理的角色文件。任何失败都会保留源数据供重试。
+
 ## 用户体系
 
 用户注册和登录完全使用 CloudBase 原生身份认证，不在本项目数据库中保存密码：
@@ -53,12 +54,14 @@ WoW 客户端
 ## 公开 API
 
 - `GET /api/market/status`
-- `GET /api/market/items?q=&page=&page_size=&sort=`
-- `GET /api/market/items/{item_id}/listings?page=&page_size=&battle_pet_creature_id=`
-- `GET /api/market/items/{item_id}/history?battle_pet_creature_id=`
+- `GET /api/market/catalog`
+- `GET /api/market/items?scan_id=&q=&page=&page_size=&sort=`
+- `GET /api/market/items/{item_id}/listings?scan_id=&page=&page_size=&battle_pet_creature_id=`
+- `GET /api/market/items/{item_id}/history?scan_id=&battle_pet_creature_id=`
 
 排序支持 `price_asc`、`price_desc`、`quantity_desc`、`listings_desc`、`name_asc`。查询战斗宠物详情时必须带回列表返回的 `battlePetCreatureID`。
-历史接口按完整快照返回最低单价、最低一口价、库存和挂单数量，可用于物品详情中的趋势与涨跌对比。
+`scan_id` 选择插件标注服务器下的具体时间点。历史接口只比较同一 `regionID + realmID`
+且不晚于所选时间点的快照，避免跨服务器串价。
 
 管理导入接口使用独立 Bearer 令牌：
 

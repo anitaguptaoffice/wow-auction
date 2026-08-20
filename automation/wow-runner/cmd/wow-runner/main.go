@@ -19,6 +19,7 @@ func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
 	checkOnly := flag.Bool("check", false, "load config, poll Battle.net and Wow processes, emit logs, exit")
 	runFSM := flag.Bool("run", false, "Windows: run Battle.net → WoW → auction scan → graceful exit → snapshot validation")
+	ingestLatest := flag.Bool("ingest", false, "Windows: validate, archive and import newest written snapshot without controlling WoW")
 	flag.Parse()
 
 	if *showVersion {
@@ -59,6 +60,21 @@ func main() {
 			os.Exit(1)
 		}
 		log.Emit("INFO", "session_end", "run step finished", map[string]any{
+			"exit_code": 0,
+			"outcome":   "success",
+		})
+		os.Exit(0)
+	}
+
+	if *ingestLatest {
+		if err := runner.IngestLatestSnapshot(log, root); err != nil {
+			log.Emit("ERROR", "session_end", err.Error(), map[string]any{
+				"exit_code": 1,
+				"outcome":   "failed",
+			})
+			os.Exit(1)
+		}
+		log.Emit("INFO", "session_end", "latest snapshot ingested", map[string]any{
 			"exit_code": 0,
 			"outcome":   "success",
 		})

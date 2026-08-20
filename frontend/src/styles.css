@@ -321,6 +321,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   margin-bottom: 18px;
 }
 
+.snapshot-selector { display: flex; align-items: end; gap: 12px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-solid); box-shadow: var(--shadow-soft); }
+.snapshot-selector label { display: grid; gap: 5px; min-width: 210px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.snapshot-selector select { height: 38px; padding: 0 34px 0 10px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--surface); color: var(--text); font-size: 12px; font-weight: 650; }
+.snapshot-selector p { margin: 0 0 9px auto; color: var(--muted); font-size: 10px; }
+
 .metric-card {
   display: flex;
   min-width: 0;
@@ -703,6 +708,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .intro-row h1 { font-size: 34px; }
   .intro-copy { font-size: 12px; }
   .metric-grid { grid-template-columns: 1fr; }
+  .snapshot-selector { align-items: stretch; flex-direction: column; }
+  .snapshot-selector label { min-width: 0; }
+  .snapshot-selector p { margin: 0; }
   .metric-card { padding: 14px; }
   .market-sidebar { grid-template-columns: 1fr; }
   .market-toolbar { align-items: flex-start; flex-direction: column; }

@@ -1,14 +1,15 @@
 FROM python:3.13-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    UV_DEFAULT_INDEX=https://pypi.org/simple
 
 WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --default-index https://pypi.org/simple
 
 
 FROM python:3.13-slim AS runtime

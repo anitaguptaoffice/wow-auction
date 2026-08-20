@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { fetchItemHistory, fetchItemListings, fetchMarketItems, fetchMarketStatus, getIconProxyUrl } from "./lib/api";
+import { fetchItemHistory, fetchItemListings, fetchMarketCatalog, fetchMarketItems, fetchMarketStatus, getIconProxyUrl } from "./lib/api";
 import iconMap from "./generated/icon-map.json";
 import localIconMap from "./generated/local-icon-map.json";
 import {
@@ -72,6 +72,7 @@ function initialQuery(): MarketQuery {
     page: Math.max(1, Number(params.get("page")) || 1),
     pageSize,
     sort,
+    scanId: Number(params.get("scan_id")) || null,
   };
 }
 
@@ -107,13 +108,19 @@ export function App() {
     if (query.page > 1) params.set("page", String(query.page));
     if (query.pageSize !== 20) params.set("page_size", String(query.pageSize));
     if (query.sort !== "price_asc") params.set("sort", query.sort);
+    if (query.scanId) params.set("scan_id", String(query.scanId));
     const suffix = params.size ? `?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, "", suffix);
   }, [query]);
 
+  const catalogQuery = useQuery({
+    queryKey: ["market-catalog"],
+    queryFn: fetchMarketCatalog,
+  });
   const statusQuery = useQuery({
-    queryKey: ["market-status"],
-    queryFn: fetchMarketStatus,
+    queryKey: ["market-status", query.scanId],
+    queryFn: () => fetchMarketStatus(query.scanId),
+    enabled: query.scanId != null,
   });
   const itemsQuery = useQuery({
     queryKey: ["market-items", query],
@@ -121,25 +128,37 @@ export function App() {
     placeholderData: (previous) => previous,
   });
   const popularQuery = useQuery({
-    queryKey: ["market-items", "popular"],
+    queryKey: ["market-items", "popular", query.scanId],
     queryFn: () =>
-      fetchMarketItems({ q: "", collection: "", page: 1, pageSize: 3, sort: "quantity_desc" }),
+      fetchMarketItems({ q: "", collection: "", page: 1, pageSize: 3, sort: "quantity_desc", scanId: query.scanId }),
+    enabled: query.scanId != null,
   });
   const raidBoeQuery = useQuery({
-    queryKey: ["market-items", "raid-boe-12-1"],
+    queryKey: ["market-items", "raid-boe-12-1", query.scanId],
     queryFn: () =>
-      fetchMarketItems({ q: "", collection: "raid_boe_12_1", page: 1, pageSize: 20, sort: "price_asc" }),
+      fetchMarketItems({ q: "", collection: "raid_boe_12_1", page: 1, pageSize: 20, sort: "price_asc", scanId: query.scanId }),
+    enabled: query.scanId != null,
   });
+
+  useEffect(() => {
+    const realms = catalogQuery.data?.realms ?? [];
+    if (!realms.length) return;
+    const scanExists = realms.some((realm) => realm.scans.some((scan) => scan.scanId === query.scanId));
+    if (!scanExists) setQuery((current) => ({ ...current, scanId: realms[0].latestScanId, page: 1 }));
+  }, [catalogQuery.data, query.scanId]);
 
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["market-status"] }),
       queryClient.invalidateQueries({ queryKey: ["market-items"] }),
+      queryClient.invalidateQueries({ queryKey: ["market-catalog"] }),
     ]);
   };
 
   const status = statusQuery.data;
   const data = itemsQuery.data;
+  const realms = catalogQuery.data?.realms ?? [];
+  const selectedRealm = realms.find((realm) => realm.scans.some((scan) => scan.scanId === query.scanId));
 
   return (
     <div className="app-shell">
@@ -213,6 +232,45 @@ export function App() {
             available={status?.available}
             complete={status?.complete}
           />
+        </section>
+
+        <section className="snapshot-selector" aria-label="选择服务器和快照时间">
+          <label>
+            <span>服务器</span>
+            <select
+              value={selectedRealm?.key ?? ""}
+              disabled={catalogQuery.isLoading || realms.length === 0}
+              onChange={(event) => {
+                const realm = realms.find((candidate) => candidate.key === event.target.value);
+                if (realm) {
+                  setSelectedItem(null);
+                  setQuery((current) => ({ ...current, scanId: realm.latestScanId, page: 1 }));
+                }
+              }}
+            >
+              {realms.map((realm) => (
+                <option key={realm.key} value={realm.key}>{realm.realm} · {realm.region || `区域 ${realm.regionID}`}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>数据时间点</span>
+            <select
+              value={query.scanId ?? ""}
+              disabled={!selectedRealm}
+              onChange={(event) => {
+                setSelectedItem(null);
+                setQuery((current) => ({ ...current, scanId: Number(event.target.value), page: 1 }));
+              }}
+            >
+              {selectedRealm?.scans.map((scan) => (
+                <option key={scan.scanId} value={scan.scanId}>
+                  {formatDate(scan.scannedAt)} · {formatInteger(scan.listingCount)} 条
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>价格、库存排行和挂单详情均来自当前服务器的所选快照。</p>
         </section>
 
         <section className="metric-grid" aria-label="市场快照摘要">
@@ -385,7 +443,7 @@ export function App() {
         </div>
       </footer>
 
-      {selectedItem && <ItemDetails item={selectedItem} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && <ItemDetails item={selectedItem} scanId={query.scanId} onClose={() => setSelectedItem(null)} />}
       {showAccountNotice && <AccountNotice onClose={() => setShowAccountNotice(false)} />}
     </div>
   );
@@ -704,15 +762,15 @@ function paginationTokens(current: number, pages: number): Array<number | "…">
   return result;
 }
 
-function ItemDetails({ item, onClose }: { item: MarketItem; onClose: () => void }) {
+function ItemDetails({ item, scanId, onClose }: { item: MarketItem; scanId: number | null; onClose: () => void }) {
   const [page, setPage] = useState(1);
   const historyQuery = useQuery({
-    queryKey: ["item-history", item.marketKey],
-    queryFn: () => fetchItemHistory(item),
+    queryKey: ["item-history", item.marketKey, scanId],
+    queryFn: () => fetchItemHistory(item, scanId),
   });
   const listingsQuery = useQuery({
-    queryKey: ["item-listings", item.marketKey, page],
-    queryFn: () => fetchItemListings(item, page),
+    queryKey: ["item-listings", item.marketKey, scanId, page],
+    queryFn: () => fetchItemListings(item, page, 25, scanId),
   });
 
   useEffect(() => {

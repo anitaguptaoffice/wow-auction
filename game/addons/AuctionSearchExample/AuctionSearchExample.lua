@@ -2,8 +2,14 @@ local ADDON_NAME = "AuctionSearchExample"
 local SCAN_BATCH_SIZE = 1000 -- 低于 replicate 接口约 2000 次/帧的经验上限
 local BATCH_DETAIL_TIMEOUT_SECONDS = 1
 local BATTLE_PET_CAGE_ITEM_ID = 82800
+local MARKET_SCOPE_MAX_IN_FLIGHT = 32
+local MARKET_SCOPE_LOOKUPS_PER_TICK = 64
+local MARKET_SCOPE_REQUEST_TIMEOUT_SECONDS = 0.5
+local MARKET_SCOPE_TOTAL_TIMEOUT_SECONDS = 180
+local MARKET_SCOPE_TICK_SECONDS = 0.05
 
 local waitingForReplicate = false
+local auctionHouseOpen = false
 local requestSerial = 0
 local activeJob
 
@@ -13,9 +19,6 @@ local function EnsureDatabase()
 	AuctionSearchDB.auctions = AuctionSearchDB.auctions or {}
 	AuctionSearchDB.lastScanTime = AuctionSearchDB.lastScanTime or 0
 	AuctionSearchDB.settings = AuctionSearchDB.settings or {}
-	AuctionSearchDB.settings.maxHistoryDays = AuctionSearchDB.settings.maxHistoryDays or 7
-	-- 单次全量快照体积很大；同一天默认只保留最新一份，避免 SavedVariables 无限膨胀。
-	AuctionSearchDB.settings.maxScansPerDay = AuctionSearchDB.settings.maxScansPerDay or 1
 end
 
 local function GetDateString()
@@ -28,16 +31,6 @@ local function OverlayCall(method, ...)
 		return false
 	end
 	return pcall(callback, ...)
-end
-
-local function CleanOldData()
-	local currentTime = time()
-	local maxAge = AuctionSearchDB.settings.maxHistoryDays * 24 * 60 * 60
-	for dateStr, dayData in pairs(AuctionSearchDB.auctions) do
-		if dayData.timestamp and (currentTime - dayData.timestamp) > maxAge then
-			AuctionSearchDB.auctions[dateStr] = nil
-		end
-	end
 end
 
 -- Replicate 接口沿用旧 Auction API 的 1..4 值，而不是 AuctionHouseTimeLeftBand 的 0..3。
@@ -96,17 +89,17 @@ local function ReadReplicateValue(job, index, api)
 	return value
 end
 
-local function GetItemMarketScope(itemID)
+local function ReadItemMarketScope(itemID)
 	if not itemID or not C_AuctionHouse.MakeItemKey or not C_AuctionHouse.GetItemKeyInfo then
-		return "unknown"
+		return nil
 	end
 	local keyOk, itemKey = pcall(C_AuctionHouse.MakeItemKey, itemID)
 	if not keyOk or not itemKey then
-		return "unknown"
+		return nil
 	end
 	local infoOk, itemKeyInfo = pcall(C_AuctionHouse.GetItemKeyInfo, itemKey)
 	if not infoOk or not itemKeyInfo or itemKeyInfo.isCommodity == nil then
-		return "unknown"
+		return nil
 	end
 	return itemKeyInfo.isCommodity and "region" or "realm"
 end
@@ -178,9 +171,10 @@ local function StoreRecord(job, index, info)
 	local slot = index + 1
 	local previouslyLinked = job.linkedBySlot[slot] == true
 	job.records[slot] = record
-	-- 市场范围只依赖 ItemID；同一物品可能有大量拍卖行记录，避免重复调用 API。
-	if record.itemID and job.itemMarketScopes[record.itemID] == nil then
-		job.itemMarketScopes[record.itemID] = GetItemMarketScope(record.itemID)
+	-- 先收集唯一 ItemID；核心拍卖行读取完成后再以有界并发补全市场范围。
+	if record.itemID and not job.marketScopeSeen[record.itemID] then
+		job.marketScopeSeen[record.itemID] = true
+		table.insert(job.marketScopeItemIDs, record.itemID)
 	end
 	job.linkedBySlot[slot] = hasLink
 	if hasLink and not previouslyLinked then
@@ -231,6 +225,7 @@ local function AbortJob(job, reason)
 		return
 	end
 	job.finished = true
+	job.marketScopeState = nil
 	if job.activeBatch then
 		job.activeBatch.done = true
 		CancelBatchContinuations(job.activeBatch)
@@ -243,33 +238,39 @@ local function AbortJob(job, reason)
 	OverlayCall("SetPhase", "error", "扫描遇到客户端异常，任务已安全停止；请关闭并重新打开拍卖行")
 end
 
-local function CommitJob(job)
-	if activeJob ~= job or job.finished then
-		return
-	end
-	job.finished = true
-
+local function EnsureAllRecords(job)
 	-- 防御性补齐：即使某个异步回调永不返回，也绝不丢失该拍卖行。
 	for index = 0, job.total - 1 do
 		if not job.records[index + 1] then
 			StoreRecord(job, index, ReadReplicateInfo(job, index))
 		end
 	end
+end
+
+local function FinalizeMarketScopeCounts(job)
+	local counts = { region = 0, realm = 0, unknown = 0 }
+	for _, itemID in ipairs(job.marketScopeItemIDs) do
+		local scope = job.itemMarketScopes[itemID]
+		if scope ~= "region" and scope ~= "realm" then
+			scope = "unknown"
+			job.itemMarketScopes[itemID] = scope
+		end
+		counts[scope] = counts[scope] + 1
+	end
+	return counts
+end
+
+local function CommitJob(job)
+	if activeJob ~= job or job.finished then
+		return
+	end
+	job.finished = true
+
+	EnsureAllRecords(job)
+	local marketScopeCounts = FinalizeMarketScopeCounts(job)
 
 	local currentTime = time()
 	local dateStr = GetDateString()
-	local dayData = AuctionSearchDB.auctions[dateStr]
-	if not dayData then
-		dayData = { scans = {}, timestamp = currentTime }
-		AuctionSearchDB.auctions[dateStr] = dayData
-	end
-	dayData.scans = dayData.scans or {}
-	dayData.timestamp = currentTime
-
-	local limit = math.max(1, tonumber(AuctionSearchDB.settings.maxScansPerDay) or 1)
-	while #dayData.scans >= limit do
-		table.remove(dayData.scans, 1)
-	end
 
 	local elapsedMs = debugprofilestop() - job.beginMs
 	local scanContext = GetScanContext()
@@ -293,6 +294,9 @@ local function CommitJob(job)
 		incompleteInfoCount = incompleteCount,
 		missingCoreCount = missingCoreCount,
 		apiErrorCount = apiErrorCount,
+		marketScopeRegionCount = marketScopeCounts.region,
+		marketScopeRealmCount = marketScopeCounts.realm,
+		marketScopeUnknownCount = marketScopeCounts.unknown,
 		durationMs = elapsedMs,
 		realmName = scanContext.realmName,
 		normalizedRealmName = scanContext.normalizedRealmName,
@@ -302,7 +306,13 @@ local function CommitJob(job)
 		itemMarketScopes = job.itemMarketScopes,
 		items = job.records,
 	}
-	table.insert(dayData.scans, scanRecord)
+	-- SavedVariables 只承担一次交接快照；历史追加由游戏外同步程序/数据库负责。
+	AuctionSearchDB.auctions = {
+		[dateStr] = {
+			timestamp = currentTime,
+			scans = { scanRecord },
+		},
+	}
 	AuctionSearchDB.lastScanTime = currentTime
 	AuctionSearchDB.lastScan = {
 		itemCount = job.total,
@@ -311,6 +321,9 @@ local function CommitJob(job)
 		incompleteInfoCount = incompleteCount,
 		missingCoreCount = missingCoreCount,
 		apiErrorCount = apiErrorCount,
+		marketScopeRegionCount = marketScopeCounts.region,
+		marketScopeRealmCount = marketScopeCounts.realm,
+		marketScopeUnknownCount = marketScopeCounts.unknown,
 		durationMs = elapsedMs,
 		realmName = scanContext.realmName,
 		normalizedRealmName = scanContext.normalizedRealmName,
@@ -319,7 +332,6 @@ local function CommitJob(job)
 		regionName = scanContext.regionName,
 	}
 	AuctionSearchDB.lastError = nil
-	CleanOldData()
 
 	activeJob = nil
 	OverlayCall(
@@ -329,8 +341,158 @@ local function CommitJob(job)
 		job.linkedItems,
 		missingCoreCount,
 		incompleteCount,
-		apiErrorCount
+		apiErrorCount,
+		marketScopeCounts.region,
+		marketScopeCounts.realm,
+		marketScopeCounts.unknown
 	)
+end
+
+local TickMarketScopeResolution
+
+local function ScheduleMarketScopeTick(job, state, delay)
+	if activeJob ~= job or job.finished or job.marketScopeState ~= state or state.tickScheduled then
+		return
+	end
+	state.tickScheduled = true
+	C_Timer.After(delay or MARKET_SCOPE_TICK_SECONDS, function()
+		state.tickScheduled = false
+		if activeJob ~= job or job.finished or job.marketScopeState ~= state then
+			return
+		end
+		local ok, reason = pcall(TickMarketScopeResolution, job, state)
+		if not ok then
+			AbortJob(job, reason)
+		end
+	end)
+end
+
+local function CompleteMarketScopeItem(job, state, itemID, scope)
+	local pending = state.inFlight[itemID]
+	if not pending then
+		return false
+	end
+	state.inFlight[itemID] = nil
+	state.inFlightCount = math.max(0, state.inFlightCount - 1)
+	job.itemMarketScopes[itemID] = scope or "unknown"
+	state.completed = state.completed + 1
+	return true
+end
+
+local function UpdateMarketScopeProgress(job, state)
+	OverlayCall(
+		"SetProgress",
+		job.total,
+		job.total,
+		format(
+			"正在补全市场范围：%d / %d 个物品（最多同时等待 %d 个）",
+			state.completed,
+			state.total,
+			MARKET_SCOPE_MAX_IN_FLIGHT
+		)
+	)
+end
+
+local function FinishMarketScopeResolution(job, state)
+	if activeJob ~= job or job.finished or job.marketScopeState ~= state then
+		return
+	end
+	for itemID in pairs(state.inFlight) do
+		job.itemMarketScopes[itemID] = "unknown"
+	end
+	for queueIndex = state.nextIndex, state.total do
+		job.itemMarketScopes[job.marketScopeItemIDs[queueIndex]] = "unknown"
+	end
+	state.inFlight = {}
+	state.inFlightCount = 0
+	state.completed = state.total
+	job.marketScopeState = nil
+	CommitJob(job)
+end
+
+TickMarketScopeResolution = function(job, state)
+	if activeJob ~= job or job.finished or job.marketScopeState ~= state then
+		return
+	end
+	local now = GetTime()
+	if now >= state.hardDeadline then
+		FinishMarketScopeResolution(job, state)
+		return
+	end
+
+	-- 事件未返回时释放槽位，避免某个 ItemID 永久阻塞整个队列。
+	local expired = {}
+	for itemID, pending in pairs(state.inFlight) do
+		if now >= pending.deadline then
+			table.insert(expired, itemID)
+		end
+	end
+	for _, itemID in ipairs(expired) do
+		local scope = ReadItemMarketScope(itemID)
+		CompleteMarketScopeItem(job, state, itemID, scope or "unknown")
+	end
+
+	local lookupCount = 0
+	while state.nextIndex <= state.total
+		and state.inFlightCount < MARKET_SCOPE_MAX_IN_FLIGHT
+		and lookupCount < MARKET_SCOPE_LOOKUPS_PER_TICK do
+		local itemID = job.marketScopeItemIDs[state.nextIndex]
+		state.nextIndex = state.nextIndex + 1
+		lookupCount = lookupCount + 1
+		local scope = ReadItemMarketScope(itemID)
+		if scope then
+			job.itemMarketScopes[itemID] = scope
+			state.completed = state.completed + 1
+		else
+			state.inFlight[itemID] = { deadline = now + MARKET_SCOPE_REQUEST_TIMEOUT_SECONDS }
+			state.inFlightCount = state.inFlightCount + 1
+		end
+	end
+
+	UpdateMarketScopeProgress(job, state)
+	if state.nextIndex > state.total and state.inFlightCount == 0 then
+		job.marketScopeState = nil
+		CommitJob(job)
+		return
+	end
+	ScheduleMarketScopeTick(job, state, MARKET_SCOPE_TICK_SECONDS)
+end
+
+local function StartMarketScopeResolution(job)
+	if activeJob ~= job or job.finished then
+		return
+	end
+	EnsureAllRecords(job)
+	local total = #job.marketScopeItemIDs
+	if total == 0 or not C_AuctionHouse.MakeItemKey or not C_AuctionHouse.GetItemKeyInfo then
+		CommitJob(job)
+		return
+	end
+	local state = {
+		total = total,
+		nextIndex = 1,
+		completed = 0,
+		inFlight = {},
+		inFlightCount = 0,
+		hardDeadline = GetTime() + MARKET_SCOPE_TOTAL_TIMEOUT_SECONDS,
+		tickScheduled = false,
+	}
+	job.marketScopeState = state
+	UpdateMarketScopeProgress(job, state)
+	ScheduleMarketScopeTick(job, state, 0)
+end
+
+local function HandleItemKeyInfoReceived(itemID)
+	local job = activeJob
+	local state = job and job.marketScopeState
+	itemID = tonumber(itemID)
+	if not job or job.finished or not state or not itemID or not state.inFlight[itemID] then
+		return
+	end
+	local scope = ReadItemMarketScope(itemID)
+	if scope and CompleteMarketScopeItem(job, state, itemID, scope) then
+		ScheduleMarketScopeTick(job, state, 0)
+	end
 end
 
 local ProcessNextBatch
@@ -346,7 +508,7 @@ local function FinishBatch(job, batch)
 	OverlayCall("SetProgress", job.processed, job.total)
 	job.nextIndex = batch.lastIndex + 1
 	if job.nextIndex >= job.total then
-		CommitJob(job)
+		StartMarketScopeResolution(job)
 	else
 		C_Timer.After(0, function()
 			if activeJob == job and not job.finished then
@@ -477,6 +639,11 @@ local function StartScan()
 		return
 	end
 
+	-- 只有服务器真正返回新快照后才释放旧快照，避免一次被限流的请求误删上次成功数据。
+	AuctionSearchDB.auctions = {}
+	AuctionSearchDB.lastScanTime = 0
+	AuctionSearchDB.lastScan = nil
+
 	local job = {
 		id = requestSerial,
 		total = total,
@@ -484,6 +651,8 @@ local function StartScan()
 		processed = 0,
 		records = {},
 		itemMarketScopes = {},
+		marketScopeItemIDs = {},
+		marketScopeSeen = {},
 		linkedBySlot = {},
 		linkedItems = 0,
 		incompleteInfo = {},
@@ -510,6 +679,36 @@ local function StartScanSafely()
 		AuctionSearchDB.lastError = { timestamp = time(), message = tostring(reason) }
 		OverlayCall("SetPhase", "error", "启动扫描时遇到客户端异常，请关闭并重新打开拍卖行")
 	end
+end
+
+local function RequestReplicateSnapshot()
+	if not auctionHouseOpen then
+		OverlayCall("SetPhase", "ready", "请先打开拍卖行，再点击开始扫描")
+		return
+	end
+	if activeJob or waitingForReplicate then
+		return
+	end
+	requestSerial = requestSerial + 1
+	waitingForReplicate = true
+	OverlayCall("SetPhase", "started")
+	local ok, reason = pcall(C_AuctionHouse.ReplicateItems)
+	if not ok then
+		waitingForReplicate = false
+		AuctionSearchDB.lastError = { timestamp = time(), message = tostring(reason) }
+		OverlayCall("SetPhase", "error", "客户端拒绝了全量快照请求；本次不会自动重试")
+		return
+	end
+	local thisRequest = requestSerial
+	C_Timer.After(20, function()
+		if waitingForReplicate and requestSerial == thisRequest and not activeJob then
+			OverlayCall(
+				"SetPhase",
+				"started",
+				"仍在等待服务器；本次不会自动重试，如遇限流请稍后手动再次点击"
+			)
+		end
+	end)
 end
 
 local function GetDatabaseStats()
@@ -594,6 +793,8 @@ local function HandleSlashCommand(msg)
 				item.quantity or 0
 			))
 		end
+	elseif command == "scan" then
+		RequestReplicateSnapshot()
 	elseif command == "clear" then
 		AuctionSearchDB.auctions = {}
 		AuctionSearchDB.lastScanTime = 0
@@ -614,6 +815,7 @@ local function HandleSlashCommand(msg)
 		end
 	else
 		print("AuctionSearch 命令:")
+		print("  /as scan - 在拍卖行打开时手动开始扫描")
 		print("  /as stats - 显示数据库统计")
 		print("  /as history <物品ID> - 显示最近历史")
 		print("  /as test [物品ID] - 调试物品缓存")
@@ -632,8 +834,8 @@ local function OnEvent(self, event, ...)
 			return
 		end
 		EnsureDatabase()
-		CleanOldData()
 		OverlayCall("Init")
+		OverlayCall("SetScanCallback", RequestReplicateSnapshot)
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		if not activeJob and not waitingForReplicate then
@@ -641,38 +843,23 @@ local function OnEvent(self, event, ...)
 			OverlayCall("SetPhase", "ready")
 		end
 	elseif event == "AUCTION_HOUSE_SHOW" then
-		if activeJob or waitingForReplicate then
-			return
-		end
-		requestSerial = requestSerial + 1
-		waitingForReplicate = true
+		auctionHouseOpen = true
 		OverlayCall("Init")
-		OverlayCall("SetPhase", "started")
-		local ok, reason = pcall(C_AuctionHouse.ReplicateItems)
-		if not ok then
-			waitingForReplicate = false
-			AuctionSearchDB.lastError = { timestamp = time(), message = tostring(reason) }
-			OverlayCall("SetPhase", "error", "客户端拒绝了全量快照请求，请关闭拍卖行后重试")
+		if not activeJob and not waitingForReplicate then
+			OverlayCall("SetPhase", "ready", "拍卖行已打开；点击右上角“开始扫描”，或输入 /as scan")
 		end
-		local thisRequest = requestSerial
-		C_Timer.After(20, function()
-			if waitingForReplicate and requestSerial == thisRequest and not activeJob then
-				OverlayCall(
-					"SetPhase",
-					"started",
-					"仍在等待服务器；全量接口可能处于 15 分钟限流，请保持拍卖行开启"
-				)
-			end
-		end)
 	elseif event == "AUCTION_HOUSE_CLOSED" then
+		auctionHouseOpen = false
 		if not activeJob then
 			waitingForReplicate = false
 			requestSerial = requestSerial + 1
-			OverlayCall("SetPhase", "ready")
+			OverlayCall("SetPhase", "ready", "请打开拍卖行，再手动开始扫描")
 		end
 	elseif event == "REPLICATE_ITEM_LIST_UPDATE" and waitingForReplicate then
 		waitingForReplicate = false
 		StartScanSafely()
+	elseif event == "ITEM_KEY_ITEM_INFO_RECEIVED" then
+		HandleItemKeyInfoReceived(...)
 	end
 end
 
@@ -682,4 +869,5 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
 eventFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
 eventFrame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
+eventFrame:RegisterEvent("ITEM_KEY_ITEM_INFO_RECEIVED")
 eventFrame:SetScript("OnEvent", OnEvent)

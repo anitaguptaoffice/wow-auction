@@ -19,12 +19,14 @@ class PublicSurfaceTest(unittest.TestCase):
             {
                 "/health",
                 "/api/market/status",
+                "/api/market/catalog",
                 "/api/market/items",
                 "/api/market/items/{item_id}/listings",
                 "/api/market/items/{item_id}/history",
                 "/api/icons/{icon_name}.jpg",
                 "/api/admin/import",
                 "/api/admin/import/{job_id}",
+                "/api/admin/reset-market",
             },
         )
         self.assertEqual(

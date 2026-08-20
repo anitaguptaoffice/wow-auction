@@ -142,6 +142,17 @@ type Snapshot struct {
 	Account string `yaml:"account"`
 	// Destination 通常为仓库 data/auction.lua，可相对配置文件目录。
 	Destination string `yaml:"destination"`
+	// ArchiveDir 保存每次验证成功的 gzip 压缩归档和清单。
+	ArchiveDir string `yaml:"archive_dir"`
+	// ImportEnabled 启用网站数据库追加导入。
+	ImportEnabled bool `yaml:"import_enabled"`
+	// PythonExe 与 ImporterScript 指向后端导入器运行时和入口。
+	PythonExe      string `yaml:"python_exe"`
+	ImporterScript string `yaml:"importer_script"`
+	// DatabaseURL 为空时使用后端默认 data/wow-auction.db；非空时仅通过子进程环境传递。
+	DatabaseURL string `yaml:"database_url"`
+	// ClearSourceAfterImport 仅在归档、导入和复核全部成功后原子清空 WoW 源文件。
+	ClearSourceAfterImport bool `yaml:"clear_source_after_import"`
 }
 
 // Debug 调试输出。
@@ -244,6 +255,9 @@ func (r *Root) applyBnetDefaults() {
 	if strings.TrimSpace(r.Snapshot.Destination) == "" {
 		r.Snapshot.Destination = "../../data/auction.lua"
 	}
+	if strings.TrimSpace(r.Snapshot.ArchiveDir) == "" {
+		r.Snapshot.ArchiveDir = "../../data/archive"
+	}
 }
 
 // ResolvePath joins p with the config file directory when p is not absolute.
@@ -278,6 +292,17 @@ func (r *Root) Validate() error {
 	}
 	if len(r.Characters.Indices) == 0 {
 		return fmt.Errorf("characters.indices must be non-empty")
+	}
+	if r.Snapshot.ClearSourceAfterImport && !r.Snapshot.ImportEnabled {
+		return fmt.Errorf("snapshot.clear_source_after_import requires snapshot.import_enabled")
+	}
+	if r.Snapshot.ImportEnabled {
+		if strings.TrimSpace(r.Snapshot.PythonExe) == "" {
+			return fmt.Errorf("snapshot.python_exe is required when import_enabled is true")
+		}
+		if strings.TrimSpace(r.Snapshot.ImporterScript) == "" {
+			return fmt.Errorf("snapshot.importer_script is required when import_enabled is true")
+		}
 	}
 	return nil
 }

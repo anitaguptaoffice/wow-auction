@@ -4,6 +4,7 @@ AuctionSearchOverlay = AuctionSearchOverlay or {}
 
 local frame
 local currentPhase = "idle"
+local scanCallback
 
 local PHASE = {
 	idle = {
@@ -80,6 +81,15 @@ function AuctionSearchOverlay.GetPhase()
 	return currentPhase
 end
 
+function AuctionSearchOverlay.SetScanCallback(callback)
+	scanCallback = type(callback) == "function" and callback or nil
+	if frame and frame.scanButton then
+		local showButton = currentPhase == "ready" and scanCallback ~= nil
+		frame.scanButton:SetShown(showButton)
+		frame.progress:SetShown(not showButton)
+	end
+end
+
 function AuctionSearchOverlay.SetPhase(key, detail)
 	if key == "logout" then
 		key = "complete"
@@ -97,6 +107,9 @@ function AuctionSearchOverlay.SetPhase(key, detail)
 	end
 
 	ApplyPhaseStyle(key)
+	local showScanButton = key == "ready" and scanCallback ~= nil
+	frame.scanButton:SetShown(showScanButton)
+	frame.progress:SetShown(not showScanButton)
 	if detail and detail ~= "" then
 		frame.detail:SetText(detail)
 	end
@@ -144,13 +157,25 @@ function AuctionSearchOverlay.SetComplete(
 	linkedItems,
 	missingCoreCount,
 	incompleteInfoCount,
-	apiErrorCount
+	apiErrorCount,
+	marketScopeRegionCount,
+	marketScopeRealmCount,
+	marketScopeUnknownCount
 )
 	local seconds = (tonumber(elapsedMs) or 0) / 1000
 	missingCoreCount = math.max(0, tonumber(missingCoreCount) or 0)
 	incompleteInfoCount = math.max(0, tonumber(incompleteInfoCount) or 0)
 	apiErrorCount = math.max(0, tonumber(apiErrorCount) or 0)
+	marketScopeRegionCount = math.max(0, tonumber(marketScopeRegionCount) or 0)
+	marketScopeRealmCount = math.max(0, tonumber(marketScopeRealmCount) or 0)
+	marketScopeUnknownCount = math.max(0, tonumber(marketScopeUnknownCount) or 0)
 	local detail = format("已保存 %s 条 · 用时 %.1f 秒", FormatNumber(total), seconds)
+	detail = detail .. format(
+		" · 范围 区域 %s / 服务器 %s / 未知 %s",
+		FormatNumber(marketScopeRegionCount),
+		FormatNumber(marketScopeRealmCount),
+		FormatNumber(marketScopeUnknownCount)
+	)
 	if linkedItems and linkedItems < total then
 		detail = detail .. format(" · %s 条含物品链接", FormatNumber(linkedItems))
 	end
@@ -209,6 +234,19 @@ function AuctionSearchOverlay.Init()
 	f.progress:SetPoint("TOPRIGHT", -18, -13)
 	f.progress:SetTextColor(1, 1, 1)
 	f.progress:SetJustifyH("RIGHT")
+
+	f.scanButton = CreateFrame("Button", "AuctionSearchStartButton", f, "UIPanelButtonTemplate")
+	f.scanButton:SetSize(116, 28)
+	f.scanButton:SetPoint("TOPRIGHT", -14, -8)
+	f.scanButton:SetText("开始扫描")
+	f.scanButton:SetFrameLevel(f:GetFrameLevel() + 2)
+	f.scanButton:EnableMouse(true)
+	f.scanButton:SetScript("OnClick", function()
+		if scanCallback then
+			pcall(scanCallback)
+		end
+	end)
+	f.scanButton:Hide()
 
 	-- 固定位置的 ASCII 标签供 Windows OCR 稳定识别；中文标题仍作为主要用户界面。
 	f.token = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

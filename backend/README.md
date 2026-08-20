@@ -15,15 +15,18 @@ uv run --frozen wow-auction-import data/auction.lua --json
 ## HTTP API
 
 - `GET /api/market/status`
-- `GET /api/market/items?q=&page=&page_size=&sort=`
-- `GET /api/market/items/{item_id}/listings?page=&page_size=&battle_pet_creature_id=`
-- `GET /api/market/items/{item_id}/history?battle_pet_creature_id=`
+- `GET /api/market/catalog`
+- `GET /api/market/items?scan_id=&q=&page=&page_size=&sort=`
+- `GET /api/market/items/{item_id}/listings?scan_id=&page=&page_size=&battle_pet_creature_id=`
+- `GET /api/market/items/{item_id}/history?scan_id=&battle_pet_creature_id=`
 
 普通物品按基础 `itemID` 汇总，`variantCount` 表示其中不同 `itemLink` 数；原始明细
 不会丢弃。笼装战斗宠物的共同 `itemID=82800`，因此市场列表额外按
 `battlePetCreatureID` 拆分，并返回可供前端使用的 `marketKey`。加载宠物详情时必须
 把该 ID 作为 `battle_pet_creature_id` 查询参数传回。
-历史接口按完整 scan 返回最低单价、最低一口价、挂单数量和总库存，并计算第一份与最新一份快照的变化。
+目录接口只列出插件实际写入 `regionID/realmID` 的服务器和时间点。`scan_id` 决定列表、
+排行和挂单详情使用哪一份快照；历史接口只比较同服务器且不晚于所选时间点的 scan。
+物品的 `marketScope` 只读取插件随该 scan 写入的数据，不使用离线映射兜底。
 
 ## 云端导入
 
@@ -33,6 +36,10 @@ uv run --frozen wow-auction-import data/auction.lua --json
    `{"sourceUrl":"https://.../snapshot.tgz","expectedSha256":"..."}`；立即返回
    HTTP 202 和 `jobId`。
 2. 轮询 `GET /api/admin/import/{jobId}`，直到 `status` 为 `complete` 或 `error`。
+
+需要全量重载时，`POST /api/admin/reset-market` 还要求 body
+`{"confirm":"DELETE_WOW_AUCTION_MARKET_DATA"}`；它只重建本项目 SQLAlchemy 模型声明的
+`wow_auction_*` 表，必须在原始归档上传并验证后使用。
 
 下载地址仅允许腾讯 COS/CloudBase HTTPS 域名；服务拒绝重定向，并限制下载时长、
 压缩包和解压大小。tgz 必须只含根目录下一个 `auction.lua`，解压后 SHA 匹配才会

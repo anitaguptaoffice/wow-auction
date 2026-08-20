@@ -90,6 +90,14 @@ snapshot:
   # 多账号机器必须明确填写 WTF/Account 下的目录名或唯一子串。
   account: 'YOUR_ACCOUNT_ID'
   destination: '../../data/auction.lua'
+  archive_dir: '../../data/archive'
+  import_enabled: true
+  python_exe: '../../.venv/Scripts/python.exe'
+  importer_script: '../../backend/import_auction.py'
+  # 留空时后端默认写入仓库 data/wow-auction.db；生产环境可填 mysql+pymysql://...
+  database_url: ''
+  # 仅最后一个角色正常退出 Wow.exe、且归档/导入/复核全部成功后执行。
+  clear_source_after_import: true
 
 debug:
   failure_capture_dir: "captures"

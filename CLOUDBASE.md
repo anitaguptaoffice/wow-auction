@@ -24,30 +24,25 @@
 
 MySQL 公网入口保持关闭。应用账号只对该数据库拥有 `SELECT/INSERT/UPDATE/DELETE/CREATE/DROP/INDEX/ALTER/REFERENCES`；不使用 `root` 运行服务。
 
-当前在线原始对象：
+当前在线原始对象（按插件返回的 `regionID/realmID` 分组）：
 
 ```text
-wow-auction/snapshots/CN/unlabeled/2026-08-20-044100/auction.lua.tgz
-wow-auction/snapshots/CN/unlabeled/2026-08-20-044100/manifest.json
-wow-auction/snapshots/CN/unlabeled/latest.json
+wow-auction/snapshots/CN/realm-707/2026-08-20-181052/auction.lua.tgz
+wow-auction/snapshots/CN/realm-707/2026-08-20-184514/auction.lua.tgz
+wow-auction/snapshots/CN/realm-838/2026-08-20-185724/auction.lua.tgz
+wow-auction/snapshots/CN/realm-1794/2026-08-20-190215/auction.lua.tgz
 ```
 
-`unlabeled` 是有意保留：本次快照没有服务器/连接区元数据，不能凭角色名或客户端猜测。
+707、838、1794 分别由插件标注为白银之手、熊猫酒仙、凤凰之神；服务器名称不从角色目录猜测。
 
 ## 当前生产快照
 
-- 扫描时间：`2026-08-20 04:41:00 +08:00`
-- Lua 大小：`173,460,603` bytes
-- Lua SHA-256：`8c60305ed1c19b7031b150012b72cab809a474dc45c1d6a14857d596ce67f961`
-- tgz 大小：`11,867,619` bytes
-- 原始记录：`380,668`
-- 基础物品：`12,759`
-- 网站市场项：`13,303`
-- 总数量：`42,894,416`
-- 战宠：`545` 组 / `1,210` 条明细
-- 核心字段、链接、单价和摘要重算差异：`0`
+- 白银之手：`509,620`、`503,601` 条
+- 熊猫酒仙：`457,472` 条
+- 凤凰之神：`491,099` 条
+- 总计：`1,961,792` 条；四份核心字段、链接和插件范围标记均完整
 
-首次线上导入耗时 `99.21s`。相同 SHA 再次提交会安全 no-op：新增 `0` 行，返回现有 `380,668` 行。
+本轮四份导入分别耗时约 `253s / 145s / 186s / 142s`。相同 SHA 再次提交会安全 no-op。
 
 ## 用户认证
 

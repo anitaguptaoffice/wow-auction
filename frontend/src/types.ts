@@ -28,6 +28,28 @@ export interface MarketStatus {
   realmID?: number | null;
 }
 
+export interface MarketScanOption {
+  scanId: number;
+  scannedAt: string;
+  scannedAtUnix: number;
+  listingCount: number;
+}
+
+export interface MarketRealmOption {
+  key: string;
+  region?: string | null;
+  regionID: number;
+  realm: string;
+  normalizedRealm?: string | null;
+  realmID: number;
+  latestScanId: number;
+  scans: MarketScanOption[];
+}
+
+export interface MarketCatalog {
+  realms: MarketRealmOption[];
+}
+
 export interface MarketItem {
   itemID: number;
   battlePetCreatureID: number | null;
@@ -170,4 +192,5 @@ export interface MarketQuery {
   page: number;
   pageSize: number;
   sort: MarketSort;
+  scanId: number | null;
 }

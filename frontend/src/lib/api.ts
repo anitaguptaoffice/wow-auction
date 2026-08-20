@@ -2,11 +2,12 @@ import type {
   ItemListingsResponse,
   ItemHistoryResponse,
   MarketItem,
+  MarketCatalog,
   MarketItemsResponse,
   MarketQuery,
   MarketStatus,
 } from "../types";
-import { mockHistory, mockItems, mockListings, mockStatus } from "./mock";
+import { mockCatalog, mockHistory, mockItems, mockListings, mockStatus } from "./mock";
 
 const useMockData = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA === "true";
 
@@ -58,9 +59,14 @@ async function requestJson<T>(path: string, params?: Record<string, unknown>): P
   return data as T;
 }
 
-export function fetchMarketStatus(): Promise<MarketStatus> {
+export function fetchMarketCatalog(): Promise<MarketCatalog> {
+  if (useMockData) return mockCatalog();
+  return requestJson<MarketCatalog>("/market/catalog");
+}
+
+export function fetchMarketStatus(scanId?: number | null): Promise<MarketStatus> {
   if (useMockData) return mockStatus();
-  return requestJson<MarketStatus>("/market/status");
+  return requestJson<MarketStatus>("/market/status", { scan_id: scanId });
 }
 
 export function fetchMarketItems(query: MarketQuery): Promise<MarketItemsResponse> {
@@ -71,6 +77,7 @@ export function fetchMarketItems(query: MarketQuery): Promise<MarketItemsRespons
     page: query.page,
     page_size: query.pageSize,
     sort: query.sort,
+    scan_id: query.scanId,
   });
 }
 
@@ -78,6 +85,7 @@ export function fetchItemListings(
   item: MarketItem,
   page: number,
   pageSize = 25,
+  scanId?: number | null,
 ): Promise<ItemListingsResponse> {
   if (useMockData) return mockListings(item, page, pageSize);
   return requestJson<ItemListingsResponse>(
@@ -88,11 +96,12 @@ export function fetchItemListings(
       pet_variant_key: item.petVariantKey,
       page,
       page_size: pageSize,
+      scan_id: scanId,
     },
   );
 }
 
-export function fetchItemHistory(item: MarketItem): Promise<ItemHistoryResponse> {
+export function fetchItemHistory(item: MarketItem, scanId?: number | null): Promise<ItemHistoryResponse> {
   if (useMockData) return mockHistory(item);
   return requestJson<ItemHistoryResponse>(
     `/market/items/${encodeURIComponent(item.itemID)}/history`,
@@ -100,6 +109,7 @@ export function fetchItemHistory(item: MarketItem): Promise<ItemHistoryResponse>
       battle_pet_creature_id: item.battlePetCreatureID,
       item_context: item.itemContext,
       pet_variant_key: item.petVariantKey,
+      scan_id: scanId,
     },
   );
 }

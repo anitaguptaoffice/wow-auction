@@ -16,6 +16,7 @@ from app.services.market_queries import (
     _parse_item_variant,
     item_history,
     item_listings,
+    market_catalog,
     market_items,
     market_status,
 )
@@ -111,6 +112,10 @@ class MarketPipelineTest(unittest.TestCase):
             self.assertEqual(status["marketItemCount"], 5)
             self.assertEqual(status["realm"], "测试服务器")
             self.assertEqual(status["realmID"], 123)
+            catalog = market_catalog(db)
+            self.assertEqual(len(catalog["realms"]), 1)
+            self.assertEqual(catalog["realms"][0]["realm"], "测试服务器")
+            self.assertEqual(len(catalog["realms"][0]["scans"]), 1)
 
             items = market_items(db, q="测试", page=1, page_size=20, sort="price_asc")
             self.assertEqual(items["total"], 1)
@@ -295,12 +300,21 @@ class MarketPipelineTest(unittest.TestCase):
         import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
 
         with self.session_factory() as db:
+            scan_ids = list(db.scalars(select(models.AuctionScan.id).order_by(models.AuctionScan.scanned_at_unix)))
             history = item_history(db, item_id=10, battle_pet_creature_id=None)
             self.assertIsNotNone(history)
             self.assertEqual(history["pointCount"], 2)
             self.assertEqual([point["minUnitPrice"] for point in history["points"]], [4, 6])
             self.assertEqual(history["change"]["minUnitPrice"]["absolute"], 2)
             self.assertEqual(history["change"]["minUnitPrice"]["percent"], 50.0)
+            earlier = item_history(
+                db, item_id=10, battle_pet_creature_id=None, scan_id=scan_ids[0]
+            )
+            self.assertEqual(earlier["pointCount"], 1)
+            earlier_items = market_items(
+                db, q="10", page=1, page_size=20, sort="price_asc", scan_id=scan_ids[0]
+            )
+            self.assertEqual(earlier_items["items"][0]["minUnitPrice"], 4)
             self.assertIsNone(item_history(db, item_id=999, battle_pet_creature_id=None))
 
     def test_invalid_scan_is_not_partially_imported(self):
