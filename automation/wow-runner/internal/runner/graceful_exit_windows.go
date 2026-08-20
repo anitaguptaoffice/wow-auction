@@ -4,6 +4,7 @@ package runner
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"wow-auction/automation/wow-runner/internal/config"
@@ -46,8 +47,17 @@ func sendWowSlashCommand(log *logx.Logger, hwnd winutil.HWND, command string, ch
 // gracefulLogout returns to character select and therefore gives WoW a normal
 // SavedVariables flush point. It never calls TerminateProcess.
 func gracefulLogout(log *logx.Logger, cfg *config.Root, hwnd winutil.HWND, charIdx int) error {
-	if err := sendWowSlashCommand(log, hwnd, "/logout", charIdx); err != nil {
-		return err
+	if macroKey := strings.TrimSpace(cfg.Keys.LogoutMacro); macroKey != "" {
+		if err := winutil.FocusAndVerify(hwnd); err != nil {
+			return fmt.Errorf("focus WoW before logout macro: %w", err)
+		}
+		if err := keyTapByName(log, macroKey, "logout_macro"); err != nil {
+			return err
+		}
+	} else {
+		if err := sendWowSlashCommand(log, hwnd, "/logout", charIdx); err != nil {
+			return err
+		}
 	}
 	if cfg.OCR.Enabled {
 		return waitForOCRTokens(

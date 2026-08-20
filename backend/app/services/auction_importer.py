@@ -45,6 +45,12 @@ class ValidatedScan:
     api_error_count: int
     duration_ms: float | None
     fingerprint: str
+    realm_name: str | None
+    normalized_realm_name: str | None
+    realm_id: int | None
+    region_id: int | None
+    region_name: str | None
+    item_scopes: list[dict[str, Any]]
     items: list[dict[str, Any]]
     summaries: list[dict[str, Any]]
 
@@ -138,6 +144,13 @@ def _optional_int(value: Any) -> int | None:
     return int(value) if value is not None else None
 
 
+def _optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    return normalized or None
+
+
 def validate_snapshot(decoded: dict[str, Any]) -> list[ValidatedScan]:
     validated: list[ValidatedScan] = []
     auctions = decoded["auctions"]
@@ -179,6 +192,9 @@ def validate_snapshot(decoded: dict[str, Any]) -> list[ValidatedScan]:
             actual_missing = 0
             unique_item_ids: set[int] = set()
             summaries_by_market: dict[tuple[int, int], dict[str, Any]] = {}
+            raw_item_scopes = raw_scan.get("itemMarketScopes") or {}
+            if not isinstance(raw_item_scopes, dict):
+                raise SnapshotValidationError(f"{label}.itemMarketScopes 必须是表")
             fingerprint = hashlib.sha256()
             for key, value in (
                 ("source_date", str(source_date)),
@@ -188,6 +204,7 @@ def validate_snapshot(decoded: dict[str, Any]) -> list[ValidatedScan]:
             ):
                 _update_fingerprint(fingerprint, key, value)
             total_quantity = 0
+            item_scope_by_id: dict[int, str] = {}
             for source_index, item in enumerate(items):
                 if (
                     any(item.get(field) is None for field in _CORE_FIELDS)
@@ -216,6 +233,19 @@ def validate_snapshot(decoded: dict[str, Any]) -> list[ValidatedScan]:
 
                 total_quantity += quantity
                 unique_item_ids.add(item_id)
+                market_scope = str(
+                    raw_item_scopes.get(item_id)
+                    or raw_item_scopes.get(str(item_id))
+                    or item.get("marketScope")
+                    or "unknown"
+                ).strip().lower()
+                if market_scope not in {"region", "realm", "unknown"}:
+                    raise SnapshotValidationError(f"{label} item[{source_index}].marketScope 无效")
+                previous_scope = item_scope_by_id.get(item_id)
+                if previous_scope in {"region", "realm"} and market_scope in {"region", "realm"} and previous_scope != market_scope:
+                    raise SnapshotValidationError(f"{label} itemID={item_id} 的 marketScope 前后冲突")
+                if previous_scope is None or previous_scope == "unknown":
+                    item_scope_by_id[item_id] = market_scope
                 pet_creature_id = int(item.get("battlePetCreatureID") or 0)
                 market_key = (item_id, pet_creature_id)
                 summary = summaries_by_market.get(market_key)
@@ -257,6 +287,21 @@ def validate_snapshot(decoded: dict[str, Any]) -> list[ValidatedScan]:
                 summaries.append(summary)
 
             duration = raw_scan.get("durationMs")
+            realm_name = _optional_string(raw_scan.get("realmName"))
+            normalized_realm_name = _optional_string(raw_scan.get("normalizedRealmName"))
+            realm_id = _optional_int(raw_scan.get("realmID"))
+            region_id = _optional_int(raw_scan.get("regionID"))
+            region_name = _optional_string(raw_scan.get("regionName"))
+            for key, value in (
+                ("realm_name", realm_name),
+                ("normalized_realm_name", normalized_realm_name),
+                ("realm_id", realm_id),
+                ("region_id", region_id),
+                ("region_name", region_name),
+            ):
+                _update_fingerprint(fingerprint, key, value)
+            for item_id, market_scope in sorted(item_scope_by_id.items()):
+                _update_fingerprint(fingerprint, f"market_scope_{item_id}", market_scope)
             validated.append(
                 ValidatedScan(
                     source_date=str(source_date),
@@ -273,6 +318,15 @@ def validate_snapshot(decoded: dict[str, Any]) -> list[ValidatedScan]:
                     api_error_count=api_errors,
                     duration_ms=float(duration) if duration is not None else None,
                     fingerprint=fingerprint.hexdigest(),
+                    realm_name=realm_name,
+                    normalized_realm_name=normalized_realm_name,
+                    realm_id=realm_id,
+                    region_id=region_id,
+                    region_name=region_name,
+                    item_scopes=[
+                        {"item_id": item_id, "market_scope": scope}
+                        for item_id, scope in item_scope_by_id.items()
+                    ],
                     items=items,
                     summaries=summaries,
                 )
@@ -443,6 +497,20 @@ def _import_snapshot(path: Path, *, selected_engine: Engine, chunk_size: int) ->
             )
             session.add(scan_row)
             session.flush()
+
+            session.add(
+                models.AuctionScanContext(
+                    scan_id=scan_row.id,
+                    realm_name=scan.realm_name,
+                    normalized_realm_name=scan.normalized_realm_name,
+                    realm_id=scan.realm_id,
+                    region_id=scan.region_id,
+                    region_name=scan.region_name,
+                )
+            )
+            scope_mappings = ({"scan_id": scan_row.id, **scope} for scope in scan.item_scopes)
+            for chunk in _chunks(scope_mappings, chunk_size):
+                session.execute(insert(models.AuctionItemMarketScope), chunk)
 
             mappings = (
                 _listing_mapping(scan_row.id, source_index, item)

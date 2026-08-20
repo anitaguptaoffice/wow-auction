@@ -64,7 +64,7 @@ func runPlatform(log *logx.Logger, cfg *config.Root) error {
 				if err := sendWowSlashCommand(log, hwnd, "/targetexact "+target, charPos); err != nil {
 					return err
 				}
-			} else {
+			} else if macroKey := strings.TrimSpace(cfg.Keys.AuctionTarMacro); macroKey != "" {
 				if err := keyTapByName(log, cfg.Keys.AuctionTarMacro, "auction_tar_macro"); err != nil {
 					return err
 				}
@@ -255,6 +255,15 @@ func doCharSelectAgain(log *logx.Logger, cfg *config.Root, downCount int) error 
 }
 
 func keyTapByName(log *logx.Logger, keyName, field string) error {
+	normalized := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(keyName), "_", ""))
+	switch normalized {
+	case "MOUSEWHEELDOWN", "WHEELDOWN", "MWHEELDOWN":
+		log.Emit("INFO", "input_mouse", "mouse wheel down", map[string]any{"field": field})
+		return winutil.MouseWheel(-120)
+	case "MOUSEWHEELUP", "WHEELUP", "MWHEELUP":
+		log.Emit("INFO", "input_mouse", "mouse wheel up", map[string]any{"field": field})
+		return winutil.MouseWheel(120)
+	}
 	chord, err := input.ParseChord(keyName)
 	if err != nil {
 		return fmt.Errorf("key %s (%s): %w", field, keyName, err)

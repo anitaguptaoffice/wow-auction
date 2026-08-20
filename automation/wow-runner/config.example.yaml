@@ -20,11 +20,13 @@ bnet:
   ready_template: ""
 
 keys:
-  # 推荐直接给 NPC 名称，runner 会发送 /targetexact；也可留空并配置宏键。
-  auctioneer_target: "拍卖师费奇"
+  # 若“与目标互动”已绑定为和附近 NPC 互动，两项都可留空。
+  auctioneer_target: ""
   auction_tar_macro: ""
-  # 支持单键和 WoW 风格组合键，例如 ALT-CTRL-H、Ctrl+Alt+H。
-  interact_target: "ALT-CTRL-H"
+  # 支持键盘键/组合键，也支持 MOUSEWHEELDOWN、MOUSEWHEELUP。
+  interact_target: "MOUSEWHEELDOWN"
+  # 可选：动作条上的 /logout 宏键；留空时回退为聊天命令 /logout。
+  logout_macro: "1"
   char_home: "Home"
   char_select_down: "Down"
   enter_world: "Enter"

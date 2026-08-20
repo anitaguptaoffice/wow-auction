@@ -61,6 +61,8 @@ CloudBase 原生认证已启用：
 
 前端使用 `@cloudbase/js-sdk@3.8.0` 的本地 bundle 和 Publishable Key。Publishable Key 可以放在浏览器；Server API Key、SecretId、SecretKey、Client Secret 不得放入前端。邮箱注册、密码登录、会话恢复和退出已接入，临时用户真实登录测试完成后已删除。
 
+物品图标源通过构建变量 `VITE_WOW_ICON_BASE_URL` 配置，默认使用 Blizzard 官方图标 CDN，不占用 TCB 静态资源和下行流量。如后续实测中国大陆访问质量不稳定，再把生成清单涉及的图标同步到 TCB 静态资源并切换该变量。
+
 ## 部署后端
 
 仓库根 `Dockerfile` 只构建 FastAPI。`.dockerignore` 排除快照、插件、自动化、前端和 `node_modules`，构建上下文不应包含 173 MB Lua。
@@ -68,11 +70,11 @@ CloudBase 原生认证已启用：
 ```powershell
 tcb -y cloudrun deploy `
   -e raidbot-5gh3h2nx762bedc5 `
-  --service-name wow-auction-api `
+  --serviceName wow-auction-api `
   --port 8000 `
   --source . `
-  --force --wait --json `
-  --vpc-config '{"vpcId":"vpc-nj4vm40c","vpcCIDR":"172.17.0.0/16","subnetId":"subnet-5kd1rnb1","subnetCIDR":"172.17.0.0/20"}'
+  --force --json `
+  --vpcConfig '{"vpcId":"vpc-nj4vm40c","vpcCIDR":"172.17.0.0/16","subnetId":"subnet-5kd1rnb1","subnetCIDR":"172.17.0.0/20"}'
 ```
 
 数据库密码和 `IMPORT_ADMIN_TOKEN` 只放 CloudRun 运行时环境变量，不写入仓库、命令历史或前端。配置更新时必须继续保留 VPC，并保持 `MaxNum=1`。
@@ -81,15 +83,17 @@ tcb -y cloudrun deploy `
 
 ```powershell
 npm ci
+npm run typecheck
 npm run build:cloudbase
 tcb hosting deploy `
   -e raidbot-5gh3h2nx762bedc5 `
-  frontend wow-auction `
-  --ignore 'screen.png,js/cloudbase-sdk-entry.js' `
+  frontend/dist wow-auction `
   --json
 ```
 
-不要把 `frontend` 部署到托管根目录。CloudBase 会为静态资源设置长缓存；每次发布前必须同步递增 `frontend/index.html` 中 CSS/JS 的 `?v=` 版本号，避免旧访客继续使用上一版代码。
+`build:cloudbase` 会先从数据库重新生成完整纹理清单，再读取持久化的图标来源状态，只检测新图标、未检测图标或本地文件丢失的图标。没有 listfile 文件名的纹理会按 `FileDataID` 直接从 CASC 导出；Blizzard CDN 缺失的其他资源会从备用 JPEG 或 CASC 固化到静态产物。无法取得的纹理会回退到页面占位，不会阻断部署。
+
+不要把 `frontend/dist` 部署到托管根目录。Vite 会为 JS/CSS 生成内容哈希文件名，HTML 保持入口文件；部署后仍需核对 `/wow-auction/` 裸路径、带 query URL 和静态资源缓存头。
 
 ## 新快照更新流程
 

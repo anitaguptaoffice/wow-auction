@@ -96,6 +96,44 @@ local function ReadReplicateValue(job, index, api)
 	return value
 end
 
+local function GetItemMarketScope(itemID)
+	if not itemID or not C_AuctionHouse.MakeItemKey or not C_AuctionHouse.GetItemKeyInfo then
+		return "unknown"
+	end
+	local keyOk, itemKey = pcall(C_AuctionHouse.MakeItemKey, itemID)
+	if not keyOk or not itemKey then
+		return "unknown"
+	end
+	local infoOk, itemKeyInfo = pcall(C_AuctionHouse.GetItemKeyInfo, itemKey)
+	if not infoOk or not itemKeyInfo or itemKeyInfo.isCommodity == nil then
+		return "unknown"
+	end
+	return itemKeyInfo.isCommodity and "region" or "realm"
+end
+
+local function GetScanContext()
+	local regionID
+	if C_BattleNet and C_BattleNet.GetGameAccountInfoByGUID and UnitGUID("player") then
+		local ok, gameAccountInfo = pcall(C_BattleNet.GetGameAccountInfoByGUID, UnitGUID("player"))
+		if ok and gameAccountInfo then
+			regionID = gameAccountInfo.regionID
+		end
+	end
+	if not regionID and GetCurrentRegion then
+		local ok, value = pcall(GetCurrentRegion)
+		if ok then
+			regionID = value
+		end
+	end
+	return {
+		realmName = GetRealmName and GetRealmName() or nil,
+		normalizedRealmName = GetNormalizedRealmName and GetNormalizedRealmName() or nil,
+		realmID = GetRealmID and GetRealmID() or nil,
+		regionID = regionID,
+		regionName = GetCurrentRegionName and GetCurrentRegionName() or nil,
+	}
+end
+
 local function BuildRecord(job, index, info)
 	local itemLink = ReadReplicateValue(job, index, C_AuctionHouse.GetReplicateItemLink)
 	local timeLeft = ReadReplicateValue(job, index, C_AuctionHouse.GetReplicateItemTimeLeft)
@@ -140,6 +178,10 @@ local function StoreRecord(job, index, info)
 	local slot = index + 1
 	local previouslyLinked = job.linkedBySlot[slot] == true
 	job.records[slot] = record
+	-- 市场范围只依赖 ItemID；同一物品可能有大量拍卖行记录，避免重复调用 API。
+	if record.itemID and job.itemMarketScopes[record.itemID] == nil then
+		job.itemMarketScopes[record.itemID] = GetItemMarketScope(record.itemID)
+	end
 	job.linkedBySlot[slot] = hasLink
 	if hasLink and not previouslyLinked then
 		job.linkedItems = job.linkedItems + 1
@@ -230,6 +272,7 @@ local function CommitJob(job)
 	end
 
 	local elapsedMs = debugprofilestop() - job.beginMs
+	local scanContext = GetScanContext()
 	local incompleteCount = 0
 	for _ in pairs(job.incompleteInfo) do
 		incompleteCount = incompleteCount + 1
@@ -251,6 +294,12 @@ local function CommitJob(job)
 		missingCoreCount = missingCoreCount,
 		apiErrorCount = apiErrorCount,
 		durationMs = elapsedMs,
+		realmName = scanContext.realmName,
+		normalizedRealmName = scanContext.normalizedRealmName,
+		realmID = scanContext.realmID,
+		regionID = scanContext.regionID,
+		regionName = scanContext.regionName,
+		itemMarketScopes = job.itemMarketScopes,
 		items = job.records,
 	}
 	table.insert(dayData.scans, scanRecord)
@@ -263,6 +312,11 @@ local function CommitJob(job)
 		missingCoreCount = missingCoreCount,
 		apiErrorCount = apiErrorCount,
 		durationMs = elapsedMs,
+		realmName = scanContext.realmName,
+		normalizedRealmName = scanContext.normalizedRealmName,
+		realmID = scanContext.realmID,
+		regionID = scanContext.regionID,
+		regionName = scanContext.regionName,
 	}
 	AuctionSearchDB.lastError = nil
 	CleanOldData()
@@ -429,6 +483,7 @@ local function StartScan()
 		nextIndex = 0,
 		processed = 0,
 		records = {},
+		itemMarketScopes = {},
 		linkedBySlot = {},
 		linkedItems = 0,
 		incompleteInfo = {},

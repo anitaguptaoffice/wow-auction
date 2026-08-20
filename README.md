@@ -20,7 +20,9 @@
 - API 健康检查：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/health>
 - 市场状态：<https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/api/market/status>
 
-服务器/连接区元数据尚未写入本次插件快照，因此网站会明确显示“未标注”，不会猜测服务器。
+新版插件会把区域、服务器以及每个物品的市场范围写入快照。范围直接采用游戏客户端的
+`C_AuctionHouse.GetItemKeyInfo(...).isCommodity`：商品标记为“区域共享”，非商品标记为
+“服务器独有”；旧快照没有该信息时显示“范围待确认”，不会猜测。
 
 ## 数据流
 
@@ -53,8 +55,10 @@ WoW 客户端
 - `GET /api/market/status`
 - `GET /api/market/items?q=&page=&page_size=&sort=`
 - `GET /api/market/items/{item_id}/listings?page=&page_size=&battle_pet_creature_id=`
+- `GET /api/market/items/{item_id}/history?battle_pet_creature_id=`
 
 排序支持 `price_asc`、`price_desc`、`quantity_desc`、`listings_desc`、`name_asc`。查询战斗宠物详情时必须带回列表返回的 `battlePetCreatureID`。
+历史接口按完整快照返回最低单价、最低一口价、库存和挂单数量，可用于物品详情中的趋势与涨跌对比。
 
 管理导入接口使用独立 Bearer 令牌：
 
@@ -65,20 +69,57 @@ WoW 客户端
 
 ## 本地开发
 
-要求 Python 3.13、[uv](https://docs.astral.sh/uv/) 和 Node.js。
+要求 Python 3.13、[uv](https://docs.astral.sh/uv/) 和 Node.js。先安装依赖：
 
 ```powershell
 uv sync --frozen
+npm ci
+```
+
+导入离线快照并启动 API：
+
+```powershell
 $env:PYTHONPATH = "backend"
 uv run --frozen wow-auction-import data/auction.lua --json
 uv run --frozen uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-认证 SDK 已固定并打包为同源静态文件：
+另开一个终端启动 React 前端；Vite 会把 `/api` 代理到本机 `8000` 端口：
 
 ```powershell
-npm ci
+npm run dev
+```
+
+访问 <http://127.0.0.1:5173>。生产构建输出到 `frontend/dist/`：
+
+若只需要调试前端而不启动本地 API，可临时设置 `VITE_API_BASE` 指向只读 API。
+若要在没有任何 API/快照时检查交互，可用 `VITE_USE_MOCK_DATA=true npm run dev`；mock 只在 Vite 开发环境启用，不会进入生产数据路径。
+
+物品图标根据快照中的 WoW `texture FileDataID` 查询生成清单，运行时默认从 Blizzard 官方图标 CDN 加载。导入包含新图标的数据后，可下载最新 `community-listfile.csv` 并重新生成清单：
+
+```bash
+npm run icons:generate -- data/wow-auction.db /path/to/community-listfile.csv frontend/src/generated/icon-map.json
+```
+
+发布新快照时直接运行 CloudBase 构建。它会下载最新 community listfile、更新前后端图标清单，检测 Blizzard CDN，并只把官方缺失的图标缓存进静态资源：
+
+```bash
 npm run build:cloudbase
+```
+
+同步结果持久化在 `frontend/src/generated/icon-source-status.json`；该完整状态仅供发布工具使用，不会打进前端包。前端只读取自动生成的 `local-icon-map.json`，其中仅包含已固化静态图标的文件格式。后续发布会跳过已经确认可走 Blizzard CDN 的图标，并验证已经固化的静态文件，只处理新出现的图标和之前未补成功的 `missing`。新纹理即使没有 community listfile 文件名，也会以 `filedata-<FileDataID>` 合成名称进入清单并直接从 CASC 导出，不会静默漏掉。新图标先检查默认 CDN；默认 CDN 不可用或状态为 `missing` 时，自动依次尝试备用 JPEG 和 CASC，并把成功结果统一写入静态资源目录。需要主动重新核验全部官方 CDN 状态时运行 `npm run icons:sync -- --refresh`。
+
+Blizzard CDN 缺失的图标会统一补入 `frontend/public/wow-icons/`：优先下载备用 JPEG；JPEG 镜像尚未收录的新图标，则由完整的 `icons:prepare` 使用固定版本的 `wowdata` 按 `FileDataID` 从国服 Retail CASC 导出 WebP。两种格式都属于同一个 TCB 本地静态来源，状态清单会告诉前端直接请求正确格式，不会逐个试探。最终仍无法导出的资源只会告警，前端使用内置占位，不会阻断整站发布；需要在 CI 中把这类告警视为失败时，可运行 `npm run icons:sync -- --strict`。
+
+清单生成器同时接受 `interface/icons/` 和 `housing/icons/`，并把路径中的字面空格转换为 CDN 使用的 `-`，避免把可用图标误判为缺失资源。
+
+运行时仍有受清单限制的 `/api/icons/{icon_name}.jpg` 兜底代理；首次成功后使用磁盘缓存，并向浏览器返回一年不可变缓存。中国大陆客户端不会直接请求备用图标源。
+
+`VITE_WOW_ICON_BASE_URL` 可在构建时改为 TCB 静态资源目录；该目录应保存为 `<icon-name>.jpg`。无法解析或加载失败的图标会自动回退到字形占位，不显示破图。
+
+```powershell
+npm run typecheck
+npm run build
 ```
 
 运行测试：
@@ -86,8 +127,8 @@ npm run build:cloudbase
 ```powershell
 $env:PYTHONPATH = "backend"
 uv run --frozen python -m unittest discover -s backend/tests -v
-node --check frontend/js/app.js
-node --check frontend/js/auth.js
+npm run typecheck
+npm run build
 npm audit
 ```
 
@@ -95,7 +136,7 @@ npm audit
 
 - `game/addons/AuctionSearchExample/`：游戏插件（当前由独立任务继续加固）
 - `backend/`：FastAPI、导入器、SQLAlchemy 模型和测试
-- `frontend/`：无框架静态网站和本地打包的 CloudBase Auth SDK
+- `frontend/`：React + TypeScript + Vite 前端；生产构建位于 `frontend/dist/`
 - `data/`：本地快照、SQLite 和归档；大文件均被 `.gitignore` 排除
 - `automation/`：Windows 外部自动化；不属于本次网站部署改动
 - `CLOUDBASE.md`：CloudBase 资源、部署和更新运行手册
@@ -109,6 +150,7 @@ npm audit
 - 开启定时更新前需要确定历史快照保留数量；当前不会自动删除历史数据。
 
 详细运行手册见 [CLOUDBASE.md](CLOUDBASE.md)，后端契约见 [backend/README.md](backend/README.md)。
+产品定位、阶段范围和非目标见 [PRODUCT.md](PRODUCT.md)。
 
 ## License
 

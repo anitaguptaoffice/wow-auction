@@ -50,8 +50,9 @@ go run ./cmd/wow-ocr -exe Battle.net.exe -language zh-Hans-CN
 - `characters.mode: current`：保持选角页当前角色；适合单角色稳定采集。
 - `single`：按 Home 后根据 `indices[0]` 向下定位。
 - `all`：按 `indices` 顺序逐个角色运行；中间角色正常 `/logout` 回选角页。
-- `keys.auctioneer_target` 非空时发送 `/targetexact <名称>`；否则使用 `auction_tar_macro`。
-- `interact_target` 支持单键和组合键，如 `ALT-CTRL-H`。
+- `keys.auctioneer_target` 非空时发送 `/targetexact <名称>`；否则可使用 `auction_tar_macro`。若游戏已将“与附近目标互动”绑定到快捷键，两项都可留空。
+- `interact_target` 支持单键、组合键以及 `MOUSEWHEELDOWN` / `MOUSEWHEELUP`。例如把“与附近目标互动”绑定到滚轮向下，可直接打开角色身旁的拍卖师。
+- `logout_macro` 可填写动作条上的 `/logout` 宏键（例如 `1`）；留空时回退为聊天命令 `/logout`。
 
 ## 模板回退
 

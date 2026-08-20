@@ -10,7 +10,15 @@ from sqlalchemy.orm import sessionmaker
 from app import models
 from app.database import Base
 from app.services.auction_importer import SnapshotValidationError, import_snapshot
-from app.services.market_queries import item_listings, market_items, market_status
+from app.services.market_queries import (
+    _crafting_quality_from_item_link,
+    _parse_battle_pet_variant,
+    _parse_item_variant,
+    item_history,
+    item_listings,
+    market_items,
+    market_status,
+)
 
 
 def _lua_snapshot(*, timestamp: int = 1_700_000_000, missing_core_count: int = 0) -> str:
@@ -20,13 +28,19 @@ def _lua_snapshot(*, timestamp: int = 1_700_000_000, missing_core_count: int = 0
     ["scans"] = {{
       {{
         ["timestamp"] = {timestamp},
-        ["itemCount"] = 5,
-        ["recordCount"] = 5,
-        ["linkedItemCount"] = 5,
+        ["itemCount"] = 6,
+        ["recordCount"] = 6,
+        ["linkedItemCount"] = 6,
         ["missingCoreCount"] = {missing_core_count},
         ["incompleteInfoCount"] = 0,
         ["apiErrorCount"] = 0,
         ["durationMs"] = 12.5,
+        ["realmName"] = "测试服务器",
+        ["normalizedRealmName"] = "测试服务器",
+        ["realmID"] = 123,
+        ["regionID"] = 5,
+        ["regionName"] = "CN",
+        ["itemMarketScopes"] = {{ [10] = "region", [20] = "realm", [82800] = "realm" }},
         ["items"] = {{
           {{ ["itemID"] = 10, ["name"] = "测试矿石", ["quantity"] = 2,
              ["qualityID"] = 2, ["texture"] = 100, ["minBid"] = 0,
@@ -44,7 +58,12 @@ def _lua_snapshot(*, timestamp: int = 1_700_000_000, missing_core_count: int = 0
              ["battlePetDisplayID"] = 2001, ["name"] = "宠物甲", ["quantity"] = 1,
              ["qualityID"] = 3, ["texture"] = 301, ["minBid"] = 0,
              ["buyoutAmount"] = 101, ["bidAmount"] = 0, ["timeLeftBand"] = 3,
-             ["hasAllInfo"] = true, ["itemLink"] = "battlepet:甲" }},
+             ["hasAllInfo"] = true, ["itemLink"] = "|cnIQ3:|Hbattlepet:1180:25:3:1237:341:276:0000000000000000:47731|h[宠物甲]|h|r" }},
+          {{ ["itemID"] = 82800, ["battlePetCreatureID"] = 1001,
+             ["battlePetDisplayID"] = 2001, ["name"] = "宠物甲", ["quantity"] = 1,
+             ["qualityID"] = 3, ["texture"] = 301, ["minBid"] = 0,
+             ["buyoutAmount"] = 151, ["bidAmount"] = 0, ["timeLeftBand"] = 3,
+             ["hasAllInfo"] = true, ["itemLink"] = "|cnIQ3:|Hbattlepet:1180:25:3:1237:305:305:0000000000000000:47731|h[宠物甲]|h|r" }},
           {{ ["itemID"] = 82800, ["battlePetCreatureID"] = 1002,
              ["battlePetDisplayID"] = 2002, ["name"] = "宠物乙", ["quantity"] = 1,
              ["qualityID"] = 3, ["texture"] = 302, ["minBid"] = 0,
@@ -74,42 +93,187 @@ class MarketPipelineTest(unittest.TestCase):
 
     def test_import_dedupe_and_indexed_queries(self):
         imported = import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
-        self.assertEqual(imported.imported_listing_count, 5)
+        self.assertEqual(imported.imported_listing_count, 6)
         self.assertEqual(imported.imported_scan_count, 1)
 
         duplicate = import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
         self.assertTrue(duplicate.duplicate_snapshot)
         self.assertEqual(duplicate.imported_scan_count, 0)
         self.assertEqual(duplicate.imported_listing_count, 0)
-        self.assertEqual(duplicate.existing_listing_count, 5)
+        self.assertEqual(duplicate.existing_listing_count, 6)
 
         with self.session_factory() as db:
-            self.assertEqual(db.scalar(select(func.count(models.AuctionListing.id))), 5)
+            self.assertEqual(db.scalar(select(func.count(models.AuctionListing.id))), 6)
             self.assertEqual(db.scalar(select(func.count(models.AuctionItemSummary.id))), 4)
             status = market_status(db)
-            self.assertEqual(status["listingCount"], 5)
+            self.assertEqual(status["listingCount"], 6)
             self.assertEqual(status["uniqueItemCount"], 3)
-            self.assertEqual(status["marketItemCount"], 4)
+            self.assertEqual(status["marketItemCount"], 5)
+            self.assertEqual(status["realm"], "测试服务器")
+            self.assertEqual(status["realmID"], 123)
 
             items = market_items(db, q="测试", page=1, page_size=20, sort="price_asc")
             self.assertEqual(items["total"], 1)
             self.assertEqual(items["items"][0]["listingCount"], 2)
             self.assertEqual(items["items"][0]["totalQuantity"], 5)
             self.assertEqual(items["items"][0]["minUnitPrice"], 4)
+            self.assertEqual(items["items"][0]["marketScope"], "region")
 
             listings = item_listings(db, item_id=10, battle_pet_creature_id=None, page=1, page_size=20)
             self.assertIsNotNone(listings)
             self.assertEqual(listings["total"], 2)
             self.assertEqual(listings["items"][0]["unitPrice"], 4)
+            self.assertEqual(
+                listings["displayColumns"],
+                {"tier": False, "attributes": False, "petVariant": False},
+            )
 
             pets = market_items(db, q="82800", page=1, page_size=20, sort="name_asc")
-            self.assertEqual(pets["total"], 2)
-            self.assertEqual({item["marketKey"] for item in pets["items"]}, {"82800:1001", "82800:1002"})
+            self.assertEqual(pets["total"], 3)
+            self.assertTrue(all(item["marketScope"] == "realm" for item in pets["items"]))
+            pet_1001 = [item for item in pets["items"] if item["battlePetCreatureID"] == 1001]
+            self.assertEqual({item["petBreedCode"] for item in pet_1001}, {"P/P", "P/S"})
+            self.assertTrue(all(item["variantCount"] == 1 for item in pet_1001))
+            high_power = next(item for item in pet_1001 if item["petBreedCode"] == "P/P")
             pet_details = item_listings(
-                db, item_id=82800, battle_pet_creature_id=1001, page=1, page_size=20
+                db,
+                item_id=82800,
+                battle_pet_creature_id=1001,
+                pet_variant_key=high_power["petVariantKey"],
+                page=1,
+                page_size=20,
             )
             self.assertEqual(pet_details["total"], 1)
+            self.assertEqual(pet_details["marketKey"], high_power["marketKey"])
             self.assertEqual(pet_details["name"], "宠物甲")
+            self.assertEqual(
+                pet_details["displayColumns"],
+                {"tier": False, "attributes": False, "petVariant": True},
+            )
+            self.assertEqual(pet_details["items"][0]["petBreedCode"], "P/P")
+            self.assertEqual(pet_details["items"][0]["petBreedLabel"], "高攻型")
+            pet_history = item_history(
+                db,
+                item_id=82800,
+                battle_pet_creature_id=1001,
+                pet_variant_key=high_power["petVariantKey"],
+            )
+            self.assertEqual(pet_history["marketKey"], high_power["marketKey"])
+            self.assertEqual(pet_history["points"][0]["listingCount"], 1)
+
+    def test_battle_pet_breed_is_parsed_from_auction_link(self):
+        high_power = _parse_battle_pet_variant(
+            "|cnIQ3:|Hbattlepet:1180:25:3:1237:341:276:0000000000000000:47731"
+            "|h[赞达拉袭胫者]|h|r"
+        )
+        self.assertEqual(high_power["petSpeciesID"], 1180)
+        self.assertEqual(high_power["petLevel"], 25)
+        self.assertEqual(high_power["petQualityLabel"], "精良")
+        self.assertEqual(high_power["petBreedCode"], "P/P")
+        self.assertEqual(high_power["petBreedLabel"], "高攻型")
+        self.assertEqual(high_power["petBreedConfidence"], "exact")
+
+        attack_speed = _parse_battle_pet_variant(
+            "|cnIQ3:|Hbattlepet:1180:25:3:1237:305:305:0000000000000000:47731"
+            "|h[赞达拉袭胫者]|h|r"
+        )
+        self.assertEqual(attack_speed["petBreedCode"], "P/S")
+        self.assertEqual(attack_speed["petBreedLabel"], "攻速型")
+
+    def test_raid_boe_variant_metadata_is_parsed_from_item_link(self):
+        item_link = (
+            "|cnIQ4:|Hitem:271438::::::::90:64::4:6:6652:13695:13662:13332:12825:10844:"
+            "3:28:7360:29:49:30:40:::::|h[神殿探窟者秘法头盔]|h|r"
+        )
+        variant = _parse_item_variant(item_link)
+        self.assertEqual(variant["difficulty"], "随机团队")
+        self.assertEqual(variant["itemLevel"], 279)
+        self.assertEqual(variant["upgradeTrack"], "老兵")
+        self.assertEqual(variant["upgradeLevel"], "1/6")
+        self.assertEqual(variant["statLabel"], "精通 > 全能")
+        self.assertTrue(variant["hasSocket"])
+
+    def test_crafting_quality_is_read_from_item_link_and_market_item(self):
+        item_link = (
+            "|cnIQ1:|Hitem:241304::::::::90:64:::::::::|h[银月城生命药水 "
+            "|A:Professions-ChatIcon-Quality-12-Tier2:17:15::1|a]|h|r"
+        )
+        self.assertEqual(_crafting_quality_from_item_link(item_link), 2)
+        legacy_item_link = (
+            "|cnIQ3:|Hitem:190486::::::::90:64::13:::::::::|h[龙银大锤 "
+            "|A:Professions-ChatIcon-Quality-Tier5:17:15::1|a]|h|r"
+        )
+        self.assertEqual(_crafting_quality_from_item_link(legacy_item_link), 5)
+
+        crafted_snapshot = _lua_snapshot().replace('"item:10"', f'"{item_link}"')
+        self.snapshot.write_text(crafted_snapshot, encoding="utf-8")
+        import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
+        with self.session_factory() as db:
+            result = market_items(db, q="测试矿石", page=1, page_size=20, sort="price_asc")
+            self.assertEqual(result["items"][0]["craftingQuality"], 2)
+
+    def test_raid_boe_collection_is_split_by_difficulty(self):
+        raid_rows = '''
+          { ["itemID"] = 271435, ["name"] = "嘶鸣密教便鞋", ["quantity"] = 1,
+             ["qualityID"] = 4, ["texture"] = 7520892, ["minBid"] = 0,
+             ["buyoutAmount"] = 900000000, ["bidAmount"] = 0, ["timeLeftBand"] = 4,
+             ["hasAllInfo"] = true, ["itemLink"] = "|Hitem:271435::::::::90:64::4:1:13662:0:::::|h[嘶鸣密教便鞋]|h|r" },
+          { ["itemID"] = 271435, ["name"] = "嘶鸣密教便鞋", ["quantity"] = 1,
+             ["qualityID"] = 4, ["texture"] = 7520892, ["minBid"] = 0,
+             ["buyoutAmount"] = 1900000000, ["bidAmount"] = 0, ["timeLeftBand"] = 4,
+             ["hasAllInfo"] = true, ["itemLink"] = "|Hitem:271435::::::::90:64::5:1:13662:0:::::|h[嘶鸣密教便鞋]|h|r" },
+          { ["itemID"] = 271444, ["name"] = "遗忘祭品肩铠", ["quantity"] = 1,
+             ["qualityID"] = 4, ["texture"] = 7739391, ["minBid"] = 0,
+             ["buyoutAmount"] = 1500000000, ["bidAmount"] = 0, ["timeLeftBand"] = 4,
+             ["hasAllInfo"] = true, ["itemLink"] = "|Hitem:271444::::::::90:64::3:1:13662:0:::::|h[遗忘祭品肩铠]|h|r" },
+'''
+        snapshot = _lua_snapshot().replace('["itemCount"] = 6', '["itemCount"] = 9').replace(
+            '["recordCount"] = 6', '["recordCount"] = 9'
+        ).replace('["linkedItemCount"] = 6', '["linkedItemCount"] = 9').replace(
+            '["items"] = {', f'["items"] = {{{raid_rows}', 1
+        )
+        self.snapshot.write_text(snapshot, encoding="utf-8")
+        import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
+
+        with self.session_factory() as db:
+            result = market_items(
+                db,
+                q=None,
+                collection="raid_boe_12_1",
+                page=1,
+                page_size=20,
+                sort="price_asc",
+            )
+            self.assertEqual(result["total"], 3)
+            self.assertEqual(
+                {(item["itemID"], item["itemContext"]) for item in result["items"]},
+                {(271435, 4), (271435, 5), (271444, 3)},
+            )
+            self.assertEqual(result["items"][0]["difficulty"], "随机团队")
+
+            lfr = item_listings(
+                db,
+                item_id=271435,
+                battle_pet_creature_id=None,
+                item_context=4,
+                page=1,
+                page_size=20,
+            )
+            self.assertEqual(lfr["total"], 1)
+            self.assertEqual(lfr["items"][0]["difficulty"], "随机团队")
+            self.assertEqual(
+                lfr["displayColumns"],
+                {"tier": True, "attributes": False, "petVariant": False},
+            )
+
+            history = item_history(
+                db,
+                item_id=271435,
+                battle_pet_creature_id=None,
+                item_context=5,
+            )
+            self.assertEqual(history["difficulty"], "英雄")
+            self.assertEqual(history["points"][0]["listingCount"], 1)
 
     def test_same_metadata_with_changed_content_is_a_distinct_scan(self):
         first = import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
@@ -120,7 +284,24 @@ class MarketPipelineTest(unittest.TestCase):
         self.assertEqual(second.imported_scan_count, 1)
         with self.session_factory() as db:
             self.assertEqual(db.scalar(select(func.count(models.AuctionScan.id))), 2)
-            self.assertEqual(db.scalar(select(func.count(models.AuctionListing.id))), 10)
+            self.assertEqual(db.scalar(select(func.count(models.AuctionListing.id))), 12)
+
+    def test_item_history_returns_one_aggregate_point_per_scan(self):
+        import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
+        changed = _lua_snapshot(timestamp=1_700_003_600).replace(
+            '["buyoutAmount"] = 11', '["buyoutAmount"] = 21', 1
+        ).replace('["buyoutAmount"] = 12', '["buyoutAmount"] = 18', 1)
+        self.snapshot.write_text(changed, encoding="utf-8")
+        import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
+
+        with self.session_factory() as db:
+            history = item_history(db, item_id=10, battle_pet_creature_id=None)
+            self.assertIsNotNone(history)
+            self.assertEqual(history["pointCount"], 2)
+            self.assertEqual([point["minUnitPrice"] for point in history["points"]], [4, 6])
+            self.assertEqual(history["change"]["minUnitPrice"]["absolute"], 2)
+            self.assertEqual(history["change"]["minUnitPrice"]["percent"], 50.0)
+            self.assertIsNone(item_history(db, item_id=999, battle_pet_creature_id=None))
 
     def test_invalid_scan_is_not_partially_imported(self):
         self.snapshot.write_text(_lua_snapshot(missing_core_count=1), encoding="utf-8")

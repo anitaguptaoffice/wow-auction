@@ -47,6 +47,7 @@ const (
 	swRestore           = 9
 	mouseeventfLeftDown = 0x0002
 	mouseeventfLeftUp   = 0x0004
+	mouseeventfWheel    = 0x0800
 )
 
 // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 is the pseudo-handle -4.
@@ -185,6 +186,16 @@ func Click(x, y int32) error {
 	}
 	procMouseEvent.Call(mouseeventfLeftDown, 0, 0, 0, 0)
 	procMouseEvent.Call(mouseeventfLeftUp, 0, 0, 0, 0)
+	return nil
+}
+
+// MouseWheel injects one or more wheel notches into the foreground window.
+// Positive delta scrolls up; negative delta scrolls down. One notch is 120.
+func MouseWheel(delta int32) error {
+	if delta == 0 {
+		return fmt.Errorf("zero mouse wheel delta")
+	}
+	procMouseEvent.Call(mouseeventfWheel, 0, 0, uintptr(uint32(delta)), 0)
 	return nil
 }
 

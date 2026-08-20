@@ -65,6 +65,7 @@ type Keys struct {
 	AuctionTarMacro  string `yaml:"auction_tar_macro"`
 	AuctioneerTarget string `yaml:"auctioneer_target"`
 	InteractTarget   string `yaml:"interact_target"`
+	LogoutMacro      string `yaml:"logout_macro"`
 	CharHome         string `yaml:"char_home"`
 	CharSelectDown   string `yaml:"char_select_down"`
 	EnterWorld       string `yaml:"enter_world"`
@@ -263,9 +264,6 @@ func (r *Root) ResolveSnapshotPath(p string) string {
 
 // Validate checks required fields for a minimal runnable config.
 func (r *Root) Validate() error {
-	if strings.TrimSpace(r.Keys.AuctionTarMacro) == "" && strings.TrimSpace(r.Keys.AuctioneerTarget) == "" {
-		return fmt.Errorf("keys.auction_tar_macro or keys.auctioneer_target is required")
-	}
 	if r.Keys.InteractTarget == "" {
 		return fmt.Errorf("keys.interact_target is required")
 	}

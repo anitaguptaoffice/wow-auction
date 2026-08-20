@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.admin_api import router as admin_router
 from app.database import create_db_and_tables
+from app.icon_api import router as icon_router
 from app.market_api import router as market_router
 
 
@@ -27,6 +28,7 @@ create_db_and_tables()
 
 app = FastAPI(title="WoW Auction Market API")
 app.include_router(market_router)
+app.include_router(icon_router)
 app.include_router(admin_router)
 app.add_middleware(
     CORSMiddleware,
