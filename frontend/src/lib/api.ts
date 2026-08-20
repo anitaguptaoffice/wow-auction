@@ -77,7 +77,6 @@ export function fetchMarketItems(query: MarketQuery): Promise<MarketItemsRespons
     page: query.page,
     page_size: query.pageSize,
     sort: query.sort,
-    scan_id: query.scanId,
   });
 }
 
@@ -85,7 +84,6 @@ export function fetchItemListings(
   item: MarketItem,
   page: number,
   pageSize = 25,
-  scanId?: number | null,
 ): Promise<ItemListingsResponse> {
   if (useMockData) return mockListings(item, page, pageSize);
   return requestJson<ItemListingsResponse>(
@@ -96,12 +94,12 @@ export function fetchItemListings(
       pet_variant_key: item.petVariantKey,
       page,
       page_size: pageSize,
-      scan_id: scanId,
+      scan_id: item.scanId,
     },
   );
 }
 
-export function fetchItemHistory(item: MarketItem, scanId?: number | null): Promise<ItemHistoryResponse> {
+export function fetchItemHistory(item: MarketItem): Promise<ItemHistoryResponse> {
   if (useMockData) return mockHistory(item);
   return requestJson<ItemHistoryResponse>(
     `/market/items/${encodeURIComponent(item.itemID)}/history`,
@@ -109,7 +107,6 @@ export function fetchItemHistory(item: MarketItem, scanId?: number | null): Prom
       battle_pet_creature_id: item.battlePetCreatureID,
       item_context: item.itemContext,
       pet_variant_key: item.petVariantKey,
-      scan_id: scanId,
     },
   );
 }

@@ -72,7 +72,6 @@ function initialQuery(): MarketQuery {
     page: Math.max(1, Number(params.get("page")) || 1),
     pageSize,
     sort,
-    scanId: Number(params.get("scan_id")) || null,
   };
 }
 
@@ -108,7 +107,6 @@ export function App() {
     if (query.page > 1) params.set("page", String(query.page));
     if (query.pageSize !== 20) params.set("page_size", String(query.pageSize));
     if (query.sort !== "price_asc") params.set("sort", query.sort);
-    if (query.scanId) params.set("scan_id", String(query.scanId));
     const suffix = params.size ? `?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, "", suffix);
   }, [query]);
@@ -118,9 +116,8 @@ export function App() {
     queryFn: fetchMarketCatalog,
   });
   const statusQuery = useQuery({
-    queryKey: ["market-status", query.scanId],
-    queryFn: () => fetchMarketStatus(query.scanId),
-    enabled: query.scanId != null,
+    queryKey: ["market-status"],
+    queryFn: () => fetchMarketStatus(),
   });
   const itemsQuery = useQuery({
     queryKey: ["market-items", query],
@@ -128,24 +125,15 @@ export function App() {
     placeholderData: (previous) => previous,
   });
   const popularQuery = useQuery({
-    queryKey: ["market-items", "popular", query.scanId],
+    queryKey: ["market-items", "popular"],
     queryFn: () =>
-      fetchMarketItems({ q: "", collection: "", page: 1, pageSize: 3, sort: "quantity_desc", scanId: query.scanId }),
-    enabled: query.scanId != null,
+      fetchMarketItems({ q: "", collection: "", page: 1, pageSize: 3, sort: "quantity_desc" }),
   });
   const raidBoeQuery = useQuery({
-    queryKey: ["market-items", "raid-boe-12-1", query.scanId],
+    queryKey: ["market-items", "raid-boe-12-1"],
     queryFn: () =>
-      fetchMarketItems({ q: "", collection: "raid_boe_12_1", page: 1, pageSize: 20, sort: "price_asc", scanId: query.scanId }),
-    enabled: query.scanId != null,
+      fetchMarketItems({ q: "", collection: "raid_boe_12_1", page: 1, pageSize: 20, sort: "price_asc" }),
   });
-
-  useEffect(() => {
-    const realms = catalogQuery.data?.realms ?? [];
-    if (!realms.length) return;
-    const scanExists = realms.some((realm) => realm.scans.some((scan) => scan.scanId === query.scanId));
-    if (!scanExists) setQuery((current) => ({ ...current, scanId: realms[0].latestScanId, page: 1 }));
-  }, [catalogQuery.data, query.scanId]);
 
   const refresh = async () => {
     await Promise.all([
@@ -158,7 +146,7 @@ export function App() {
   const status = statusQuery.data;
   const data = itemsQuery.data;
   const realms = catalogQuery.data?.realms ?? [];
-  const selectedRealm = realms.find((realm) => realm.scans.some((scan) => scan.scanId === query.scanId));
+  const scanCount = realms.reduce((total, realm) => total + realm.scans.length, 0);
 
   return (
     <div className="app-shell">
@@ -223,7 +211,7 @@ export function App() {
             <p className="eyebrow">REAL MARKET SNAPSHOT</p>
             <h1>看懂艾泽拉斯的真实行情</h1>
             <p className="intro-copy">
-              从游戏内完整快照中搜索价格、库存和每一条挂单。数据保留原始记录，并通过完整性校验。
+              所有服务器在同一个市场里查询：区域共享商品按时间合并，服务器独有商品保留各服价格。
             </p>
           </div>
           <SnapshotBadge
@@ -232,45 +220,6 @@ export function App() {
             available={status?.available}
             complete={status?.complete}
           />
-        </section>
-
-        <section className="snapshot-selector" aria-label="选择服务器和快照时间">
-          <label>
-            <span>服务器</span>
-            <select
-              value={selectedRealm?.key ?? ""}
-              disabled={catalogQuery.isLoading || realms.length === 0}
-              onChange={(event) => {
-                const realm = realms.find((candidate) => candidate.key === event.target.value);
-                if (realm) {
-                  setSelectedItem(null);
-                  setQuery((current) => ({ ...current, scanId: realm.latestScanId, page: 1 }));
-                }
-              }}
-            >
-              {realms.map((realm) => (
-                <option key={realm.key} value={realm.key}>{realm.realm} · {realm.region || `区域 ${realm.regionID}`}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>数据时间点</span>
-            <select
-              value={query.scanId ?? ""}
-              disabled={!selectedRealm}
-              onChange={(event) => {
-                setSelectedItem(null);
-                setQuery((current) => ({ ...current, scanId: Number(event.target.value), page: 1 }));
-              }}
-            >
-              {selectedRealm?.scans.map((scan) => (
-                <option key={scan.scanId} value={scan.scanId}>
-                  {formatDate(scan.scannedAt)} · {formatInteger(scan.listingCount)} 条
-                </option>
-              ))}
-            </select>
-          </label>
-          <p>价格、库存排行和挂单详情均来自当前服务器的所选快照。</p>
         </section>
 
         <section className="metric-grid" aria-label="市场快照摘要">
@@ -282,21 +231,21 @@ export function App() {
           />
           <MetricCard
             icon={<Database size={18} />}
-            label="服务器 / 区域"
-            value={statusQuery.isLoading ? "读取中…" : status?.realm || "未标注"}
-            detail={status?.region ? `${status.region} 区拍卖数据` : "等待快照元数据"}
+            label="服务器"
+            value={catalogQuery.isLoading ? "读取中…" : `${realms.length} 个`}
+            detail={realms.length ? realms.map((realm) => realm.realm).join("、") : "等待快照元数据"}
           />
           <MetricCard
             icon={<PackageSearch size={18} />}
             label="市场物品"
-            value={statusQuery.isLoading ? "读取中…" : formatInteger(status?.marketItemCount)}
-            detail={`${formatInteger(status?.listingCount)} 条原始挂单`}
+            value={itemsQuery.isLoading ? "读取中…" : formatInteger(data?.total)}
+            detail="区域商品去重，本服商品按服务器保留"
           />
           <MetricCard
             icon={<Boxes size={18} />}
-            label="商品总量"
-            value={statusQuery.isLoading ? "读取中…" : formatInteger(status?.totalQuantity)}
-            detail={`${formatInteger(status?.uniqueItemCount)} 个基础物品 ID`}
+            label="历史时间点"
+            value={catalogQuery.isLoading ? "读取中…" : formatInteger(scanCount)}
+            detail="已通过完整性校验的服务器快照"
           />
         </section>
 
@@ -330,18 +279,21 @@ export function App() {
                 <span className="heading-icon"><TrendingUp size={17} /></span>
                 <div>
                   <h2>库存热门</h2>
-                  <p>当前快照数量排行</p>
+                  <p>全服务器统一数量排行</p>
                 </div>
               </div>
               <ol className="popular-list">
                 {popularQuery.isLoading && <li className="sidebar-placeholder">正在计算排行…</li>}
                 {popularQuery.data?.items.map((item, index) => (
-                  <li key={item.marketKey}>
+                  <li key={`${item.marketKey}:${item.scanId}`}>
                     <span className="rank">{index + 1}</span>
                     <ItemGlyph item={item} size="small" />
                     <button type="button" onClick={() => setSelectedItem(item)}>
                       <strong className={qualityClass(item.quality)}>{item.name}</strong>
-                      <small>{formatInteger(item.totalQuantity)} 件</small>
+                      <small>
+                        {formatInteger(item.totalQuantity)} 件
+                        {item.marketScope === "realm" && item.realm ? ` · ${item.realm}` : ""}
+                      </small>
                     </button>
                   </li>
                 ))}
@@ -365,7 +317,7 @@ export function App() {
                   <p>
                     {query.collection === "raid_boe_12_1" ? "剧毒深渊 · " : ""}
                     {query.q ? `“${query.q}” · ` : ""}
-                    {itemsQuery.isLoading ? "正在读取…" : `共 ${formatInteger(data?.total)} 个市场条目`}
+                    {itemsQuery.isLoading ? "正在读取…" : `全服务器共 ${formatInteger(data?.total)} 个市场条目`}
                   </p>
                 </div>
               </div>
@@ -443,7 +395,7 @@ export function App() {
         </div>
       </footer>
 
-      {selectedItem && <ItemDetails item={selectedItem} scanId={query.scanId} onClose={() => setSelectedItem(null)} />}
+      {selectedItem && <ItemDetails item={selectedItem} onClose={() => setSelectedItem(null)} />}
       {showAccountNotice && <AccountNotice onClose={() => setShowAccountNotice(false)} />}
     </div>
   );
@@ -637,7 +589,7 @@ function MarketTable({
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.marketKey}>
+            <tr key={`${item.marketKey}:${item.scanId}`}>
               <td data-label="物品">
                 <div className="item-identity">
                   <ItemGlyph item={item} />
@@ -645,11 +597,12 @@ function MarketTable({
                     <div className="item-title-line">
                       <strong className={qualityClass(item.quality)}>{item.name}</strong>
                       <CraftingQuality quality={item.craftingQuality} />
-                      <MarketScopeBadge scope={item.marketScope} />
+                      <MarketScopeBadge scope={item.marketScope} realm={item.realm} />
                     </div>
                     <small>
                       ID {item.itemID}
                       {item.battlePetCreatureID ? ` · 战宠 ${item.battlePetCreatureID}` : ""}
+                      {item.marketScope === "realm" && item.realm ? ` · ${item.realm}` : ""}
                       {item.petVariantKey
                         ? ` · ${item.petBreedCode || "未知 Breed"}${item.petBreedLabel ? ` ${item.petBreedLabel}` : ""} · ${item.petLevel}级 · ${item.petQualityLabel || "未知品质"}`
                         : !item.difficulty && item.variantCount > 1 ? ` · ${item.variantCount} 种变体` : ""}
@@ -680,8 +633,8 @@ function MarketTable({
   );
 }
 
-function MarketScopeBadge({ scope }: { scope: MarketItem["marketScope"] }) {
-  const label = scope === "region" ? "区域共享" : scope === "realm" ? "服务器独有" : "范围待确认";
+function MarketScopeBadge({ scope, realm }: { scope: MarketItem["marketScope"]; realm?: string | null }) {
+  const label = scope === "region" ? "区域共享" : scope === "realm" ? `${realm || "本服"}独有` : "范围待确认";
   return <span className={`market-scope-badge scope-${scope}`}>{label}</span>;
 }
 
@@ -762,15 +715,15 @@ function paginationTokens(current: number, pages: number): Array<number | "…">
   return result;
 }
 
-function ItemDetails({ item, scanId, onClose }: { item: MarketItem; scanId: number | null; onClose: () => void }) {
+function ItemDetails({ item, onClose }: { item: MarketItem; onClose: () => void }) {
   const [page, setPage] = useState(1);
   const historyQuery = useQuery({
-    queryKey: ["item-history", item.marketKey, scanId],
-    queryFn: () => fetchItemHistory(item, scanId),
+    queryKey: ["item-history", item.marketKey],
+    queryFn: () => fetchItemHistory(item),
   });
   const listingsQuery = useQuery({
-    queryKey: ["item-listings", item.marketKey, scanId, page],
-    queryFn: () => fetchItemListings(item, page, 25, scanId),
+    queryKey: ["item-listings", item.marketKey, item.scanId, page],
+    queryFn: () => fetchItemListings(item, page, 25),
   });
 
   useEffect(() => {
@@ -811,6 +764,7 @@ function ItemDetails({ item, scanId, onClose }: { item: MarketItem; scanId: numb
               <small>
                 ID {item.itemID}
                 {item.difficulty ? ` · ${item.difficulty}` : ""}
+                {item.marketScope === "realm" && item.realm ? ` · ${item.realm}` : ""}
                 {item.petVariantKey
                   ? ` · ${item.petBreedCode || "未知 Breed"}${item.petBreedLabel ? ` ${item.petBreedLabel}` : ""} · ${item.petLevel}级 · ${item.petQualityLabel || "未知品质"}`
                   : ""}
@@ -832,7 +786,7 @@ function ItemDetails({ item, scanId, onClose }: { item: MarketItem; scanId: numb
             <div>
               <h3>最新挂单</h3>
               <p>
-                按当前快照的单位价格排列
+                按{item.marketScope === "realm" && item.realm ? `${item.realm}最新` : "最新区域"}快照的单位价格排列
                 {item.difficulty
                   ? ` · 仅显示${item.difficulty}档`
                   : listingFeatureLabels.length
@@ -872,7 +826,7 @@ function HistoryPanel({
   onRetry: () => void;
 }) {
   if (isLoading) {
-    return <div className="history-loading"><span className="spinner" /><span>正在计算两份快照的行情变化…</span></div>;
+    return <div className="history-loading"><span className="spinner" /><span>正在读取各服务器的历史行情…</span></div>;
   }
   if (error) {
     return (
@@ -883,6 +837,8 @@ function HistoryPanel({
     );
   }
   if (!data || !data.points.length) return null;
+  const realmSeries = groupRealmHistory(data);
+  const isRealmMarket = data.marketScope === "realm";
 
   return (
     <section className="history-panel" aria-labelledby="history-title">
@@ -890,21 +846,59 @@ function HistoryPanel({
         <div>
           <p className="eyebrow">PRICE HISTORY</p>
           <h3 id="history-title">最低单价趋势</h3>
-          <span>{data.pointCount} 份完整快照 · {formatShortDate(data.points[0].scannedAt)} 至 {formatShortDate(data.points.at(-1)?.scannedAt)}</span>
+          <span>
+            {data.pointCount} 个时间点
+            {isRealmMarket ? ` · ${realmSeries.length} 个服务器` : " · 区域共享"}
+            {` · ${formatShortDate(data.points[0].scannedAt)} 至 ${formatShortDate(data.points.at(-1)?.scannedAt)}`}
+          </span>
         </div>
-        <ChangeBadge change={data.change.minUnitPrice} />
+        {!isRealmMarket && <ChangeBadge change={data.change.minUnitPrice} />}
       </div>
 
       <div className="history-layout">
         <PriceChart data={data} />
-        <div className="history-metrics">
-          <HistoryMetric label="最低单价" change={data.change.minUnitPrice} format="money" />
-          <HistoryMetric label="库存变化" change={data.change.totalQuantity} format="number" />
-          <HistoryMetric label="挂单变化" change={data.change.listingCount} format="number" />
-        </div>
+        {isRealmMarket ? (
+          <div className="history-metrics realm-history-metrics">
+            {realmSeries.map((series) => {
+              const first = series.points[0];
+              const latest = series.points.at(-1)!;
+              const change = first.minUnitPrice != null && latest.minUnitPrice != null
+                ? {
+                    previous: first.minUnitPrice,
+                    current: latest.minUnitPrice,
+                    absolute: latest.minUnitPrice - first.minUnitPrice,
+                    percent: first.minUnitPrice === 0 ? null : ((latest.minUnitPrice - first.minUnitPrice) / first.minUnitPrice) * 100,
+                  }
+                : null;
+              return <HistoryMetric key={series.key} label={series.name} change={change} format="money" />;
+            })}
+          </div>
+        ) : (
+          <div className="history-metrics">
+            <HistoryMetric label="最低单价" change={data.change.minUnitPrice} format="money" />
+            <HistoryMetric label="库存变化" change={data.change.totalQuantity} format="number" />
+            <HistoryMetric label="挂单变化" change={data.change.listingCount} format="number" />
+          </div>
+        )}
       </div>
     </section>
   );
+}
+
+const CHART_COLORS = ["#c58b2a", "#2e8b70", "#5d6fc2", "#a35c82", "#cc6b3d", "#54869c"];
+
+function groupRealmHistory(data: ItemHistoryResponse) {
+  const groups = new Map<string, { key: string; name: string; points: ItemHistoryResponse["points"] }>();
+  data.points.forEach((point) => {
+    const key = `${point.regionID ?? "?"}:${point.realmID ?? point.realm ?? "?"}`;
+    const current = groups.get(key) ?? { key, name: point.realm || `服务器 ${point.realmID ?? "未知"}`, points: [] };
+    current.points.push(point);
+    groups.set(key, current);
+  });
+  return [...groups.values()].map((group) => ({
+    ...group,
+    points: group.points.sort((left, right) => left.scannedAtUnix - right.scannedAtUnix),
+  }));
 }
 
 function PriceChart({ data }: { data: ItemHistoryResponse }) {
@@ -924,17 +918,32 @@ function PriceChart({ data }: { data: ItemHistoryResponse }) {
   const right = 594;
   const top = 23;
   const bottom = 132;
-  const coordinates = priced.map((point, index) => ({
-    x: priced.length === 1 ? (left + right) / 2 : left + (index / (priced.length - 1)) * (right - left),
+  const minTime = Math.min(...priced.map((point) => point.scannedAtUnix));
+  const maxTime = Math.max(...priced.map((point) => point.scannedAtUnix));
+  const timeRange = Math.max(1, maxTime - minTime);
+  const coordinates = priced.map((point) => ({
+    x: minTime === maxTime ? (left + right) / 2 : left + ((point.scannedAtUnix - minTime) / timeRange) * (right - left),
     y: bottom - ((point.minUnitPrice - low) / range) * (bottom - top),
     point,
   }));
-  const line = coordinates.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
-  const area = `${line} L ${coordinates.at(-1)!.x} ${bottom} L ${coordinates[0].x} ${bottom} Z`;
+  const groupKey = (point: (typeof priced)[number]) => data.marketScope === "realm"
+    ? `${point.regionID ?? "?"}:${point.realmID ?? point.realm ?? "?"}`
+    : "region";
+  const groups = new Map<string, typeof coordinates>();
+  coordinates.forEach((coordinate) => {
+    const key = groupKey(coordinate.point);
+    groups.set(key, [...(groups.get(key) ?? []), coordinate]);
+  });
+  const series = [...groups.entries()].map(([key, values], index) => ({
+    key,
+    name: values[0].point.realm || "区域共享",
+    color: CHART_COLORS[index % CHART_COLORS.length],
+    coordinates: values.sort((leftValue, rightValue) => leftValue.point.scannedAtUnix - rightValue.point.scannedAtUnix),
+  }));
 
   return (
     <div className="price-chart">
-      <svg viewBox="0 0 640 168" role="img" aria-label="各快照最低单价折线图">
+      <svg viewBox="0 0 640 168" role="img" aria-label="按时间排列的最低单价折线图">
         <defs>
           <linearGradient id="price-area" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="currentColor" stopOpacity="0.24" />
@@ -942,17 +951,34 @@ function PriceChart({ data }: { data: ItemHistoryResponse }) {
           </linearGradient>
         </defs>
         {[top, (top + bottom) / 2, bottom].map((y) => <line key={y} className="chart-grid" x1={left} x2={right} y1={y} y2={y} />)}
-        <path className="chart-area" d={area} fill="url(#price-area)" />
-        <path className="chart-line" d={line} />
-        {coordinates.map(({ x, y, point }) => (
-          <g key={point.scanId}>
-            <circle className="chart-halo" cx={x} cy={y} r="8" />
-            <circle className="chart-dot" cx={x} cy={y} r="4" />
-            <text className="chart-value" x={x} y={Math.max(14, y - 13)} textAnchor="middle">{compactCopper(point.minUnitPrice)}</text>
-            <text className="chart-time" x={x} y="157" textAnchor="middle">{formatShortDate(point.scannedAt)}</text>
-          </g>
-        ))}
+        {series.map((entry) => {
+          const line = entry.coordinates.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
+          const area = entry.key === "region" && entry.coordinates.length > 1
+            ? `${line} L ${entry.coordinates.at(-1)!.x} ${bottom} L ${entry.coordinates[0].x} ${bottom} Z`
+            : null;
+          return (
+            <g key={entry.key}>
+              {area && <path className="chart-area" d={area} fill="url(#price-area)" />}
+              {entry.coordinates.length > 1 && <path className="chart-line" d={line} style={{ stroke: entry.color }} />}
+              {entry.coordinates.map(({ x, y, point }) => (
+                <g key={point.scanId}>
+                  <circle className="chart-halo" cx={x} cy={y} r="8" style={{ color: entry.color }} />
+                  <circle className="chart-dot" cx={x} cy={y} r="4" style={{ fill: entry.color }} />
+                  <text className="chart-value" x={x} y={Math.max(14, y - 13)} textAnchor="middle">{compactCopper(point.minUnitPrice)}</text>
+                  <text className="chart-time" x={x} y="157" textAnchor="middle">{formatShortDate(point.scannedAt)}</text>
+                </g>
+              ))}
+            </g>
+          );
+        })}
       </svg>
+      {data.marketScope === "realm" && (
+        <div className="chart-legend">
+          {series.map((entry) => (
+            <span key={entry.key}><i style={{ background: entry.color }} />{entry.name}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

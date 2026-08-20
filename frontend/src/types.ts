@@ -51,6 +51,11 @@ export interface MarketCatalog {
 }
 
 export interface MarketItem {
+  scanId: number;
+  realm?: string | null;
+  realmID?: number | null;
+  region?: string | null;
+  regionID?: number | null;
   itemID: number;
   battlePetCreatureID: number | null;
   petVariantKey?: string | null;
@@ -164,6 +169,11 @@ export interface ItemHistoryPoint {
   listingCount: number;
   variantCount: number;
   totalQuantity: number;
+  realm?: string | null;
+  realmID?: number | null;
+  region?: string | null;
+  regionID?: number | null;
+  marketScope: "region" | "realm" | "unknown";
 }
 
 export interface ItemHistoryResponse {
@@ -176,6 +186,7 @@ export interface ItemHistoryResponse {
   name: string;
   quality: number | null;
   texture: number | null;
+  marketScope: "region" | "realm" | "unknown";
   pointCount: number;
   change: {
     minUnitPrice: HistoryMetricChange | null;
@@ -192,5 +203,4 @@ export interface MarketQuery {
   page: number;
   pageSize: number;
   sort: MarketSort;
-  scanId: number | null;
 }

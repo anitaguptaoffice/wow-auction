@@ -47,6 +47,11 @@ const items: MarketItem[] = names.map((name, index) => {
   const quantity = Math.max(3, Math.round(45_000 / (index + 1)));
   const unitPrice = 450 + index * index * 83 + (index % 4) * 3_700;
   return {
+    scanId: 1,
+    realm: "本地演示数据",
+    realmID: 707,
+    region: "CN",
+    regionID: 5,
     itemID,
     battlePetCreatureID: null,
     marketKey: String(itemID),
@@ -207,6 +212,7 @@ export async function mockHistory(item: MarketItem): Promise<ItemHistoryResponse
     name: item.name,
     quality: item.quality,
     texture: null,
+    marketScope: item.marketScope,
     pointCount: 2,
     change: {
       minUnitPrice: metric(previousPrice, currentPrice),
@@ -225,6 +231,11 @@ export async function mockHistory(item: MarketItem): Promise<ItemHistoryResponse
         listingCount: previousListings,
         variantCount: item.variantCount,
         totalQuantity: previousQuantity,
+        realm: "本地演示数据",
+        realmID: 707,
+        region: "CN",
+        regionID: 5,
+        marketScope: item.marketScope,
       },
       {
         scanId: 2,
@@ -236,6 +247,11 @@ export async function mockHistory(item: MarketItem): Promise<ItemHistoryResponse
         listingCount: item.listingCount,
         variantCount: item.variantCount,
         totalQuantity: item.totalQuantity,
+        realm: "本地演示数据",
+        realmID: 707,
+        region: "CN",
+        regionID: 5,
+        marketScope: item.marketScope,
       },
     ],
   };

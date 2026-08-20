@@ -216,6 +216,27 @@ def latest_complete_scan(db: Session) -> models.AuctionScan | None:
     )
 
 
+def latest_complete_scans_by_realm(db: Session) -> list[tuple[models.AuctionScan, models.AuctionScanContext]]:
+    rows = db.execute(
+        select(models.AuctionScan, models.AuctionScanContext)
+        .join(models.AuctionScanContext, models.AuctionScanContext.scan_id == models.AuctionScan.id)
+        .where(
+            models.AuctionScan.complete.is_(True),
+            models.AuctionScanContext.region_id.is_not(None),
+            models.AuctionScanContext.realm_id.is_not(None),
+        )
+        .order_by(models.AuctionScan.scanned_at_unix.desc(), models.AuctionScan.id.desc())
+    ).all()
+    result: list[tuple[models.AuctionScan, models.AuctionScanContext]] = []
+    seen: set[tuple[int, int]] = set()
+    for scan, context in rows:
+        key = (int(context.region_id), int(context.realm_id))
+        if key not in seen:
+            seen.add(key)
+            result.append((scan, context))
+    return result
+
+
 def resolve_complete_scan(db: Session, scan_id: int | None = None) -> models.AuctionScan | None:
     if scan_id is None:
         return latest_complete_scan(db)
@@ -373,10 +394,21 @@ def item_history(
     scan_id: int | None = None,
 ) -> dict[str, Any] | None:
     """Return one aggregate point per complete scan for a market item."""
-    selected_scan = resolve_complete_scan(db, scan_id)
-    if selected_scan is None:
+    if scan_id is None:
+        history_scan_ids = list(
+            db.scalars(
+                select(models.AuctionScan.id)
+                .where(models.AuctionScan.complete.is_(True))
+                .order_by(models.AuctionScan.scanned_at_unix.asc(), models.AuctionScan.id.asc())
+            ).all()
+        )
+    else:
+        selected_scan = resolve_complete_scan(db, scan_id)
+        if selected_scan is None:
+            return None
+        history_scan_ids = _history_scan_ids(db, selected_scan)
+    if not history_scan_ids:
         return None
-    history_scan_ids = _history_scan_ids(db, selected_scan)
     if pet_variant_key is not None:
         return _item_history_by_pet_variant(
             db,
@@ -409,8 +441,19 @@ def item_history(
             summary.total_quantity,
             summary.min_unit_price,
             summary.min_buyout,
+            models.AuctionScanContext.realm_name,
+            models.AuctionScanContext.realm_id,
+            models.AuctionScanContext.region_name,
+            models.AuctionScanContext.region_id,
+            models.AuctionItemMarketScope.market_scope,
         )
         .join(summary, summary.scan_id == scan.id)
+        .join(models.AuctionScanContext, models.AuctionScanContext.scan_id == scan.id)
+        .join(
+            models.AuctionItemMarketScope,
+            (models.AuctionItemMarketScope.scan_id == scan.id)
+            & (models.AuctionItemMarketScope.item_id == summary.item_id),
+        )
         .where(
             scan.complete.is_(True),
             scan.id.in_(history_scan_ids),
@@ -438,6 +481,11 @@ def item_history(
                 "listingCount": int(row["listing_count"]),
                 "variantCount": int(row["variant_count"]),
                 "totalQuantity": int(row["total_quantity"] or 0),
+                "realm": row["realm_name"],
+                "realmID": row["realm_id"],
+                "region": row["region_name"],
+                "regionID": row["region_id"],
+                "marketScope": row["market_scope"],
             }
         )
 
@@ -450,6 +498,7 @@ def item_history(
         "name": rows[-1]["name"],
         "quality": int(rows[-1]["quality"]) if rows[-1]["quality"] is not None else None,
         "texture": int(rows[-1]["texture"]) if rows[-1]["texture"] is not None else None,
+        "marketScope": rows[-1]["market_scope"],
         "pointCount": len(points),
         "change": {
             "minUnitPrice": _metric_change(first["minUnitPrice"], latest["minUnitPrice"]),
@@ -481,7 +530,17 @@ def market_items(
     sort: str,
     collection: str | None = None,
     scan_id: int | None = None,
+    _include_crafting_quality: bool = True,
 ) -> dict[str, Any]:
+    if scan_id is None:
+        return _unified_market_items(
+            db,
+            q=q,
+            page=page,
+            page_size=page_size,
+            sort=sort,
+            collection=collection,
+        )
     scan = resolve_complete_scan(db, scan_id)
     if scan is None:
         return {"scanId": None, "page": page, "pageSize": page_size, "total": 0, "totalPages": 0, "items": []}
@@ -615,7 +674,7 @@ def market_items(
     items = items[start : start + page_size]
     item_ids = {item["itemID"] for item in items if item["battlePetCreatureID"] is None}
     quality_by_market_key: dict[tuple[int, int], int] = {}
-    if item_ids:
+    if item_ids and _include_crafting_quality:
         listing = models.AuctionListing
         link_rows = db.execute(
             select(
@@ -644,6 +703,140 @@ def market_items(
         "totalPages": math.ceil(total / page_size),
         "items": items,
     }
+
+
+def _decorate_history_points(
+    db: Session, points: list[dict[str, Any]], item_id: int
+) -> str:
+    scan_ids = {int(point["scanId"]) for point in points}
+    rows = db.execute(
+        select(
+            models.AuctionScanContext.scan_id,
+            models.AuctionScanContext.realm_name,
+            models.AuctionScanContext.realm_id,
+            models.AuctionScanContext.region_name,
+            models.AuctionScanContext.region_id,
+            models.AuctionItemMarketScope.market_scope,
+        )
+        .join(
+            models.AuctionItemMarketScope,
+            models.AuctionItemMarketScope.scan_id == models.AuctionScanContext.scan_id,
+        )
+        .where(
+            models.AuctionScanContext.scan_id.in_(scan_ids),
+            models.AuctionItemMarketScope.item_id == item_id,
+        )
+    ).all()
+    metadata = {
+        int(row.scan_id): {
+            "realm": row.realm_name,
+            "realmID": row.realm_id,
+            "region": row.region_name,
+            "regionID": row.region_id,
+            "marketScope": row.market_scope,
+        }
+        for row in rows
+    }
+    for point in points:
+        point.update(metadata.get(int(point["scanId"]), {}))
+    return str(points[-1].get("marketScope") or "unknown")
+
+
+def _sort_market_rows(items: list[dict[str, Any]], sort: str) -> None:
+    if sort == "price_asc":
+        items.sort(key=lambda item: (item["minUnitPrice"] is None, item["minUnitPrice"] or 0, item["marketKey"]))
+    elif sort == "price_desc":
+        items.sort(key=lambda item: (item["minUnitPrice"] is None, -(item["minUnitPrice"] or 0), item["marketKey"]))
+    elif sort == "quantity_desc":
+        items.sort(key=lambda item: (-item["totalQuantity"], item["marketKey"]))
+    elif sort == "listings_desc":
+        items.sort(key=lambda item: (-item["listingCount"], item["marketKey"]))
+    else:
+        items.sort(key=lambda item: (item["name"], item["marketKey"]))
+
+
+def _unified_market_items(
+    db: Session,
+    *,
+    q: str | None,
+    page: int,
+    page_size: int,
+    sort: str,
+    collection: str | None,
+) -> dict[str, Any]:
+    """One page across realms: region items dedupe, realm items retain a realm dimension."""
+    latest = latest_complete_scans_by_realm(db)
+    if not latest:
+        return {"scanId": None, "page": page, "pageSize": page_size, "total": 0, "totalPages": 0, "items": []}
+    region_rows: dict[str, tuple[int, dict[str, Any]]] = {}
+    realm_rows: list[dict[str, Any]] = []
+    for scan, context in latest:
+        response = market_items(
+            db,
+            q=q,
+            page=1,
+            page_size=1_000_000,
+            sort=sort,
+            collection=collection,
+            scan_id=scan.id,
+            _include_crafting_quality=False,
+        )
+        for source in response["items"]:
+            item = dict(source)
+            item.update(
+                {
+                    "scanId": scan.id,
+                    "realm": context.realm_name,
+                    "realmID": context.realm_id,
+                    "region": context.region_name,
+                    "regionID": context.region_id,
+                }
+            )
+            if item["marketScope"] == "region":
+                current = region_rows.get(item["marketKey"])
+                if current is None or scan.scanned_at_unix > current[0]:
+                    region_rows[item["marketKey"]] = (scan.scanned_at_unix, item)
+            else:
+                realm_rows.append(item)
+    items = [item for _, item in region_rows.values()] + realm_rows
+    _sort_market_rows(items, sort)
+    total = len(items)
+    start = (page - 1) * page_size
+    page_items = items[start : start + page_size]
+    _decorate_unified_crafting_quality(db, page_items)
+    return {
+        "scanId": None,
+        "page": page,
+        "pageSize": page_size,
+        "total": total,
+        "totalPages": math.ceil(total / page_size),
+        "items": page_items,
+    }
+
+
+def _decorate_unified_crafting_quality(db: Session, items: list[dict[str, Any]]) -> None:
+    """Read item links only for the final page, not every item in every realm."""
+    item_ids_by_scan: dict[int, set[int]] = {}
+    for item in items:
+        if item["battlePetCreatureID"] is None:
+            item_ids_by_scan.setdefault(int(item["scanId"]), set()).add(int(item["itemID"]))
+    listing = models.AuctionListing
+    for scan_id, item_ids in item_ids_by_scan.items():
+        rows = db.execute(
+            select(
+                listing.item_id,
+                func.min(listing.item_link).label("item_link"),
+            )
+            .where(listing.scan_id == scan_id, listing.item_id.in_(item_ids))
+            .group_by(listing.item_id)
+        ).mappings().all()
+        qualities = {
+            int(row["item_id"]): _crafting_quality_from_item_link(row["item_link"])
+            for row in rows
+        }
+        for item in items:
+            if int(item["scanId"]) == scan_id and item["battlePetCreatureID"] is None:
+                item["craftingQuality"] = qualities.get(int(item["itemID"]))
 
 
 def _parse_item_variant(item_link: str | None) -> dict[str, Any]:
@@ -853,6 +1046,7 @@ def _item_history_by_context(
         )
 
     assert latest_listing is not None
+    market_scope = _decorate_history_points(db, points, item_id)
     first = points[0]
     latest = points[-1]
     return {
@@ -864,6 +1058,7 @@ def _item_history_by_context(
         "name": latest_listing.name,
         "quality": latest_listing.quality_id,
         "texture": latest_listing.texture,
+        "marketScope": market_scope,
         "pointCount": len(points),
         "change": {
             "minUnitPrice": _metric_change(first["minUnitPrice"], latest["minUnitPrice"]),
@@ -928,6 +1123,7 @@ def _item_history_by_pet_variant(
         )
 
     assert latest_listing is not None
+    market_scope = _decorate_history_points(db, points, item_id)
     first = points[0]
     latest = points[-1]
     return {
@@ -938,6 +1134,7 @@ def _item_history_by_pet_variant(
         "name": latest_listing.name,
         "quality": latest_listing.quality_id,
         "texture": latest_listing.texture,
+        "marketScope": market_scope,
         "pointCount": len(points),
         "change": {
             "minUnitPrice": _metric_change(first["minUnitPrice"], latest["minUnitPrice"]),

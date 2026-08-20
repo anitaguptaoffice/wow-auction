@@ -22,7 +22,13 @@ from app.services.market_queries import (
 )
 
 
-def _lua_snapshot(*, timestamp: int = 1_700_000_000, missing_core_count: int = 0) -> str:
+def _lua_snapshot(
+    *,
+    timestamp: int = 1_700_000_000,
+    missing_core_count: int = 0,
+    realm_name: str = "测试服务器",
+    realm_id: int = 123,
+) -> str:
     return f'''AuctionSearchDB = {{
 ["auctions"] = {{
   ["2026-08-20"] = {{
@@ -36,9 +42,9 @@ def _lua_snapshot(*, timestamp: int = 1_700_000_000, missing_core_count: int = 0
         ["incompleteInfoCount"] = 0,
         ["apiErrorCount"] = 0,
         ["durationMs"] = 12.5,
-        ["realmName"] = "测试服务器",
-        ["normalizedRealmName"] = "测试服务器",
-        ["realmID"] = 123,
+        ["realmName"] = "{realm_name}",
+        ["normalizedRealmName"] = "{realm_name}",
+        ["realmID"] = {realm_id},
         ["regionID"] = 5,
         ["regionName"] = "CN",
         ["itemMarketScopes"] = {{ [10] = "region", [20] = "realm", [82800] = "realm" }},
@@ -316,6 +322,43 @@ class MarketPipelineTest(unittest.TestCase):
             )
             self.assertEqual(earlier_items["items"][0]["minUnitPrice"], 4)
             self.assertIsNone(item_history(db, item_id=999, battle_pet_creature_id=None))
+
+    def test_unified_market_deduplicates_region_items_and_splits_realm_items(self):
+        import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
+        other_realm = _lua_snapshot(
+            timestamp=1_700_003_600,
+            realm_name="第二服务器",
+            realm_id=456,
+        ).replace('["buyoutAmount"] = 11', '["buyoutAmount"] = 21', 1).replace(
+            '["buyoutAmount"] = 101', '["buyoutAmount"] = 51', 1
+        )
+        self.snapshot.write_text(other_realm, encoding="utf-8")
+        import_snapshot(self.snapshot, db_engine=self.engine, chunk_size=100)
+
+        with self.session_factory() as db:
+            shared = market_items(db, q="测试矿石", page=1, page_size=20, sort="price_asc")
+            self.assertEqual(shared["total"], 1)
+            self.assertEqual(shared["items"][0]["marketScope"], "region")
+            self.assertEqual(shared["items"][0]["realmID"], 456)
+
+            realm_only = market_items(db, q="仅竞价物品", page=1, page_size=20, sort="price_asc")
+            self.assertEqual(realm_only["total"], 2)
+            self.assertEqual({item["realmID"] for item in realm_only["items"]}, {123, 456})
+
+            cross_realm_prices = market_items(db, q="82800", page=1, page_size=20, sort="price_asc")
+            prices = [item["minUnitPrice"] for item in cross_realm_prices["items"]]
+            self.assertEqual(prices, sorted(prices))
+            self.assertEqual(cross_realm_prices["items"][0]["realmID"], 456)
+
+            realm_history = item_history(db, item_id=20, battle_pet_creature_id=None)
+            self.assertEqual(realm_history["marketScope"], "realm")
+            self.assertEqual({point["realmID"] for point in realm_history["points"]}, {123, 456})
+
+            shared_history = item_history(db, item_id=10, battle_pet_creature_id=None)
+            self.assertEqual(shared_history["marketScope"], "region")
+            self.assertEqual([point["scannedAtUnix"] for point in shared_history["points"]], sorted(
+                point["scannedAtUnix"] for point in shared_history["points"]
+            ))
 
     def test_invalid_scan_is_not_partially_imported(self):
         self.snapshot.write_text(_lua_snapshot(missing_core_count=1), encoding="utf-8")
