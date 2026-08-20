@@ -1,13 +1,29 @@
 {
-  "name": "wow-auction-web-assets",
+  "name": "wow-auction",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build:cloudbase": "esbuild frontend/js/cloudbase-sdk-entry.js --bundle --minify --format=iife --target=chrome100,firefox100,safari15 --legal-comments=inline --outfile=frontend/vendor/cloudbase-auth.bundle.js"
+    "dev": "vite --config frontend/vite.config.ts",
+    "build": "vite build --config frontend/vite.config.ts",
+    "build:cloudbase": "bash scripts/prepare-icon-assets.sh data/wow-auction.db && npm run build",
+    "icons:generate": "bash scripts/generate-icon-manifest.sh",
+    "icons:prepare": "bash scripts/prepare-icon-assets.sh",
+    "icons:sync": "python3 scripts/sync-icon-cache.py",
+    "preview": "vite preview --config frontend/vite.config.ts",
+    "typecheck": "tsc -p frontend/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@cloudbase/js-sdk": "3.8.0"
+    "@cloudbase/js-sdk": "3.8.0",
+    "@tanstack/react-query": "5.85.5",
+    "lucide-react": "0.468.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "5.0.2",
+    "typescript": "5.9.2",
+    "vite": "7.3.6"
   }
 }

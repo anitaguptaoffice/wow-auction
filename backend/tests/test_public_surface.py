@@ -21,6 +21,8 @@ class PublicSurfaceTest(unittest.TestCase):
                 "/api/market/status",
                 "/api/market/items",
                 "/api/market/items/{item_id}/listings",
+                "/api/market/items/{item_id}/history",
+                "/api/icons/{icon_name}.jpg",
                 "/api/admin/import",
                 "/api/admin/import/{job_id}",
             },
@@ -30,8 +32,10 @@ class PublicSurfaceTest(unittest.TestCase):
             {
                 "wow_auction_snapshots",
                 "wow_auction_scans",
+                "wow_auction_scan_contexts",
                 "wow_auction_listings",
                 "wow_auction_item_summaries",
+                "wow_auction_item_market_scopes",
             },
         )
 

@@ -65,6 +65,36 @@ class AuctionScan(Base):
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
+class AuctionScanContext(Base):
+    """Realm and region captured by the addon for one scan."""
+
+    __tablename__ = "wow_auction_scan_contexts"
+    __table_args__ = {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"}
+
+    scan_id = Column(Integer, ForeignKey("wow_auction_scans.id", ondelete="CASCADE"), primary_key=True)
+    realm_name = Column(String(255), nullable=True)
+    normalized_realm_name = Column(String(255), nullable=True)
+    realm_id = Column(Integer, nullable=True)
+    region_id = Column(Integer, nullable=True)
+    region_name = Column(String(32), nullable=True)
+
+
+class AuctionItemMarketScope(Base):
+    """Authoritative commodity status captured from the live auction-house API."""
+
+    __tablename__ = "wow_auction_item_market_scopes"
+    __table_args__ = (
+        UniqueConstraint("scan_id", "item_id", name="uq_wow_auction_item_market_scope"),
+        Index("ix_wow_auction_item_market_scopes_scan_scope", "scan_id", "market_scope"),
+        {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
+    )
+
+    id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    scan_id = Column(Integer, ForeignKey("wow_auction_scans.id", ondelete="CASCADE"), nullable=False)
+    item_id = Column(Integer, nullable=False)
+    market_scope = Column(String(16), nullable=False)
+
+
 class AuctionListing(Base):
     """A single row returned by WoW's replicate auction-house API."""
 

@@ -30,6 +30,8 @@ node_modules/
 data/auction.lua
 data/auction.lua.*
 data/archive/
+data/icon-cache/
+data/itemsparse-stackable-*.jsonl
 
 # uv cache
 .uv_cache/
