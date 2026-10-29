@@ -139,6 +139,23 @@ class RaidFiltersTest(unittest.TestCase):
             self.assertFalse(VariantFilters(socket='no').matches(_parse_item_variant(raw)))
             self.assertFalse(VariantFilters(tertiary='none').matches(_parse_item_variant(raw)))
 
+    def test_merged_latest_listings_filter_before_global_pagination_and_keep_tiers(self):
+        rows=self.items(group_markets=True, difficulty='6', stats='49-40', socket='yes')['items']
+        self.assertEqual(len(rows),1)
+        item=rows[0]
+        pages=[self.store.listings(scan_id=item['scanId'],market_key=item['marketKey'],all_markets=True,
+                page=page,page_size=2,public_only=True,**item['variantFilters']) for page in (1,2)]
+        self.assertEqual([p['total'] for p in pages],[4,4])
+        listings=[row for page in pages for row in page['items']]
+        self.assertEqual([r['unitPrice'] for r in listings],[20,50,120,150])
+        self.assertEqual([r['realmID'] for r in listings],[123,123,456,456])
+        self.assertEqual(sum(r['quantity'] for r in listings),14)
+        self.assertTrue(all(r['itemContext']==6 and r['hasSocket'] and r['statKey']=='49-40' for r in listings))
+        self.assertEqual(len({(r['scanId'],r['source_index']) for r in listings}),4)
+        tiers=self.items(group_markets=True)['items']
+        self.assertEqual({r['itemContext'] for r in tiers},{5,6})
+        self.assertTrue(all(r['marketGroup']['marketCount']==2 for r in tiers))
+
     def test_http_contract(self):
         from compact_market.api import app
         with patch.dict('os.environ', {'COMPACT_DATABASE': str(self.database), 'COMPACT_ENGINE': 'unified', 'COMPACT_MEMORY_LIMIT': '1GB'}):

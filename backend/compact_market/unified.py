@@ -1,5 +1,6 @@
 """Unified market identities backed by dictionary-encoded Arrow columns."""
 from array import array
+from bisect import bisect_left, bisect_right
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,10 +12,10 @@ import duckdb
 import pyarrow as pa
 import pyarrow.compute as pc
 
-from compact_market.store import MarketStore, SORTS, grams, rows_as_dicts, iso
+from compact_market.store import MarketStore, SORTS, PUBLIC_LISTINGS_SQL, grams, rows_as_dicts, iso
+from compact_market.schema import RESTORE_SQL
 from app.services.market_queries import SUPPORTED_COLLECTIONS, RAID_BOE_12_1_ITEM_IDS, _parse_item_variant
 from compact_market.variant_filters import VariantFilters
-from compact_market.history import sample_points
 
 
 class ArrowRows:
@@ -105,6 +106,11 @@ class UnifiedMarketStore(MarketStore):
             if previous is None or (scan['timestamp'], scan_id) > (self.scans[previous]['timestamp'], previous):
                 latest[identity] = scan_id
         self.latest_scans = tuple(latest.values())
+        self.scan_timelines = defaultdict(list)
+        for sid, observed in self.scans.items():
+            self.scan_timelines[observed['region_id'], observed['realm_id']].append((observed['timestamp'], sid))
+        for timeline in self.scan_timelines.values():
+            timeline.sort()
         latest_ids = [i for sid in self.latest_scans for i in self.by_scan[sid]]
         for index in latest_ids:
             for gram in set(self.names[index]) | grams(self.names[index]):
@@ -352,8 +358,83 @@ class UnifiedMarketStore(MarketStore):
         scan = self.scan(scan_id)
         index = self.lookup.get((scan['scan_id'], market_key))
         if index is None:
-            raise KeyError('Market item not found in selected scan')
+            prototype = None
+            for sid in self.latest_scans:
+                other = self.scans[sid]
+                if other['region_id'] != scan['region_id'] or (other['realm_id'] == 0) != (scan['realm_id'] == 0):
+                    continue
+                history = self.history_index.get((other['region_id'], other['realm_id'], market_key), ())
+                if history:
+                    prototype = self.records[history[-1]]
+                    break
+            if prototype is None:
+                raise KeyError('Market item not found in selected scan')
+            return scan, dict(prototype, scan_id=scan['scan_id'], listing_count=0, total_quantity=0,
+                              variant_count=0, min_unit_price=None, min_buyout=None)
         return scan, self.records[index]
+
+    def listings(self, *, market_key, scan_id=None, page=1, page_size=50,
+                 difficulty='', stats='', socket='', tertiary='', public_only=False, all_markets=False):
+        if page < 1 or not 1 <= page_size <= 100:
+            raise ValueError('Invalid pagination')
+        scan, summary = self.require_market(scan_id, market_key)
+        filters = VariantFilters(difficulty, stats, socket, tertiary)
+        if filters.active and summary['item_id'] not in RAID_BOE_12_1_ITEM_IDS:
+            raise ValueError('Equipment filters require a raid item')
+        if not all_markets or summary['market_scope'] != 'realm':
+            if (scan['scan_id'], market_key) not in self.lookup:
+                return {**self._public_record(summary), 'displayColumns': self._listing_columns([]),
+                        'page': page, 'pageSize': page_size, 'total': 0, 'totalPages': 0, 'items': []}
+            return super().listings(market_key=market_key, scan_id=scan_id, page=page, page_size=page_size,
+                difficulty=difficulty, stats=stats, socket=socket, tertiary=tertiary, public_only=public_only)
+        if page < 1 or not 1 <= page_size <= 100:
+            raise ValueError('Invalid pagination')
+        chosen = []
+        total = quantity = 0
+        descriptors = set()
+        observations = []
+        for sid in self.latest_scans:
+            observed = self.scans[sid]
+            if observed['region_id'] != scan['region_id'] or not observed['realm_id']:
+                continue
+            index = self.lookup.get((sid, market_key))
+            if index is None or self.records.columns['market_scope'][index].as_py() != 'realm':
+                continue
+            row = self.records[index]
+            if filters.active:
+                facts = [f for f in self.raid_facts[observed['source_scan_id'], market_key]
+                         if filters.matches(self.raid_descriptors[f['descriptor_id']])]
+                count = sum(f['listing_count'] for f in facts)
+                units = sum(f['total_quantity'] for f in facts)
+                descriptors.update(f['descriptor_id'] for f in facts)
+            else:
+                count, units = row['listing_count'], row['total_quantity']
+            if not count:
+                continue
+            chosen.append(observed['source_scan_id'])
+            total += count; quantity += units
+            observations.append(dict(scanId=sid, realm=observed['realm_name'], realmID=observed['realm_id'],
+                                     scannedAt=iso(observed['timestamp'])))
+        items = []
+        if chosen:
+            condition = ' AND descriptor_id IN (' + ','.join('?' for _ in descriptors) + ')' if filters.active else ''
+            selected = '''(SELECT * FROM listings WHERE scan_id IN (''' + ','.join('?' for _ in chosen) + ''')
+                AND descriptor_id IN (SELECT descriptor_id FROM descriptors WHERE market_key=?)''' + condition + '''
+                ORDER BY unit_price ASC NULLS LAST, scan_id, source_index LIMIT ? OFFSET ?)'''
+            query = (PUBLIC_LISTINGS_SQL if public_only else RESTORE_SQL).replace('FROM listings f', 'FROM '+selected+' f')
+            rows = rows_as_dicts(self.connection().execute(query+' ORDER BY f.unit_price ASC NULLS LAST, f.scan_id, f.source_index',
+                [*chosen, market_key, *descriptors, page_size, (page-1)*page_size]))
+            for row in rows:
+                public = self._public_listing(row, public_only=public_only)
+                observed = self.scans[row['scan_id']*2+1]
+                public.update(scanId=observed['scan_id'], realm=observed['realm_name'], realmID=observed['realm_id'],
+                              scannedAt=iso(observed['timestamp']))
+                items.append(public)
+        return {**self._public_record(summary), 'scanId': None, 'realm': None, 'realmID': None,
+                'allMarkets': True, 'marketCount': len(chosen), 'observations': observations,
+                'listingCount': total, 'totalQuantity': quantity, 'displayColumns': self._listing_columns(items),
+                'page': page, 'pageSize': page_size, 'total': total,
+                'totalPages': (total+page_size-1)//page_size, 'items': items}
 
     def history(self, *, market_key, scan_id=None, difficulty='', stats='', socket='', tertiary=''):
         scan, current = self.require_market(scan_id, market_key)
@@ -361,6 +442,8 @@ class UnifiedMarketStore(MarketStore):
         if filters.active and current['item_id'] not in RAID_BOE_12_1_ITEM_IDS:
             raise ValueError('Equipment history filters require raid equipment')
         indices = self.history_index[scan['region_id'], scan['realm_id'], market_key]
+        if not indices:
+            return {'marketKey': market_key, 'realmID': scan['realm_id'], 'regionID': scan['region_id'], 'points': []}
         first_time = self.scans[self.records[indices[0]]['scan_id']]['timestamp']
         timeline = sorted((s for s in self.scans.values()
                            if (s['region_id'], s['realm_id']) == (scan['region_id'], scan['realm_id'])
@@ -391,38 +474,119 @@ class UnifiedMarketStore(MarketStore):
         return {'marketKey': market_key, 'realmID': scan['realm_id'],
                 'regionID': scan['region_id'], 'points': points}
 
-    def public_history(self, *, market_key, scan_id=None, start=None, end=None, max_points=400,
-                       gap_seconds=0, difficulty='', stats='', socket='', tertiary=''):
+    def public_history(self, *, market_key, scan_id=None, start=None, end=None, max_points=60,
+                       gap_seconds=0, difficulty='', stats='', socket='', tertiary='',
+                       all_markets=False, realm_page=1, days=0, history_realm_id=None):
+        """Choose at most 60 observations BEFORE decoding summaries or filtering facts.
+
+        Reserve the latest observation of each realm first, then fill the remaining
+        budget with the newest observations. More than 60 realms use realm pages.
+        """
+        import heapq
         if start is not None and end is not None and start > end:
             raise ValueError('History start must not exceed end')
+        if max_points < 1 or realm_page < 1 or days not in (0, 7, 30, 90) or gap_seconds < 0:
+            raise ValueError('Invalid history bounds')
+        limit = min(max_points, 60)
         scan, row = self.require_market(scan_id, market_key)
-        result = self._public_record(row)
-        points = []
-        for point in self.history(market_key=market_key, scan_id=scan_id, difficulty=difficulty,
-                                  stats=stats, socket=socket, tertiary=tertiary)['points']:
-            if (start is not None and point['timestamp'] < start) or (end is not None and point['timestamp'] > end):
+        filters = VariantFilters(difficulty, stats, socket, tertiary)
+        if filters.active and row['item_id'] not in RAID_BOE_12_1_ITEM_IDS:
+            raise ValueError('Equipment history filters require raid equipment')
+        merged = all_markets and row['market_scope'] == 'realm'
+        related = sorted([self.scans[sid] for sid in self.latest_scans
+                          if self.scans[sid]['region_id'] == scan['region_id']
+                          and self.scans[sid]['realm_id'] > 0], key=lambda s: s['realm_id']) if merged else [scan]
+        if history_realm_id is not None:
+            if row['market_scope'] != 'realm':
+                raise ValueError('Regional commodity history cannot be split by realm')
+            related = [self.scans[sid] for sid in self.latest_scans if self.scans[sid]['region_id']==scan['region_id']
+                       and self.scans[sid]['realm_id']==history_realm_id and history_realm_id>0]
+            if not related:
+                raise ValueError('Unknown history realm in this region')
+            if not all_markets:
+                related = [{**related[0], 'timestamp': min(related[0]['timestamp'],scan['timestamp'])}]
+            merged = False
+        cutoff = min(end, max(s['timestamp'] for s in related)) if end is not None else max(s['timestamp'] for s in related)
+        if days:
+            start = max(start or 0, cutoff-days*86400)
+        scope_realm = related[0] if not merged else None
+        realm_total = len(related)
+        realm_pages = max(1, (realm_total+limit-1)//limit)
+        related = related[(realm_page-1)*limit:realm_page*limit]
+        windows = []
+        missing = []
+        for observed in related:
+            identity = (scan['region_id'], observed['realm_id'])
+            timeline = self.scan_timelines[identity]
+            indices = self.history_index.get((*identity, market_key), ())
+            first = self.scans[self.records.columns['scan_id'][indices[0]].as_py()]['timestamp'] if indices else 0
+            lo = bisect_left(timeline, (max(start or 0, first), -1))
+            hi = bisect_right(timeline, (cutoff, sys.maxsize))
+            if not indices:
+                lo = max(lo, hi-1)
+            if lo >= hi:
+                missing.append(observed['realm_name'])
                 continue
-            points.append({
-                'scanId': point['scan_id'], 'scannedAt': iso(point['timestamp']),
-                'scannedAtUnix': point['timestamp'], 'sourceDate': iso(point['timestamp'])[:10],
-                'realm': scan['realm_name'], 'realmID': scan['realm_id'],
-                'region': scan['region_name'], 'regionID': scan['region_id'],
-                'marketScope': row['market_scope'], 'minUnitPrice': point['min_unit_price'],
-                'state': point['state'],
-                'minBuyout': point['min_buyout'], 'totalQuantity': point['total_quantity'],
-                'listingCount': point['listing_count'], 'variantCount': point['variant_count'],
-            })
+            windows.append((observed, timeline, lo, hi))
+        selected = []
+        heap = []
+        for index, (_, timeline, lo, hi) in enumerate(windows):
+            selected.append((index, hi-1))
+            if hi-2 >= lo:
+                timestamp, sid = timeline[hi-2]
+                heapq.heappush(heap, (-timestamp, -sid, index, hi-2))
+        while heap and len(selected) < limit:
+            _, _, index, position = heapq.heappop(heap)
+            selected.append((index, position))
+            _, timeline, lo, _ = windows[index]
+            if position-1 >= lo:
+                timestamp, sid = timeline[position-1]
+                heapq.heappush(heap, (-timestamp, -sid, index, position-1))
+        points = []
+        for index, position in selected:
+            observed, timeline, _, _ = windows[index]
+            timestamp, sid = timeline[position]
+            record_index = self.lookup.get((sid, market_key))
+            record = self.records[record_index] if record_index is not None else None
+            if record and filters.active:
+                facts = [f for f in self.raid_facts[self.scans[sid]['source_scan_id'], market_key]
+                         if filters.matches(self.raid_descriptors[f['descriptor_id']])]
+                record.update(listing_count=sum(f['listing_count'] for f in facts),
+                              total_quantity=sum(f['total_quantity'] for f in facts), variant_count=len(facts),
+                              min_unit_price=min((f['min_unit_price'] for f in facts if f['min_unit_price'] is not None), default=None),
+                              min_buyout=min((f['min_buyout'] for f in facts if f['min_buyout'] is not None), default=None))
+            present = bool(record and record['listing_count'])
+            points.append(dict(scanId=sid, scannedAt=iso(timestamp), scannedAtUnix=timestamp,
+                sourceDate=iso(timestamp)[:10], realm=observed['realm_name'], realmID=observed['realm_id'],
+                region=scan['region_name'], regionID=scan['region_id'], marketScope=row['market_scope'],
+                state='observed' if present and record['min_unit_price'] is not None else 'no_price' if present else 'absent',
+                minUnitPrice=record['min_unit_price'] if present else None, minBuyout=record['min_buyout'] if present else None,
+                totalQuantity=record['total_quantity'] if present else 0, listingCount=record['listing_count'] if present else 0,
+                variantCount=record['variant_count'] if present else 0))
+        points.sort(key=lambda p: (p['realmID'], p['scannedAtUnix'], p['scanId']))
+        previous_by_realm = {}
+        for point in points:
+            previous = previous_by_realm.get(point['realmID'])
+            point['breakBefore'] = bool(previous and (previous['minUnitPrice'] is None or point['minUnitPrice'] is None
+                or (gap_seconds and point['scannedAtUnix']-previous['scannedAtUnix'] > gap_seconds)))
+            previous_by_realm[point['realmID']] = point
         changes = {}
+        own_points = [p for p in points if scope_realm and p['realmID'] == scope_realm['realm_id']]
         for metric in ('minUnitPrice', 'minBuyout', 'listingCount', 'totalQuantity'):
             changes[metric] = None
-            if len(points) >= 2:
-                previous, current = points[-2][metric], points[-1][metric]
+            if len(own_points) >= 2:
+                previous, current = own_points[-2][metric], own_points[-1][metric]
                 if previous is not None and current is not None:
                     changes[metric] = dict(previous=previous, current=current, absolute=current-previous,
-                                           percent=(current-previous)/previous*100 if previous else None)
-        return {**result, 'points': sample_points(points, max_points, gap_seconds),
-                'pointCount': len(points), 'change': changes,
-                'variantFilters': VariantFilters(difficulty, stats, socket, tertiary).public()}
+                                          percent=(current-previous)/previous*100 if previous else None)
+        points.sort(key=lambda p: (p['scannedAtUnix'], p['scanId']))
+        total = sum(hi-lo for _, _, lo, hi in windows)
+        return {**self._public_record(row), 'realmID': scope_realm['realm_id'] if scope_realm else None,
+                'realm': scope_realm['realm_name'] if scope_realm else None,
+                'points': points, 'pointCount': total, 'change': changes,
+                'variantFilters': filters.public(), 'historyScope': dict(allMarkets=merged, maxPoints=limit,
+                    returnedPoints=len(points), sampled=total>len(points), realmTotal=realm_total,
+                    realmPage=realm_page, realmPages=realm_pages, missingRealms=missing, asOf=iso(cutoff), selectedRealmID=history_realm_id)}
 
     def compare(self, *, market_key, scan_id=None, difficulty='', stats='', socket='', tertiary=''):
         filters = VariantFilters(difficulty, stats, socket, tertiary)

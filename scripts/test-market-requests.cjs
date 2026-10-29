@@ -39,6 +39,13 @@ vm.runInNewContext(compiled, context);
   assert.equal(params.get('market_key'), item.marketKey);
   assert.equal(params.get('stats'), '49-40');
   assert.equal(params.get('tertiary'), 'avoidance');
+  const merged = { ...item, marketScope: 'realm', marketGroup: { marketCount: 3 } };
+  await context.exports.fetchItemListings(merged, 2, 25);
+  assert.equal(requests.at(-1).url.searchParams.get('all_markets'), 'true');
+  await context.exports.fetchItemHistory(merged, undefined, undefined, 1, 7, 707);
+  assert.equal(requests.at(-1).url.searchParams.get('all_markets'), 'true');
+  assert.equal(requests.at(-1).url.searchParams.get('history_realm_id'), '707');
+  assert.equal(requests.at(-1).url.searchParams.get('days'), '7');
   assert.equal(timers.size, 0);
 
   await context.exports.fetchMarketItems({ q: '', page: 1, pageSize: 20, sort: 'price_asc', collection: '', scanId: 9 });
@@ -49,7 +56,7 @@ vm.runInNewContext(compiled, context);
   await context.exports.fetchItemHistory(item, undefined, 1700000000);
   assert.equal(requests.at(-1).url.searchParams.get('start'), '1700000000');
   assert.equal(requests.at(-1).url.searchParams.get('socket'), 'yes');
-  assert.equal(requests.at(-1).url.searchParams.get('max_points'), '400');
+  assert.equal(requests.at(-1).url.searchParams.get('max_points'), '60');
   await context.exports.fetchItemComparison(item);
   assert.equal(requests.at(-1).url.searchParams.get('stats'), '49-40');
 

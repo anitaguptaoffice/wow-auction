@@ -214,7 +214,28 @@ class MarketStore:
             [scan.get("source_scan_id", scan["scan_id"]), market_key, *descriptor_params, page_size, (page - 1) * page_size])
         items = []
         for row in rows_as_dicts(cursor):
-            items.append({
+            items.append(self._public_listing(row, public_only=public_only))
+        total = summary["listing_count"]
+        if filters.active:
+            total = self.connection().execute('''SELECT count(*) FROM listings WHERE scan_id = ?
+                AND descriptor_id IN (SELECT descriptor_id FROM descriptors WHERE market_key = ?)'''
+                + descriptor_condition, [scan.get('source_scan_id', scan['scan_id']), market_key, *descriptor_params]).fetchone()[0]
+        return {**self._public_record(summary),
+                "displayColumns": self._listing_columns(items),
+                "page": page, "pageSize": page_size, "total": total,
+                "totalPages": (total + page_size - 1) // page_size, "items": items}
+
+    @staticmethod
+    def _listing_columns(items):
+        return {
+            "tier": any(i.get('itemLevel') or i.get('difficulty') or i.get('upgradeTrack') for i in items),
+            "attributes": any(i.get('statLabel') or i.get('hasSocket') or i.get('tertiaryStats') for i in items),
+            "petVariant": any(i.get('petSpeciesID') for i in items),
+        }
+
+    @staticmethod
+    def _public_listing(row, *, public_only=False):
+        return {
                 **({} if public_only else row),
                 "scan_id": row["scan_id"], "source_index": row["source_index"],
                 "itemID": row["item_id"], "quality": row["quality_id"],
@@ -226,20 +247,7 @@ class MarketStore:
                 "battlePetCreatureID": row["battle_pet_creature_id"],
                 **_parse_item_variant(row["item_link"]),
                 **(_parse_battle_pet_variant(row["item_link"]) or {}),
-            })
-        total = summary["listing_count"]
-        if filters.active:
-            total = self.connection().execute('''SELECT count(*) FROM listings WHERE scan_id = ?
-                AND descriptor_id IN (SELECT descriptor_id FROM descriptors WHERE market_key = ?)'''
-                + descriptor_condition, [scan.get('source_scan_id', scan['scan_id']), market_key, *descriptor_params]).fetchone()[0]
-        return {**self._public_record(summary),
-                "displayColumns": {
-                    "tier": any(i.get('itemLevel') or i.get('difficulty') or i.get('upgradeTrack') for i in items),
-                    "attributes": any(i.get('statLabel') or i.get('hasSocket') or i.get('tertiaryStats') for i in items),
-                    "petVariant": any(i.get('petSpeciesID') for i in items),
-                },
-                "page": page, "pageSize": page_size, "total": total,
-                "totalPages": (total + page_size - 1) // page_size, "items": items}
+            }
 
     def history(self, *, market_key: str, scan_id: int | None = None) -> dict:
         scan, _ = self.require_market(scan_id, market_key)

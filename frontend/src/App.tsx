@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select } from "./components/Select";
 import { WowheadLink } from "./components/WowheadLink";
@@ -15,7 +15,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { fetchItemComparison, fetchItemHistory, fetchItemListings, fetchMarketCatalog, fetchMarketItems, fetchMarketStatus, getIconProxyUrl } from "./lib/api";
+import { fetchItemHistory, fetchItemListings, fetchMarketCatalog, fetchMarketItems, fetchMarketStatus, getIconProxyUrl } from "./lib/api";
 import iconMap from "./generated/icon-map.json";
 import localIconMap from "./generated/local-icon-map.json";
 import {
@@ -267,7 +267,6 @@ export function App() {
             error={itemsQuery.error}
             hasSearch={Boolean(query.q || query.collection)}
             hasFilters={equipmentFilterLabels(query).length > 0}
-            equipmentView={query.collection === "raid_boe_12_1"}
             onSelect={(item) => { if (!itemsQuery.isFetching) setSelectedItem(item); }}
             onRetry={() => itemsQuery.refetch()}
             onClearSearch={() => {
@@ -302,7 +301,7 @@ export function App() {
         </div>
       </footer>
 
-      {selectedItem && <ItemDetails key={`${selectedItem.marketKey}:${selectedItem.scanId}`} item={selectedItem} onClose={() => setSelectedItem(null)} onSelect={setSelectedItem} />}
+      {selectedItem && <ItemDetails key={`${selectedItem.marketKey}:${selectedItem.scanId}`} item={selectedItem} initialScope={{ market: query.market || "", scanId: query.scanId }} onClose={() => setSelectedItem(null)} />}
     </div>
   );
 }
@@ -380,7 +379,6 @@ function MarketTable({
   error,
   hasSearch,
   hasFilters = false,
-  equipmentView = false,
   onSelect,
   onRetry,
   onClearSearch,
@@ -391,13 +389,10 @@ function MarketTable({
   error: Error | null;
   hasSearch: boolean;
   hasFilters?: boolean;
-  equipmentView?: boolean;
   onSelect: (item: MarketItem) => void;
   onRetry: () => void;
   onClearSearch: () => void;
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  useEffect(() => setExpanded(new Set()), [items]);
   if (isLoading) return <PanelState kind="loading" title="正在加载市场数据" message="正在读取最新快照中的物品…" />;
   if (error) return <PanelState kind="error" title="无法加载物品列表" message={error.message} action="重新加载" onAction={onRetry} />;
   if (!items.length) {
@@ -431,18 +426,9 @@ function MarketTable({
           {items.map((item) => {
             const key = `${item.marketKey}:${item.regionID}:${item.scanId}`;
             const multiple = (item.marketGroup?.marketCount ?? 0) > 1;
-            const showsQuotes = Boolean(item.marketGroup) && (equipmentView || Boolean(item.difficulty));
-            const open = expanded.has(key);
-            const panelId = `quotes-${item.scanId}-${encodeURIComponent(item.marketKey)}`;
-            const actionLabel = showsQuotes ? (open ? "收起报价" : "各服报价") : "查看挂单";
-            const activate = () => {
-              if (isFetching) return;
-              if (!showsQuotes) { onSelect(item); return; }
-              setExpanded(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; });
-            };
-            return <Fragment key={key}><tr className="market-item-row" tabIndex={isFetching ? -1 : 0}
-              aria-label={`${item.name}，${actionLabel}`} aria-disabled={isFetching || undefined}
-              aria-expanded={showsQuotes ? open : undefined} aria-controls={showsQuotes && open ? panelId : undefined}
+            const activate = () => { if (!isFetching) onSelect(item); };
+            return <tr key={key} className="market-item-row" tabIndex={isFetching ? -1 : 0}
+              aria-label={`${item.name}，查看挂单`} aria-disabled={isFetching || undefined}
               onClick={event => {
                 if ((event.target as Element).closest('a, button, input, select, textarea, summary, [role="button"], [role="combobox"]')) return;
                 const selection = window.getSelection();
@@ -490,34 +476,14 @@ function MarketTable({
               <td data-label={grouped ? "挂单合计" : "挂单"} className="number-cell count">{formatInteger(item.marketGroup?.listingCount ?? item.listingCount)}</td>
               <td data-label={grouped ? "数量合计" : "总数量"} className="number-cell count">{formatInteger(item.marketGroup?.totalQuantity ?? item.totalQuantity)}</td>
               <td className="action-cell">
-                <button type="button" disabled={isFetching} aria-expanded={showsQuotes ? open : undefined}
-                  aria-controls={showsQuotes && open ? panelId : undefined} onClick={activate}>{actionLabel}</button>
+                <button type="button" disabled={isFetching} onClick={activate}>查看挂单</button>
               </td>
-            </tr>
-            {showsQuotes && open && <tr className="market-quotes-row"><td className="market-quotes-cell" colSpan={showsDifficulty ? 7 : 6}>
-              <div id={panelId} className="inline-market-quotes"><RealmQuotePanel item={item} onSelect={onSelect} /></div>
-            </td></tr>}</Fragment>;
+            </tr>;
           })}
         </tbody>
       </table>
     </div>
   );
-}
-
-function RealmQuotePanel({ item, onSelect }: { item: MarketItem; onSelect: (item: MarketItem) => void }) {
-  const query = useQuery({
-    queryKey: ["item-comparison", item.regionID, item.marketKey, item.variantFilters],
-    queryFn: ({ signal }) => fetchItemComparison(item, signal), staleTime: 60_000, retry: false,
-  });
-  return <>
-    <p className="quote-scope-note">各服采集时间可能不同；沿用当前装备筛选，点击报价查看该服挂单。</p>
-    {query.isLoading && <p role="status">正在读取各服报价…</p>}
-    {query.isError && <button type="button" className="equipment-filter-reset" onClick={() => query.refetch()}>报价读取失败，重试</button>}
-    {query.data?.items.map(row => <button type="button" className="comparison-row" key={row.scanId} disabled={!row.listingCount} onClick={() => onSelect(row)}>
-      <span>{row.realm}<small title={formatDate(row.scannedAt)}>{formatShortDate(row.scannedAt)}</small></span>
-      <Money value={row.minUnitPrice} /><span>{row.listingCount ? `${formatInteger(row.listingCount)} 条挂单` : '无匹配挂单'}</span>
-    </button>)}
-  </>;
 }
 
 function MarketScopeBadge({ scope, realm }: { scope: MarketItem["marketScope"]; realm?: string | null }) {
@@ -602,34 +568,56 @@ function paginationTokens(current: number, pages: number): Array<number | "…">
   return result;
 }
 
-function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: () => void; onSelect: (item: MarketItem) => void }) {
+function ItemDetails({ item: originalItem, initialScope, onClose }: { item: MarketItem; initialScope: { market: string; scanId?: number }; onClose: () => void }) {
   const backdropPress = useRef(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [pageDraft, setPageDraft] = useState("1");
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"listings" | "history">("listings");
+  const tabsId = useId();
+  const detailQueryClient = useQueryClient();
   const contentRef = useRef<HTMLDivElement>(null);
   const listingsHeadingRef = useRef<HTMLDivElement>(null);
   const [historyDays, setHistoryDays] = useState(0);
-  const [comparisonOpen, setComparisonOpen] = useState(false);
-  const comparisonQuery = useQuery({
-    queryKey: ["item-comparison", item.regionID, item.marketKey, item.variantFilters],
-    queryFn: ({ signal }) => fetchItemComparison(item, signal), enabled: comparisonOpen, staleTime: 60_000, retry: false,
-  });
+  const historyCatalog = useQuery({ queryKey: ["market-catalog"], queryFn: fetchMarketCatalog });
+  const [detailMarket, setDetailMarket] = useState(initialScope.market || (originalItem.marketScope === "realm" ? "" : `${originalItem.regionID}:${originalItem.realmID}`));
+  const [detailScanId, setDetailScanId] = useState(initialScope.scanId);
+  const [detailFilters, setDetailFilters] = useState({ ...EMPTY_EQUIPMENT_FILTERS, ...originalItem.variantFilters,
+    difficulty: originalItem.variantFilters?.difficulty || (originalItem.statCombinationCount !== undefined && originalItem.itemContext ? String(originalItem.itemContext) : "") });
+  const detailMarketOption = historyCatalog.data?.realms.find(r => r.key === detailMarket);
+  const detailScan = detailMarketOption?.scans.find(s => s.scanId === (detailScanId ?? detailMarketOption.latestScanId));
+  const allMarkets = !detailMarket && originalItem.marketScope === "realm";
+  const scopeReady = !detailMarket || Boolean(detailScan);
+  const item: MarketItem = { ...originalItem, detailAllMarkets: allMarkets, detailHistorical: Boolean(detailScanId),
+    scanId: detailScan?.scanId ?? originalItem.scanId,
+    realm: detailMarketOption?.realm ?? originalItem.realm, realmID: detailMarketOption?.realmID ?? originalItem.realmID,
+    scannedAt: detailScan?.scannedAt ?? originalItem.scannedAt,
+    scannedAtUnix: detailScan?.scannedAtUnix ?? originalItem.scannedAtUnix,
+    variantFilters: originalItem.statCombinationCount !== undefined ? detailFilters : originalItem.variantFilters };
+  const listingsScopeKey = JSON.stringify([item.marketKey, item.scanId, allMarkets, item.variantFilters]);
+  const [historyRealmPage, setHistoryRealmPage] = useState(1);
+  const [historyRealmId, setHistoryRealmId] = useState<number | undefined>(undefined);
   const historyQuery = useQuery({
-    queryKey: ["item-history", item.regionID, item.realmID, item.scanId, item.marketKey, item.variantFilters, historyDays],
-    queryFn: ({ signal }) => fetchItemHistory(item, signal, historyDays ? item.scannedAtUnix - historyDays * 86400 : undefined),
-    enabled: historyOpen,
+    queryKey: ["item-history", item.regionID, item.realmID, item.scanId, item.marketKey, item.variantFilters, historyDays, allMarkets, historyRealmPage, historyRealmId],
+    queryFn: ({ signal }) => fetchItemHistory(item, signal, undefined, historyRealmPage, historyDays, historyRealmId),
+    enabled: activeTab === "history" && scopeReady,
     staleTime: 60_000,
     retry: false,
   });
   const listingsQuery = useQuery({
-    queryKey: ["item-listings", item.marketKey, item.scanId, item.variantFilters, page, pageSize],
+    queryKey: ["item-listings", listingsScopeKey, page, pageSize],
     queryFn: ({ signal }) => fetchItemListings(item, page, pageSize, signal),
-    placeholderData: (previous) => previous,
+    placeholderData: (previous, previousQuery) => previousQuery?.queryKey[1] === listingsScopeKey ? previous : undefined,
+    enabled: scopeReady,
     staleTime: 60_000,
     retry: false,
   });
+
+  function selectTab(tab: "listings" | "history") {
+    setActiveTab(tab);
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    if (tab === "listings") void detailQueryClient.cancelQueries({ queryKey: ["item-history", item.regionID, item.realmID, item.scanId, item.marketKey] });
+  }
 
   function changePage(nextPage: number) {
     setPage(nextPage);
@@ -686,53 +674,83 @@ function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: (
               <small>
                 ID {item.itemID}
                 {item.difficulty ? ` · ${item.difficulty}` : ""}
-                {item.marketScope === "realm" && item.realm ? ` · ${item.realm}` : ""}
+                {item.marketScope === "realm" && item.realm ? ` · ${activeTab === "history" && historyRealmId ? historyCatalog.data?.realms.find(r => r.realmID === historyRealmId && r.regionID === item.regionID)?.realm || "所选服务器" : allMarkets ? "全部服务器" : item.realm}` : ""}
                 {item.petVariantKey
                   ? ` · ${item.petBreedCode || "未知 Breed"}${item.petBreedLabel ? ` ${item.petBreedLabel}` : ""} · ${item.petLevel}级 · ${item.petQualityLabel || "未知品质"}`
                   : ""}
-                {` · ${formatInteger(item.listingCount)} 条挂单`}
+                {activeTab === "history" ? " · 历史趋势" : listingsQuery.isLoading ? " · 正在读取挂单…" : data ? ` · ${formatInteger(data.total)} 条挂单` : ""}
               </small>
               <div className="details-market-context" aria-label="当前挂单数据范围">
-                <span><Database size={13} />{item.marketScope === "region" ? `${item.region || "区域"}共享市场` : item.realm || "服务器未知"}</span>
-                <span><Clock3 size={13} />数据时间 {formatDate(item.scannedAt)}</span>
+                <span><Database size={13} />{item.marketScope === "region" ? `${item.region || "区域"}共享市场` : activeTab === "history" ? "服务器与时间可在下方选择" : allMarkets ? "各服务器最新快照" : item.realm || "服务器未知"}</span>
+                <span><Clock3 size={13} />{activeTab === "history" ? `历史截至 ${formatDate(historyQuery.data?.historyScope?.asOf || item.scannedAt)}` : allMarkets ? "采集时间见各条挂单" : `数据时间 ${formatDate(item.scannedAt)}`}</span>
               </div>
             </div>
           </div>
           <button className="icon-button" type="button" onClick={onClose} aria-label="关闭挂单详情"><X size={19} /></button>
         </header>
 
+        <div className="details-tabs" role="tablist" aria-label="物品详情视图">
+          {([['listings', '当前报价'], ['history', '历史趋势']] as const).map(([tab, label], index) => (
+            <button key={tab} id={`${tabsId}-${tab}-tab`} role="tab" aria-selected={activeTab === tab}
+              aria-controls={`${tabsId}-${tab}-panel`} tabIndex={activeTab === tab ? 0 : -1}
+              onClick={() => selectTab(tab)} onKeyDown={event => {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                event.preventDefault();
+                const next = event.key === "Home" ? 0 : event.key === "End" ? 1 : 1-index;
+                selectTab(next === 0 ? "listings" : "history");
+                (event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next])?.focus();
+              }}>{label}</button>
+          ))}
+        </div>
         <div className="details-content" ref={contentRef}>
+          {historyCatalog.isError && !historyCatalog.data && <p className="market-data-warning" role="alert">服务器列表读取失败。<button onClick={() => historyCatalog.refetch()}>重试</button></p>}
           {item.variantFilters && <div className="equipment-detail-note">
             <strong>挂单筛选：{equipmentFilterLabels(item.variantFilters).join(" · ")}</strong>
           </div>}
-          {item.marketScope === "realm" && <details className="history-disclosure" open={comparisonOpen} onToggle={event => setComparisonOpen(event.currentTarget.open)}>
-            <summary>各服最新报价<ChevronRight size={16} aria-hidden="true" /></summary>
-            {comparisonOpen && <div className="market-comparison">
-              <p className="history-scope-note">同物品与档位，沿用当前属性筛选；未筛选的变体合并统计。各服采集时间可能不同。</p>
-              {comparisonQuery.isLoading && <p role="status">正在读取各服报价…</p>}
-              {comparisonQuery.isError && <button onClick={() => comparisonQuery.refetch()}>比价读取失败，重试</button>}
-              {comparisonQuery.data?.items.map(row => <button className="comparison-row" key={row.scanId} disabled={!row.listingCount} onClick={() => onSelect(row)}>
-                <span>{row.realm}<small>{formatShortDate(row.scannedAt)}</small></span>
-                <Money value={row.minUnitPrice} /><span>{row.listingCount ? `${formatInteger(row.listingCount)} 条挂单` : '无匹配挂单'}</span>
-              </button>)}
-            </div>}
-          </details>}
-          <details className="history-disclosure" open={historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}>
-            <summary>历史价格<ChevronRight size={16} aria-hidden="true" /></summary>
-            {historyOpen && <>
-              <div className="history-range-control"><Select label="历史时间范围" prefix="时间" appearance="filter" value={historyDays}
+          {activeTab === "history" && <section role="tabpanel" id={`${tabsId}-history-panel`} aria-labelledby={`${tabsId}-history-tab`}>
+              <div className="history-range-control">
+                {item.marketScope === "realm" && <Select label="历史服务器" prefix="服务器" appearance="filter" value={historyRealmId ?? 0}
+                  options={[{ value: 0, label: allMarkets ? "全部服务器" : item.realm || "当前服务器" },
+                    ...(historyCatalog.data?.realms ?? []).filter(r => r.regionID === item.regionID && r.realmID > 0).map(r => ({ value: r.realmID, label: r.realm }))]}
+                  onChange={value => { setHistoryRealmId(value || undefined); setHistoryRealmPage(1); }} />}
+                <Select label="历史时间范围" prefix="时间" appearance="filter" value={historyDays}
                 options={[{ value: 0, label: "全部历史" }, { value: 7, label: "近 7 天" }, { value: 30, label: "近 30 天" }, { value: 90, label: "近 90 天" }]}
-                onChange={setHistoryDays} /><span>截至当前快照</span></div>
+                onChange={value => { setHistoryDays(value); setHistoryRealmPage(1); }} /><span>{historyRealmId ? "单服采集历史" : allMarkets ? "各服采集历史" : "截至当前快照"}</span></div>
               <p className="history-scope-note">{item.variantFilters ? "沿用当前装备筛选。" : "同物品与档位的全部变体。"}仅显示实际采集记录，无挂单或无一口价处断线；未采集时段行情未知。</p>
+              {historyQuery.data?.historyScope && <p className="history-scope-note">展示 {historyQuery.data.points.length} / {historyQuery.data.pointCount} 条观测，最多 60 条；每服优先保留最新采集。
+                {historyQuery.data.historyScope.missingRealms.length > 0 && ` ${historyQuery.data.historyScope.missingRealms.join("、")}在该时间范围无采集。`}
+              </p>}
+              {(historyQuery.data?.historyScope?.realmPages ?? 1) > 1 && <div className="history-realm-pages">
+                <button disabled={historyRealmPage <= 1 || historyQuery.isFetching} onClick={() => setHistoryRealmPage(p => p-1)}>上一组服务器</button>
+                <span>{historyRealmPage} / {historyQuery.data!.historyScope!.realmPages}</span>
+                <button disabled={historyRealmPage >= historyQuery.data!.historyScope!.realmPages || historyQuery.isFetching} onClick={() => setHistoryRealmPage(p => p+1)}>下一组服务器</button>
+              </div>}
               <HistoryPanel data={historyQuery.data} isLoading={historyQuery.isLoading} error={historyQuery.error}
                 onRetry={() => historyQuery.refetch()} />
-            </>}
-          </details>
+          </section>}
+          {activeTab === "listings" && <section role="tabpanel" id={`${tabsId}-listings-panel`} aria-labelledby={`${tabsId}-listings-tab`}>
+          <div className="detail-scope-controls" aria-label="当前报价范围">
+            <Select label="报价服务器" prefix="市场" appearance="filter" value={detailMarket}
+              options={[...(originalItem.marketScope === "realm" ? [{ value: "", label: "全部服务器" }] : []),
+                ...(historyCatalog.data?.realms ?? []).filter(r => r.regionID === item.regionID && (originalItem.marketScope === "region" ? r.realmID === 0 : r.realmID > 0)).map(r => ({ value: r.key, label: r.realmID === 0 ? "区域共享市场" : r.realm }))]}
+              onChange={value => { setDetailMarket(value); setDetailScanId(undefined); setPage(1); setPageDraft("1"); setHistoryRealmPage(1); }} />
+            {detailMarketOption ? <Select label="报价快照" prefix="快照" appearance="filter" value={detailScanId ?? 0}
+              options={[{ value: 0, label: "最新快照" }, ...detailMarketOption.scans.map(scan => ({ value: scan.scanId, label: formatDate(scan.scannedAt) }))]}
+              onChange={value => { setDetailScanId(value || undefined); setPage(1); setPageDraft("1"); setHistoryRealmPage(1); }} />
+              : <span>各服最新快照</span>}
+          </div>
+          {originalItem.statCombinationCount !== undefined && <div className="detail-variant-controls" aria-label="详情装备筛选">
+            {([['stats', '属性变体', '属性', STAT_OPTIONS], ['socket', '棱彩插槽', '插槽', SOCKET_OPTIONS], ['tertiary', '额外第三属性', '额外', TERTIARY_OPTIONS]] as const).map(([key, label, prefix, options]) => (
+              <Select key={key} label={`详情${label}`} prefix={prefix} appearance="filter" value={detailFilters[key] || ""} options={options}
+                onChange={value => { setDetailFilters(current => ({ ...current, [key]: value })); setPage(1); setPageDraft("1"); setHistoryRealmPage(1); }} />
+            ))}
+          </div>}
+          {!scopeReady && historyCatalog.data && <p className="market-data-warning" role="alert">所选快照已移除，请选择最新快照。</p>}
           <div className="details-section-heading" ref={listingsHeadingRef}>
             <div>
-              <h3>快照挂单</h3>
+              <h3>{allMarkets ? "各服最新挂单" : "快照挂单"}</h3>
               <p>
-                按{item.marketScope === "realm" && item.realm ? item.realm : "区域共享"}当前快照的单位价格排列
+                {allMarkets ? "各服最新快照 · 单价从低到高" : `${item.marketScope === "realm" && item.realm ? item.realm : "区域共享"}所选快照 · 单价从低到高`}
                 {item.difficulty
                   ? ` · 仅显示${item.difficulty}档`
                   : listingFeatureLabels.length
@@ -748,11 +766,12 @@ function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: (
           {listingsQuery.error && <PanelState kind="error" title="无法加载挂单" message={listingsQuery.error.message} action="重试" onAction={() => listingsQuery.refetch()} />}
           {data && <div className={listingsQuery.isFetching ? "listing-results is-refreshing" : "listing-results"}
             aria-busy={listingsQuery.isFetching}>
-            <ListingsTable listings={data.items} displayColumns={displayColumns} />
+            <ListingsTable listings={data.items} displayColumns={displayColumns} allMarkets={allMarkets} />
           </div>}
+          </section>}
         </div>
 
-        <footer className="listing-pagination" aria-label="挂单分页">
+        {activeTab === "listings" && <footer className="listing-pagination" aria-label="挂单分页">
           <p role="status" aria-live="polite">{listingsQuery.isFetching ? `正在加载第 ${page} 页…`
             : data ? data.total ? `显示 ${formatInteger((data.page - 1) * data.pageSize + 1)}–${formatInteger((data.page - 1) * data.pageSize + data.items.length)}，共 ${formatInteger(data.total)} 条`
               : "没有匹配挂单" : "正在读取…"}</p>
@@ -774,7 +793,7 @@ function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: (
               <button type="submit" disabled={!data?.total || listingsQuery.isFetching}>跳转</button>
             </form>
           </div>
-        </footer>
+        </footer>}
       </section>
     </div>
   );
@@ -814,7 +833,7 @@ function HistoryPanel({
           <p className="eyebrow">PRICE HISTORY</p>
           <h3 id="history-title">最低单价趋势</h3>
           <span>
-            {data.pointCount} 个时间点
+            {data.points.length} 个时间点
             {isRealmMarket ? ` · ${realmSeries.length} 个服务器` : " · 区域共享"}
             {` · ${formatShortDate(data.points[0].scannedAt)} 至 ${formatShortDate(data.points.at(-1)?.scannedAt)}`}
           </span>
@@ -822,14 +841,14 @@ function HistoryPanel({
         {!isRealmMarket && <ChangeBadge change={data.change.minUnitPrice} />}
       </div>
 
-      <div className="history-layout">
+      <div className={`history-layout ${isRealmMarket && realmSeries.length > 1 ? "realm-history-layout" : ""}`}>
         <PriceChart data={data} />
         {isRealmMarket ? (
           <div className="history-metrics realm-history-metrics">
             {realmSeries.map((series) => {
               const first = series.points[0];
               const latest = series.points.at(-1)!;
-              const change = first.minUnitPrice != null && latest.minUnitPrice != null
+              const change = series.points.length > 1 && first.minUnitPrice != null && latest.minUnitPrice != null
                 ? {
                     previous: first.minUnitPrice,
                     current: latest.minUnitPrice,
@@ -837,14 +856,14 @@ function HistoryPanel({
                     percent: first.minUnitPrice === 0 ? null : ((latest.minUnitPrice - first.minUnitPrice) / first.minUnitPrice) * 100,
                   }
                 : null;
-              return <HistoryMetric key={series.key} label={series.name} change={change} format="money" />;
+              return <HistoryMetric key={series.key} label={series.name} change={change} current={latest.minUnitPrice} format="money" />;
             })}
           </div>
         ) : (
           <div className="history-metrics">
-          <HistoryMetric label="最新最低单价" change={data.change.minUnitPrice} format="money" />
-            <HistoryMetric label="库存变化" change={data.change.totalQuantity} format="number" />
-            <HistoryMetric label="挂单变化" change={data.change.listingCount} format="number" />
+            <HistoryMetric label="最新最低单价" change={data.change.minUnitPrice} current={data.points.at(-1)?.minUnitPrice} format="money" />
+            <HistoryMetric label="库存变化" change={data.change.totalQuantity} current={data.points.at(-1)?.totalQuantity} format="number" />
+            <HistoryMetric label="挂单变化" change={data.change.listingCount} current={data.points.at(-1)?.listingCount} format="number" />
           </div>
         )}
       </div>
@@ -957,7 +976,7 @@ function PriceChart({ data }: { data: ItemHistoryResponse }) {
   };
   const step = (offset: number) => setSelectedScan(coordinates[Math.max(0, Math.min(coordinates.length - 1, selectedIndex + offset))].point.scanId);
   const priceLabel = (value: number) => value >= 10000
-    ? `${new Intl.NumberFormat("zh-CN", { notation: value >= 100_000_000 ? "compact" : "standard", maximumFractionDigits: value >= 1_000_000 ? 0 : 2 }).format(value / 10000)}金`
+    ? `${new Intl.NumberFormat("zh-CN", { notation: value >= 100_000_000 ? "compact" : "standard", maximumFractionDigits: value >= 100_000_000 ? 1 : value >= 1_000_000 ? 0 : 2 }).format(value / 10000)}金`
     : value >= 100 ? `${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value / 100)}银` : `${Math.round(value)}铜`;
 
   return (
@@ -1035,12 +1054,14 @@ function HistoryMetric({
   label,
   change,
   format,
+  current,
 }: {
   label: string;
   change: HistoryMetricChange | null;
   format: "money" | "number";
+  current?: number | null;
 }) {
-  if (!change) return <div className="history-metric"><span>{label}</span><strong>暂无数据</strong></div>;
+  if (!change) return <div className="history-metric"><span>{label}</span><strong>{current != null ? format === "money" ? <Money value={current} /> : formatInteger(current) : "暂无报价"}</strong>{current != null && <small>暂无对比</small>}</div>;
   const isUp = change.absolute > 0;
   const isDown = change.absolute < 0;
   return (
@@ -1078,7 +1099,9 @@ function compactCopper(value: number): string {
 function ListingsTable({
   listings,
   displayColumns,
+  allMarkets = false,
 }: {
+  allMarkets?: boolean;
   listings: AuctionListing[];
   displayColumns: { tier: boolean; attributes: boolean; petVariant: boolean };
 }) {
@@ -1088,6 +1111,7 @@ function ListingsTable({
     <div className="table-wrap">
       <table className={`listing-table variants-${variantColumnCount}`}>
         <thead><tr>
+          {allMarkets && <th>服务器 / 采集时间</th>}
           <th>数量</th>
           <th className="number-cell listing-unit-price">单位价格</th>
           {displayColumns.tier && <th>档位</th>}
@@ -1106,6 +1130,7 @@ function ListingsTable({
                 : null,
             ].filter((detail): detail is string => Boolean(detail));
             return <tr key={`${listing.itemID}-${index}`}>
+              {allMarkets && <td className="listing-origin"><strong>{listing.realm || "未知服务器"}</strong><time dateTime={listing.scannedAt} title={formatDate(listing.scannedAt)}>{formatShortDate(listing.scannedAt)}</time></td>}
               <td className="count">{formatInteger(listing.quantity)}</td>
               <td className="number-cell listing-unit-price"><Money value={listing.unitPrice} /></td>
               {displayColumns.tier && <td>

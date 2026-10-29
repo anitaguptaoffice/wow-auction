@@ -107,10 +107,12 @@ def items(request: Request, scan_id: int | None = Query(None, ge=1),
 @app.get("/api/market/listings")
 def listings(request: Request, market_key: str = Query(..., max_length=512),
              scan_id: int | None = Query(None, ge=1),
+             all_markets: bool = False,
              difficulty: str = Query('', max_length=1), stats: str = Query('', max_length=5),
              socket: str = Query('', max_length=3), tertiary: str = Query('', max_length=20),
              page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=100)):
-    return call(request, "listings", market_key=market_key, scan_id=scan_id,
+    params = dict(all_markets=all_markets) if isinstance(request.app.state.store, UnifiedMarketStore) else {}
+    return call(request, "listings", market_key=market_key, scan_id=scan_id, **params,
                 page=page, page_size=page_size, difficulty=difficulty, stats=stats, socket=socket, tertiary=tertiary,
                 public_only=True)
 
@@ -118,19 +120,31 @@ def listings(request: Request, market_key: str = Query(..., max_length=512),
 @app.get("/api/market/history")
 def history(request: Request, market_key: str = Query(..., max_length=512),
             scan_id: int | None = Query(None, ge=1)):
+    if isinstance(request.app.state.store, UnifiedMarketStore):
+        result = call(request, 'public_history', market_key=market_key, scan_id=scan_id, max_points=60)
+        return dict(marketKey=market_key, realmID=result['realmID'], regionID=result['regionID'],
+                    points=[dict(scan_id=p['scanId'], timestamp=p['scannedAtUnix'],
+                        realm_id=p['realmID'], region_id=p['regionID'], source_scan_id=p['scanId']//2,
+                        source_realm=request.app.state.store.scans[p['scanId']]['source_realm_name'],
+                        state=p['state'], min_buyout=p['minBuyout'], variant_count=p['variantCount'],
+                        min_unit_price=p['minUnitPrice'], total_quantity=p['totalQuantity'],
+                        listing_count=p['listingCount']) for p in result['points']])
     return call(request, "history", market_key=market_key, scan_id=scan_id)
 
 
 @app.get("/api/market/history/view")
 def public_history(request: Request, market_key: str = Query(..., max_length=512),
                    scan_id: int = Query(..., ge=1), start: int | None = Query(None, ge=0),
-                   end: int | None = Query(None, ge=0), max_points: int = Query(400, ge=8, le=2000),
+                   end: int | None = Query(None, ge=0), max_points: int = Query(60, ge=1, le=2000),
+                   all_markets: bool = False, realm_page: int = Query(1, ge=1), days: int = 0,
+                   history_realm_id: int | None = Query(None, ge=1),
                    difficulty: str = '', stats: str = '', socket: str = '', tertiary: str = ''):
     params = dict(market_key=market_key, scan_id=scan_id)
     if isinstance(request.app.state.store, UnifiedMarketStore):
         interval = int(os.getenv('COMPACT_EXPECTED_INTERVAL_SECONDS', '0'))
         params.update(start=start, end=end, max_points=max_points, gap_seconds=interval * 1.5,
-                      difficulty=difficulty, stats=stats, socket=socket, tertiary=tertiary)
+                      difficulty=difficulty, stats=stats, socket=socket, tertiary=tertiary,
+                      all_markets=all_markets, realm_page=realm_page, days=days, history_realm_id=history_realm_id)
     return call(request, "public_history", **params)
 
 

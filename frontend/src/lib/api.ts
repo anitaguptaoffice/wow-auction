@@ -113,6 +113,7 @@ export function fetchItemListings(
       page,
       page_size: pageSize,
       scan_id: item.scanId,
+      all_markets: (item.detailAllMarkets ?? Boolean(item.marketGroup)) && item.marketScope === "realm",
       ...item.variantFilters,
     },
     signal,
@@ -124,7 +125,7 @@ export function fetchItemComparison(item: MarketItem, signal?: AbortSignal): Pro
   return requestJson("/market/compare", { market_key: item.marketKey, scan_id: item.scanId, ...item.variantFilters }, signal);
 }
 
-export function fetchItemHistory(item: MarketItem, signal?: AbortSignal, start?: number): Promise<ItemHistoryResponse> {
+export function fetchItemHistory(item: MarketItem, signal?: AbortSignal, start?: number, realmPage = 1, days = 0, historyRealmId?: number): Promise<ItemHistoryResponse> {
   if (useMockData) return mockHistory(item);
   return requestJson<ItemHistoryResponse>(
     "/market/history/view",
@@ -134,7 +135,11 @@ export function fetchItemHistory(item: MarketItem, signal?: AbortSignal, start?:
       pet_variant_key: item.petVariantKey,
       scan_id: item.scanId,
       start,
-      max_points: 400,
+      max_points: 60,
+      all_markets: ((item.detailAllMarkets ?? Boolean(item.marketGroup)) || (historyRealmId !== undefined && !item.detailHistorical)) && item.marketScope === "realm",
+      realm_page: realmPage,
+      history_realm_id: historyRealmId,
+      days,
       ...item.variantFilters,
     },
     signal,

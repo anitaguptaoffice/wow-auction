@@ -60,6 +60,8 @@ export interface MarketCatalog {
 }
 
 export interface MarketItem {
+  detailAllMarkets?: boolean;
+  detailHistorical?: boolean;
   marketGroup?: {
     marketCount: number;
     listingCount: number;
@@ -118,6 +120,10 @@ export interface MarketItemsResponse {
 }
 
 export interface AuctionListing {
+  scanId?: number;
+  realm?: string;
+  realmID?: number;
+  scannedAt?: string;
   itemID: number;
   name: string;
   quality: number | null;
@@ -154,7 +160,8 @@ export interface AuctionListing {
 }
 
 export interface ItemListingsResponse {
-  scanId: number;
+  scanId: number | null;
+  allMarkets?: boolean;
   itemID: number;
   battlePetCreatureID: number | null;
   petVariantKey?: string | null;
@@ -203,6 +210,8 @@ export interface ItemHistoryPoint {
 }
 
 export interface ItemHistoryResponse {
+  historyScope?: { allMarkets: boolean; maxPoints: number; returnedPoints: number; sampled: boolean;
+    realmTotal: number; realmPage: number; realmPages: number; missingRealms: string[]; asOf: string };
   itemID: number;
   battlePetCreatureID: number | null;
   petVariantKey?: string | null;

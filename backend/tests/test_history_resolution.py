@@ -44,6 +44,7 @@ class HistoryResolutionTest(unittest.TestCase):
                 self.assertEqual([p['state'] for p in result['points']], ['observed', 'absent', 'observed'])
                 self.assertIsNone(result['points'][1]['minUnitPrice'])
                 self.assertTrue(result['points'][2]['breakBefore'])
+                self.assertEqual(store.listings(scan_id=4, market_key=item['marketKey'])['total'],0)
                 self.assertIsNone(result['change']['minUnitPrice'])
                 self.assertEqual(store.public_history(scan_id=6, market_key=item['marketKey'], start=1700003600)['pointCount'], 2)
                 with self.assertRaises(ValueError):

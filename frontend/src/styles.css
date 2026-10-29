@@ -223,7 +223,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .market-scope-controls .ui-select-trigger { min-width: 0; max-width: 100%; }
 .market-scope-controls .ui-select-value { overflow: hidden; text-overflow: ellipsis; }
 .item-observed-at { display: block; margin-top: 3px; }
-.history-range-control { display: flex; padding: 0 20px; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+.history-range-control { display: flex; flex-wrap: wrap; padding: 0 20px; align-items: center; gap: 6px 12px; color: var(--muted); font-size: 12px; }
 .history-range-control .ui-select { width: 170px; }
 .market-comparison { padding: 0 20px 12px; }
 .market-comparison .history-scope-note { padding-inline: 0; }
@@ -400,6 +400,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .details-dialog > header { display: flex; padding: 18px 20px; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--line); }
+.details-tabs { display: flex; flex-shrink: 0; padding: 6px 18px 0; gap: 8px; border-bottom: 1px solid var(--line-strong); background: var(--surface-muted); }
+.details-tabs [role="tab"] { min-height: 44px; padding: 8px 18px; margin-bottom: -1px; border: 1px solid transparent; border-radius: 5px 5px 0 0; color: var(--muted); background: transparent; font-size: 13px; }
+.details-tabs [role="tab"][aria-selected="true"] { border-color: var(--line-strong); border-bottom-color: var(--surface-solid); color: var(--gold-text); background: var(--surface-solid); font-weight: 700; }
+.details-tabs [role="tab"]:hover { color: var(--text); }
+.details-content > [role="tabpanel"] { padding-top: 10px; }
+.detail-scope-controls { display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 230px); gap: 8px; align-items: center; padding: 0 18px 6px; }
+.detail-scope-controls > span { padding: 8px; color: var(--muted); font-size: 12px; }
+.detail-variant-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 160px)); gap: 4px; padding: 0 18px 6px; }
+.detail-scope-controls .ui-select-trigger, .detail-variant-controls .ui-select-trigger { min-width: 0; }
 .details-dialog h2 { margin: 0; font-family: Georgia, "STSong", serif; font-size: 20px; }
 .details-dialog .eyebrow { margin-bottom: 1px; font-size: 8px; }
 .details-content { min-height: 320px; overflow: auto; }
@@ -408,6 +417,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .listing-table.variants-1 { min-width: 760px; }
 .listing-table th:first-child, .listing-table td:first-child { width: 60px; }
 .listing-table .listing-unit-price { width: 150px; }
+.listing-table .listing-origin { min-width: 125px; }
+.listing-origin strong, .listing-origin time { display: block; white-space: nowrap; }
+.listing-origin time { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.history-realm-pages { display: flex; padding: 0 20px 12px; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.history-realm-pages button { min-height: 44px; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--text); background: var(--control-bg); }
 .listing-scroll-hint { display: none !important; }
 .variant-tier strong, .variant-tier small, .variant-stats strong, .variant-stats small, .pet-variant strong, .pet-variant small { display: block; white-space: nowrap; }
 .variant-tier strong { color: var(--success); font-size: 11px; }
@@ -448,7 +462,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .history-heading .eyebrow { margin-bottom: 2px; }
 .history-heading h3, .details-section-heading h3 { margin: 0; font-family: Georgia, "STSong", serif; font-size: 17px; }
 .history-heading > div > span, .details-section-heading p { display: block; margin: 3px 0 0; color: var(--muted); font-size: 9px; }
-.history-layout { display: grid; margin-top: 16px; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; }
+.history-layout { display: grid; align-items: start; margin-top: 16px; grid-template-columns: minmax(0, 1fr) 190px; gap: 16px; }
+.history-layout.realm-history-layout { grid-template-columns: minmax(0, 1fr); }
+.history-metrics.realm-history-metrics { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .price-chart { min-width: 0; padding: 8px 8px 0; border: 1px solid var(--line); border-radius: 4px; color: var(--gold-text); background: var(--surface-solid); }
 .chart-interaction > svg { display: block; width: 100%; height: 202px; overflow: hidden; touch-action: pan-y; }
 .chart-interaction { border-radius: 3px; }
@@ -569,6 +585,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .modal-backdrop { padding: 10px; }
   .details-dialog { max-height: calc(100vh - 20px); }
   .history-layout { grid-template-columns: 1fr; }
+  .history-range-control .ui-select { width: calc((100% - 12px) / 2); }
+  .history-range-control > span { flex-basis: 100%; }
   .history-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .history-metric { padding: 9px; }
   .history-metric small em { display: none; }
