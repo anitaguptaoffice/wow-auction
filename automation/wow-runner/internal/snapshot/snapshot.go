@@ -35,9 +35,14 @@ type Metadata struct {
 // ScanSummary contains the declared summary and the independently counted
 // number of direct record tables in the scan's items table.
 type ScanSummary struct {
-	Timestamp       int64
-	Metadata        Metadata
-	ActualItemCount int64
+	RunID                   string
+	CharacterName           string
+	CharacterGUID           string
+	RealmName               string
+	MarketScopeUnknownCount *int64
+	Timestamp               int64
+	Metadata                Metadata
+	ActualItemCount         int64
 }
 
 // Report is the validated compact representation of a SavedVariables file.

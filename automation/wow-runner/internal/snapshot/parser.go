@@ -18,6 +18,7 @@ const (
 	roleScan
 	roleItems
 	roleItem
+	roleScopes
 )
 
 type metadataBuilder struct {
@@ -37,6 +38,8 @@ const (
 )
 
 type scanBuilder struct {
+	identity      map[string]string
+	unknownScope  *int64
 	metadata      metadataBuilder
 	timestamp     int64
 	timestampSeen bool
@@ -54,6 +57,10 @@ type parser struct {
 	lastScanSeen     bool
 	lastScanTimeSeen bool
 	auctionsSeen     bool
+	onScalar         func(tableRole, string, token) error
+	onItem           func(map[string]any) error
+	onDay            func(string) error
+	item             map[string]any
 }
 
 func newParser(r *bufio.Reader) *parser {
@@ -269,11 +276,39 @@ func (p *parser) parseFieldValue(
 		if err := validateScalar(first); err != nil {
 			return err
 		}
+		if keyed && p.onScalar != nil {
+			if err := p.onScalar(role, key, first); err != nil {
+				return err
+			}
+		}
+		if role == roleItem && p.item != nil {
+			if !keyed {
+				return fmt.Errorf("unkeyed auction field")
+			}
+			if _, exists := p.item[key]; exists {
+				return fmt.Errorf("duplicate auction field %s", key)
+			}
+			value, err := scalarValue(first)
+			if err != nil {
+				return err
+			}
+			p.item[key] = value
+		}
 		return p.recordScalar(role, currentScan, key, keyed, first)
 	}
 
 	child := childRole(role, key, keyed)
+	if role == roleItem && p.item != nil {
+		return fmt.Errorf("nested auction field %s unsupported", key)
+	}
 	switch child {
+	case roleDay:
+		if p.onDay != nil {
+			if err := p.onDay(key); err != nil {
+				return err
+			}
+		}
+		return p.parseTableBody(roleDay, currentScan)
 	case roleLastScan:
 		if p.lastScanSeen {
 			return p.lexer.syntax(first.pos, "duplicate lastScan table")
@@ -310,8 +345,17 @@ func (p *parser) parseFieldValue(
 		if currentScan == nil {
 			return p.lexer.syntax(first.pos, "item record outside a scan")
 		}
+		if p.onItem != nil {
+			p.item = map[string]any{}
+		}
 		if err := p.parseTableBody(roleItem, currentScan); err != nil {
 			return err
+		}
+		if p.onItem != nil {
+			if err := p.onItem(p.item); err != nil {
+				return err
+			}
+			p.item = nil
 		}
 		currentScan.actualItems++
 		return nil
@@ -341,10 +385,39 @@ func childRole(parent tableRole, key string, keyed bool) tableRole {
 		if keyed && key == "items" {
 			return roleItems
 		}
+		if keyed && key == "itemMarketScopes" {
+			return roleScopes
+		}
 	case roleItems:
 		return roleItem
 	}
 	return roleGeneric
+}
+
+func scalarValue(tok token) (any, error) {
+	switch tok.kind {
+	case tokenString:
+		return tok.text, nil
+	case tokenNumber:
+		if value, err := strconv.ParseInt(tok.text, 10, 64); err == nil {
+			return value, nil
+		}
+		value, err := strconv.ParseFloat(tok.text, 64)
+		if err != nil {
+			return nil, err
+		}
+		return value, nil
+	case tokenIdentifier:
+		switch tok.text {
+		case "true":
+			return true, nil
+		case "false":
+			return false, nil
+		case "nil":
+			return nil, nil
+		}
+	}
+	return nil, fmt.Errorf("unsupported auction value")
 }
 
 func requiresTableField(role tableRole, key string, keyed bool) bool {
@@ -407,6 +480,30 @@ func (p *parser) recordScalar(
 		return p.lastMetadata.set(key, tok)
 	}
 	if role != roleScan || currentScan == nil {
+		return nil
+	}
+	switch key {
+	case "runID", "characterName", "characterGUID", "realmName":
+		if tok.kind != tokenString {
+			return fmt.Errorf("%s must be a string", key)
+		}
+		if currentScan.identity == nil {
+			currentScan.identity = map[string]string{}
+		}
+		if _, exists := currentScan.identity[key]; exists {
+			return fmt.Errorf("duplicate %s", key)
+		}
+		currentScan.identity[key] = tok.text
+		return nil
+	case "marketScopeUnknownCount":
+		if currentScan.unknownScope != nil {
+			return fmt.Errorf("duplicate marketScopeUnknownCount")
+		}
+		value, err := integerToken(tok, key)
+		if err != nil || value < 0 {
+			return fmt.Errorf("invalid marketScopeUnknownCount")
+		}
+		currentScan.unknownScope = &value
 		return nil
 	}
 	if key == "timestamp" {
@@ -543,9 +640,14 @@ func finishScan(scan *scanBuilder, index int) (ScanSummary, error) {
 		)
 	}
 	return ScanSummary{
-		Timestamp:       scan.timestamp,
-		Metadata:        metadata,
-		ActualItemCount: scan.actualItems,
+		Timestamp:               scan.timestamp,
+		RunID:                   scan.identity["runID"],
+		CharacterName:           scan.identity["characterName"],
+		CharacterGUID:           scan.identity["characterGUID"],
+		RealmName:               scan.identity["realmName"],
+		MarketScopeUnknownCount: scan.unknownScope,
+		Metadata:                metadata,
+		ActualItemCount:         scan.actualItems,
 	}, nil
 }
 

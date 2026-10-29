@@ -107,7 +107,8 @@ export function App() {
     if (query.page > 1) params.set("page", String(query.page));
     if (query.pageSize !== 20) params.set("page_size", String(query.pageSize));
     if (query.sort !== "price_asc") params.set("sort", query.sort);
-    const suffix = params.size ? `?${params.toString()}` : window.location.pathname;
+    const queryString = params.toString();
+    const suffix = queryString ? `?${queryString}` : window.location.pathname;
     window.history.replaceState(null, "", suffix);
   }, [query]);
 

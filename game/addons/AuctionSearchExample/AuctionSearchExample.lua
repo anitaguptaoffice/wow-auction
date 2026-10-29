@@ -12,6 +12,7 @@ local waitingForReplicate = false
 local auctionHouseOpen = false
 local requestSerial = 0
 local activeJob
+local activeRunID
 
 AuctionSearchDB = AuctionSearchDB or {}
 
@@ -287,6 +288,9 @@ local function CommitJob(job)
 		apiErrorCount = apiErrorCount + 1
 	end
 	local scanRecord = {
+		runID = activeRunID,
+		characterName = UnitName("player"),
+		characterGUID = UnitGUID("player"),
 		timestamp = currentTime,
 		itemCount = job.total,
 		recordCount = #job.records,
@@ -332,6 +336,7 @@ local function CommitJob(job)
 		regionName = scanContext.regionName,
 	}
 	AuctionSearchDB.lastError = nil
+	AuctionSearchExport.SetSnapshot(scanRecord)
 
 	activeJob = nil
 	OverlayCall(
@@ -346,6 +351,7 @@ local function CommitJob(job)
 		marketScopeCounts.realm,
 		marketScopeCounts.unknown
 	)
+	AuctionSearchAutomation.OnCommitted(scanRecord)
 end
 
 local TickMarketScopeResolution
@@ -640,6 +646,7 @@ local function StartScan()
 	end
 
 	-- 只有服务器真正返回新快照后才释放旧快照，避免一次被限流的请求误删上次成功数据。
+	AuctionSearchExport.SetSnapshot(nil)
 	AuctionSearchDB.auctions = {}
 	AuctionSearchDB.lastScanTime = 0
 	AuctionSearchDB.lastScan = nil
@@ -682,6 +689,7 @@ local function StartScanSafely()
 end
 
 local function RequestReplicateSnapshot()
+	if AuctionSearchExport.IsBusy() then return end
 	if not auctionHouseOpen then
 		OverlayCall("SetPhase", "ready", "请先打开拍卖行，再点击开始扫描")
 		return
@@ -691,6 +699,7 @@ local function RequestReplicateSnapshot()
 	end
 	requestSerial = requestSerial + 1
 	waitingForReplicate = true
+	activeRunID = AuctionSearchAutomation.RequestStarted(requestSerial)
 	OverlayCall("SetPhase", "started")
 	local ok, reason = pcall(C_AuctionHouse.ReplicateItems)
 	if not ok then
@@ -705,8 +714,13 @@ local function RequestReplicateSnapshot()
 			OverlayCall(
 				"SetPhase",
 				"started",
-				"仍在等待服务器；本次不会自动重试，如遇限流请稍后手动再次点击"
+				"仍在等待服务器；不连续请求，超过 60 秒后按冷却策略处理"
 			)
+		end
+	end)
+	C_Timer.After(60, function()
+		if waitingForReplicate and requestSerial == thisRequest and not activeJob then
+			OverlayCall("SetPhase", "rate_wait", "超过 60 秒未收到响应，可能限流；电脑控制器将等待冷却，迟到的快照仍会正常处理")
 		end
 	end)
 end
@@ -795,8 +809,28 @@ local function HandleSlashCommand(msg)
 		end
 	elseif command == "scan" then
 		RequestReplicateSnapshot()
+	elseif command == "auto" then
+		EnsureDatabase()
+		if arg ~= "on" and arg ~= "off" then
+			print("用法: /as auto on 或 /as auto off（当前角色设置）")
+			return
+		end
+		AuctionSearchAutomation.SetEnabled(arg == "on", AuctionSearchDB.settings)
+		if arg == "on" and auctionHouseOpen then
+			AuctionSearchAutomation.OnHouseOpen(RequestReplicateSnapshot)
+		end
+	elseif command == "export" then
+		if not activeJob and not waitingForReplicate then AuctionSearchExport.Start() end
+	elseif command == "exporttest" then
+		if not activeJob and not waitingForReplicate then AuctionSearchExport.Test() end
+	elseif command == "stop" then
+		AuctionSearchExport.Cancel()
+	elseif command == "resend" then
+		if not activeJob and not waitingForReplicate then AuctionSearchExport.Resend(arg) end
 	elseif command == "clear" then
+		if AuctionSearchExport.IsBusy() then return end
 		AuctionSearchDB.auctions = {}
+		AuctionSearchExport.Clear()
 		AuctionSearchDB.lastScanTime = 0
 		AuctionSearchDB.lastScan = nil
 		print("AuctionSearch: 已清空所有保存的数据")
@@ -816,6 +850,11 @@ local function HandleSlashCommand(msg)
 	else
 		print("AuctionSearch 命令:")
 		print("  /as scan - 在拍卖行打开时手动开始扫描")
+		print("  /as auto on|off - 开关当前角色的自动采集；每次登录最多自动请求一次")
+		print("  /as export - 通过只读内存通道导出当前快照，无需小退")
+		print("  /as exporttest - 用微型测试快照检查内存导出和电脑接收器")
+		print("  /as stop - 停止导出")
+		print("  /as resend all 或 /as resend 18,93 - 重新发布当前会话的全部/指定数据块")
 		print("  /as stats - 显示数据库统计")
 		print("  /as history <物品ID> - 显示最近历史")
 		print("  /as test [物品ID] - 调试物品缓存")
@@ -834,22 +873,35 @@ local function OnEvent(self, event, ...)
 			return
 		end
 		EnsureDatabase()
+		AuctionSearchAutomation.Init(AuctionSearchDB.settings)
+		AuctionSearchExport.RestoreLatest(AuctionSearchDB)
 		OverlayCall("Init")
 		OverlayCall("SetScanCallback", RequestReplicateSnapshot)
+		OverlayCall("SetExportCallback", function()
+			if AuctionSearchExport.IsBusy() then AuctionSearchExport.Cancel()
+			elseif not activeJob and not waitingForReplicate then AuctionSearchExport.Start() end
+		end)
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_ENTERING_WORLD" then
+		AuctionSearchStatus.Start()
 		if not activeJob and not waitingForReplicate then
 			OverlayCall("Init")
 			OverlayCall("SetPhase", "ready")
 		end
 	elseif event == "AUCTION_HOUSE_SHOW" then
 		auctionHouseOpen = true
+		AuctionSearchStatus.Update({ auctionOpen = 1 })
 		OverlayCall("Init")
 		if not activeJob and not waitingForReplicate then
-			OverlayCall("SetPhase", "ready", "拍卖行已打开；点击右上角“开始扫描”，或输入 /as scan")
+			OverlayCall("SetPhase", "ready", AuctionSearchAutomation.IsEnabled()
+				and "自动采集已启用；本次登录最多自动请求一次"
+				or "拍卖行已打开；点击开始扫描，或输入 /as scan")
 		end
+		AuctionSearchAutomation.OnHouseOpen(RequestReplicateSnapshot)
 	elseif event == "AUCTION_HOUSE_CLOSED" then
 		auctionHouseOpen = false
+		AuctionSearchStatus.Update({ auctionOpen = 0 })
+		AuctionSearchAutomation.OnHouseClosed()
 		if not activeJob then
 			waitingForReplicate = false
 			requestSerial = requestSerial + 1
@@ -860,14 +912,20 @@ local function OnEvent(self, event, ...)
 		StartScanSafely()
 	elseif event == "ITEM_KEY_ITEM_INFO_RECEIVED" then
 		HandleItemKeyInfoReceived(...)
+	elseif event == "PLAYER_LEAVING_WORLD" then
+		AuctionSearchStatus.LeaveWorld()
+	elseif event == "PLAYER_LOGOUT" then
+		AuctionSearchStatus.Stop()
 	end
 end
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
 eventFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
 eventFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
 eventFrame:RegisterEvent("REPLICATE_ITEM_LIST_UPDATE")
 eventFrame:RegisterEvent("ITEM_KEY_ITEM_INFO_RECEIVED")
+eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:SetScript("OnEvent", OnEvent)

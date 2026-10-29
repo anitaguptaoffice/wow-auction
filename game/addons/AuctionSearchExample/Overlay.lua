@@ -5,8 +5,16 @@ AuctionSearchOverlay = AuctionSearchOverlay or {}
 local frame
 local currentPhase = "idle"
 local scanCallback
+local exportCallback
 
 local PHASE = {
+	rate_wait = { title = "疑似限流 · 等待冷却", detail = "超过 60 秒仍未收到快照；请查看电脑控制器的冷却进度", token = "AS_RATE_WAIT", color = {0.95, 0.62, 0.15} },
+	logout_ready = { title = "扫描完整 · 等待自动小退", detail = "等待电脑控制器小退并归档", token = "AS_LOGOUT_READY", color = {0.2, 0.8, 0.46} },
+	export_preparing = { title = "准备导出 · 正在序列化", detail = "分批准备完整快照", token = "AS_EXPORT_PREPARE", color = {0.6, 0.5, 0.95} },
+	export_sending = { title = "正在发布 · 电脑只读接收", detail = "", token = "AS_EXPORT_SENDING", color = {0.2, 0.65, 0.95} },
+	export_sent = { title = "发布结束 · 请核对电脑端", detail = "", token = "AS_EXPORT_SENT", color = {0.3, 0.8, 0.5} },
+	export_stopped = { title = "导出已停止", detail = "", token = "AS_EXPORT_STOPPED", color = {0.8, 0.6, 0.2} },
+	export_error = { title = "导出中断", detail = "", token = "AS_EXPORT_ERROR", color = {0.9, 0.3, 0.2} },
 	idle = {
 		title = "拍卖行数据",
 		detail = "等待打开拍卖行",
@@ -21,7 +29,7 @@ local PHASE = {
 	},
 	started = {
 		title = "正在请求拍卖快照",
-		detail = "等待服务器返回全量拍卖列表（接口有 15 分钟限流）",
+		detail = "等待服务器返回全量拍卖列表；无响应时不自动重试",
 		token = "AS_WAITING",
 		color = { 0.20, 0.55, 0.95 },
 	},
@@ -91,6 +99,7 @@ function AuctionSearchOverlay.SetScanCallback(callback)
 end
 
 function AuctionSearchOverlay.SetPhase(key, detail)
+	if AuctionSearchExport and AuctionSearchExport.IsBusy() and not key:match("^export_") then return end
 	if key == "logout" then
 		key = "complete"
 	end
@@ -98,6 +107,7 @@ function AuctionSearchOverlay.SetPhase(key, detail)
 		key = "idle"
 	end
 	currentPhase = key
+	if AuctionSearchStatus then AuctionSearchStatus.Update({ phase = key }) end
 	if not frame then
 		return
 	end
@@ -107,6 +117,10 @@ function AuctionSearchOverlay.SetPhase(key, detail)
 	end
 
 	ApplyPhaseStyle(key)
+	if frame.exportButton then
+		frame.exportButton:SetText(AuctionSearchExport and AuctionSearchExport.IsBusy() and "停止导出" or "导出到电脑")
+		frame.exportButton:SetEnabled(key ~= "started" and key ~= "scanning")
+	end
 	local showScanButton = key == "ready" and scanCallback ~= nil
 	frame.scanButton:SetShown(showScanButton)
 	frame.progress:SetShown(not showScanButton)
@@ -123,7 +137,7 @@ function AuctionSearchOverlay.SetPhase(key, detail)
 		frame.statusBar:SetValue(0)
 		frame.progress:SetText(key == "started" and "等待服务器" or "需要重试")
 		frame.count:SetText("")
-	elseif key == "complete" then
+	elseif key == "complete" or key == "logout_ready" then
 		frame.statusBar:SetMinMaxValues(0, 1)
 		frame.statusBar:SetValue(1)
 		frame.progress:SetText("100%")
@@ -131,7 +145,33 @@ function AuctionSearchOverlay.SetPhase(key, detail)
 	frame:Show()
 end
 
+function AuctionSearchOverlay.SetIdentity(runID, realm, character)
+	if frame and frame.identity then
+		frame.identity:SetText("RUN " .. tostring(runID) .. " · " .. tostring(realm) .. " · " .. tostring(character))
+	end
+end
+
+function AuctionSearchOverlay.SetExportCallback(callback)
+	exportCallback = callback
+end
+
+function AuctionSearchOverlay.SetExportProgress(phase, processed, items, sent, total, bytes, wireSent, elapsed, detail)
+	AuctionSearchOverlay.SetPhase("export_" .. phase)
+	if not frame then return end
+	local preparing = phase == "preparing"
+	AuctionSearchOverlay.SetProgress(preparing and processed or sent, preparing and items or total)
+	local speed = wireSent / elapsed
+	if preparing then
+		frame.detail:SetText(detail or format("已准备 %s / %s 条 · 原始数据 %.2f MiB", FormatNumber(processed), FormatNumber(items), bytes / 1048576))
+	else
+		frame.count:SetText(format("%s / %s 块", FormatNumber(sent), FormatNumber(total)))
+		local remaining = sent > 0 and math.max(0, (total - sent) * elapsed / sent) or 0
+		frame.detail:SetText(detail or format("原始数据 %.2f MiB · 发布 %.1f KiB/s · 本轮剩余 %.0f 秒", bytes / 1048576, speed / 1024, remaining))
+	end
+end
+
 function AuctionSearchOverlay.SetProgress(processed, total, detail)
+	if AuctionSearchStatus then AuctionSearchStatus.Update({ processed = processed, total = total }) end
 	if not frame then
 		return
 	end
@@ -189,6 +229,7 @@ function AuctionSearchOverlay.SetComplete(
 		detail = detail .. format(" · 读取异常 %s 条", FormatNumber(apiErrorCount))
 	end
 	local hasWarning = missingCoreCount > 0 or incompleteInfoCount > 0 or apiErrorCount > 0
+		or marketScopeUnknownCount > 0 or (linkedItems and linkedItems < total)
 	AuctionSearchOverlay.SetPhase(hasWarning and "warning" or "complete", detail)
 	AuctionSearchOverlay.SetProgress(total, total)
 end
@@ -199,7 +240,7 @@ function AuctionSearchOverlay.Init()
 	end
 
 	local f = CreateFrame("Frame", "AuctionSearchStatusPanel", UIParent)
-	f:SetSize(470, 124)
+	f:SetSize(470, 190)
 	f:SetPoint("TOP", UIParent, "TOP", 0, -28)
 	f:SetFrameStrata("FULLSCREEN_DIALOG")
 	f:SetFrameLevel(5000)
@@ -247,6 +288,17 @@ function AuctionSearchOverlay.Init()
 		end
 	end)
 	f.scanButton:Hide()
+	f.exportButton = CreateFrame("Button", "AuctionSearchExportButton", f, "UIPanelButtonTemplate")
+	f.exportButton:SetSize(124, 26)
+	f.exportButton:SetPoint("BOTTOMRIGHT", -14, 10)
+	f.exportButton:SetText("导出到电脑")
+	f.exportButton:SetFrameLevel(f:GetFrameLevel() + 2)
+	f.exportButton:EnableMouse(true)
+	f.exportButton:SetScript("OnClick", function() if exportCallback then exportCallback() end end)
+	local note = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	note:SetPoint("BOTTOMLEFT", 18, 17)
+	note:SetText("小退后由电脑校验归档")
+	note:SetTextColor(0.65, 0.7, 0.8)
 
 	-- 固定位置的 ASCII 标签供 Windows OCR 稳定识别；中文标题仍作为主要用户界面。
 	f.token = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -263,10 +315,16 @@ function AuctionSearchOverlay.Init()
 	f.count:SetPoint("TOPRIGHT", f.progress, "BOTTOMRIGHT", 0, -7)
 	f.count:SetTextColor(0.76, 0.80, 0.88)
 	f.count:SetJustifyH("RIGHT")
+	f.identity = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	f.identity:SetPoint("BOTTOMLEFT", 18, 78)
+	f.identity:SetWidth(434)
+	f.identity:SetJustifyH("LEFT")
+	f.identity:SetTextColor(1, 1, 1)
+	f.identity:SetText("")
 
 	f.barBackground = f:CreateTexture(nil, "ARTWORK")
-	f.barBackground:SetPoint("BOTTOMLEFT", 18, 15)
-	f.barBackground:SetPoint("BOTTOMRIGHT", -18, 15)
+	f.barBackground:SetPoint("BOTTOMLEFT", 18, 51)
+	f.barBackground:SetPoint("BOTTOMRIGHT", -18, 51)
 	f.barBackground:SetHeight(17)
 	f.barBackground:SetColorTexture(0.12, 0.14, 0.18, 1)
 
