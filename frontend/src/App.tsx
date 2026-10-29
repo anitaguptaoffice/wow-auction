@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select } from "./components/Select";
 import { WowheadLink } from "./components/WowheadLink";
@@ -842,7 +842,7 @@ function HistoryPanel({
           </div>
         ) : (
           <div className="history-metrics">
-            <HistoryMetric label="最低单价" change={data.change.minUnitPrice} format="money" />
+          <HistoryMetric label="最新最低单价" change={data.change.minUnitPrice} format="money" />
             <HistoryMetric label="库存变化" change={data.change.totalQuantity} format="number" />
             <HistoryMetric label="挂单变化" change={data.change.listingCount} format="number" />
           </div>
@@ -870,19 +870,21 @@ function groupRealmHistory(data: ItemHistoryResponse) {
 
 function PriceChart({ data }: { data: ItemHistoryResponse }) {
   const chartRef = useRef<HTMLDivElement>(null);
+  const chartId = useId();
   const [chartWidth, setChartWidth] = useState(640);
+  const [selectedScan, setSelectedScan] = useState<number | null>(null);
   useEffect(() => {
     const element = chartRef.current;
     if (!element) return;
-    const resize = () => setChartWidth(Math.max(280, Math.min(640, element.clientWidth)));
+    const resize = () => setChartWidth(Math.max(200, element.clientWidth - 16));
     const observer = new ResizeObserver(resize);
     observer.observe(element);
     resize();
     return () => observer.disconnect();
-  }, [data.points.length]);
+  }, [data.points]);
   const priced = data.points.filter(
     (point): point is typeof point & { minUnitPrice: number } => point.minUnitPrice != null,
-  );
+  ).sort((a, b) => a.scannedAtUnix - b.scannedAtUnix || a.scanId - b.scanId);
   if (!priced.length) return <div className="chart-empty">这几份快照没有可用的一口价。</div>;
 
   const prices = priced.map((point) => point.minUnitPrice);
@@ -892,51 +894,102 @@ function PriceChart({ data }: { data: ItemHistoryResponse }) {
   const low = Math.max(0, min - padding);
   const high = max + padding;
   const range = Math.max(1, high - low);
-  const left = 46;
-  const right = chartWidth - 46;
-  const top = 23;
-  const bottom = 132;
+  const left = 62;
+  const right = chartWidth - 48;
+  const top = 18;
+  const bottom = 146;
   const minTime = Math.min(...priced.map((point) => point.scannedAtUnix));
   const maxTime = Math.max(...priced.map((point) => point.scannedAtUnix));
   const timeRange = Math.max(1, maxTime - minTime);
+  const realmKey = (point: ItemHistoryResponse["points"][number]) => data.marketScope === "realm"
+    ? `${point.regionID ?? "?"}:${point.realmID ?? point.realm ?? "?"}` : "region";
   const segments = new Map<number, number>();
-  let segment = 0;
+  const realmSegments = new Map<string, number>();
   for (const point of data.points) {
+    const key = realmKey(point);
+    let segment = realmSegments.get(key) ?? 0;
     if (point.breakBefore || point.minUnitPrice == null) segment++;
     segments.set(point.scanId, segment);
+    realmSegments.set(key, segment);
   }
-  const coordinates = priced.map((point, index) => ({
+  const coordinates = priced.map((point) => ({
     x: minTime === maxTime ? (left + right) / 2 : left + ((point.scannedAtUnix - minTime) / timeRange) * (right - left),
     y: bottom - ((point.minUnitPrice - low) / range) * (bottom - top),
     point,
     segment: segments.get(point.scanId),
-    showLabel: index % Math.max(1, Math.ceil(priced.length / 5)) === 0 || index === priced.length - 1,
   }));
-  const groupKey = (coordinate: (typeof coordinates)[number]) => `${data.marketScope === "realm"
-    ? `${coordinate.point.regionID ?? "?"}:${coordinate.point.realmID ?? coordinate.point.realm ?? "?"}`
-    : "region"}:${coordinate.segment}`;
+  const groupKey = (coordinate: (typeof coordinates)[number]) => `${realmKey(coordinate.point)}:${coordinate.segment}`;
   const groups = new Map<string, typeof coordinates>();
   coordinates.forEach((coordinate) => {
     const key = groupKey(coordinate);
     groups.set(key, [...(groups.get(key) ?? []), coordinate]);
   });
-  const series = [...groups.entries()].map(([key, values], index) => ({
+  const realms = groupRealmHistory(data);
+  const series = [...groups.entries()].map(([key, values]) => ({
     key,
     name: values[0].point.realm || "区域共享",
-    color: CHART_COLORS[Math.max(0, groupRealmHistory(data).findIndex(g => g.name === (values[0].point.realm || '区域共享'))) % CHART_COLORS.length],
+    color: CHART_COLORS[Math.max(0, realms.findIndex(g => g.key === realmKey(values[0].point))) % CHART_COLORS.length],
     coordinates: values.sort((leftValue, rightValue) => leftValue.point.scannedAtUnix - rightValue.point.scannedAtUnix),
   }));
+  const chosen = coordinates.findIndex(c => c.point.scanId === selectedScan);
+  const selectedIndex = chosen < 0 ? coordinates.length - 1 : chosen;
+  const selected = coordinates[selectedIndex];
+  const tickCount = minTime === maxTime ? 1 : Math.max(2, Math.min(4, Math.floor((right - left) / 105) + 1));
+  const ticks = Array.from({ length: tickCount }, (_, index) => ({
+    x: tickCount === 1 ? (left + right) / 2 : left + (right - left) * index / (tickCount - 1),
+    time: tickCount === 1 ? minTime : minTime + (maxTime - minTime) * index / (tickCount - 1),
+  }));
+  const twoLineTime = right - left < 210;
+  const selectPoint = (svg: SVGSVGElement, clientX: number, clientY: number) => {
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return;
+    const pointer = svg.createSVGPoint();
+    pointer.x = clientX; pointer.y = clientY;
+    const position = pointer.matrixTransform(matrix.inverse());
+    if (position.x < left - 12 || position.x > right + 12 || position.y < top - 12 || position.y > bottom + 12) return;
+    let nearest = selected;
+    let distance = Infinity;
+    for (const coordinate of coordinates) {
+      const next = Math.hypot(coordinate.x - position.x, coordinate.y - position.y);
+      if (next <= distance) { nearest = coordinate; distance = next; }
+    }
+    setSelectedScan(nearest.point.scanId);
+  };
+  const step = (offset: number) => setSelectedScan(coordinates[Math.max(0, Math.min(coordinates.length - 1, selectedIndex + offset))].point.scanId);
+  const priceLabel = (value: number) => value >= 10000
+    ? `${new Intl.NumberFormat("zh-CN", { notation: value >= 100_000_000 ? "compact" : "standard", maximumFractionDigits: value >= 1_000_000 ? 0 : 2 }).format(value / 10000)}金`
+    : value >= 100 ? `${new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value / 100)}银` : `${Math.round(value)}铜`;
 
   return (
     <div className="price-chart" ref={chartRef}>
-      <svg viewBox={`0 0 ${chartWidth} 168`} role="img" aria-label="按时间排列的最低单价折线图">
+      <div className="chart-interaction" tabIndex={0} role="group" aria-label="最低单价趋势图，左右方向键切换采集点" aria-describedby={`${chartId}-detail`}
+        onKeyDown={event => {
+          if (event.target !== event.currentTarget || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          if (event.key === "Home") setSelectedScan(coordinates[0].point.scanId);
+          else if (event.key === "End") setSelectedScan(coordinates.at(-1)!.point.scanId);
+          else step(event.key === "ArrowLeft" ? -1 : 1);
+        }}>
+      <svg viewBox={`0 0 ${chartWidth} 202`} role="img" aria-label="按真实时间间隔排列的最低单价折线图"
+        onPointerMove={event => { if (event.pointerType === "mouse") selectPoint(event.currentTarget, event.clientX, event.clientY); }}
+        onPointerDown={event => selectPoint(event.currentTarget, event.clientX, event.clientY)}>
         <defs>
-          <linearGradient id="price-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="currentColor" stopOpacity="0.24" />
+          <linearGradient id={`${chartId}-area`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="currentColor" stopOpacity="0.12" />
             <stop offset="1" stopColor="currentColor" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {[top, (top + bottom) / 2, bottom].map((y) => <line key={y} className="chart-grid" x1={left} x2={right} y1={y} y2={y} />)}
+        {[top, (top + bottom) / 2, bottom].map((y, index) => <g key={y}>
+          <line className="chart-grid" x1={left} x2={right} y1={y} y2={y} />
+          <text className="chart-axis-price" x={left - 8} y={y + 4} textAnchor="end">{priceLabel(high - (high - low) * index / 2)}</text>
+        </g>)}
+        {ticks.map(({ x, time }) => {
+          const label = formatShortDate(time * 1000);
+          const [date, clock] = label.split(" ");
+          return <text key={time} className="chart-time" x={x} y="174" textAnchor="middle">
+            {twoLineTime ? <><tspan x={x}>{date}</tspan><tspan x={x} dy="14">{clock}</tspan></> : label}
+          </text>;
+        })}
         {series.map((entry) => {
           const line = entry.coordinates.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
           const area = entry.key.startsWith("region:") && entry.coordinates.length > 1
@@ -944,25 +997,32 @@ function PriceChart({ data }: { data: ItemHistoryResponse }) {
             : null;
           return (
             <g key={entry.key}>
-              {area && <path className="chart-area" d={area} fill="url(#price-area)" />}
+              {area && <path className="chart-area" d={area} fill={`url(#${chartId}-area)`} />}
               {entry.coordinates.length > 1 && <path className="chart-line" d={line} style={{ stroke: entry.color }} />}
-              {entry.coordinates.map(({ x, y, point, showLabel }) => (
+              {entry.coordinates.map(({ x, y, point }) => (
                 <g key={point.scanId}>
-                  <circle className="chart-halo" cx={x} cy={y} r="8" style={{ color: entry.color }} />
-                  <circle className="chart-dot" cx={x} cy={y} r="4" style={{ fill: entry.color }} />
-                  {showLabel && <>
-                    <text className="chart-value" x={x} y={Math.max(14, y - 13)} textAnchor="middle">{compactCopper(point.minUnitPrice)}</text>
-                    <text className="chart-time" x={x} y="157" textAnchor="middle">{formatShortDate(point.scannedAt)}</text>
-                  </>}
+                  <circle className="chart-dot" cx={x} cy={y} r="2" style={{ fill: entry.color, stroke: entry.color }} />
                 </g>
               ))}
             </g>
           );
         })}
+        <line className="chart-crosshair" x1={selected.x} x2={selected.x} y1={top} y2={bottom} />
+        <circle className="chart-selected" cx={selected.x} cy={selected.y} r="4.5" />
       </svg>
+      </div>
+      <div className="chart-inspector" id={`${chartId}-detail`} aria-live="polite" aria-atomic="true">
+        <button type="button" aria-label="上一个采集点" disabled={selectedIndex === 0} onClick={() => step(-1)}><ChevronLeft size={16} /></button>
+        <div className="chart-inspector-copy">
+          <time dateTime={selected.point.scannedAt}>{formatDate(selected.point.scannedAt)}</time>
+          <strong><Money value={selected.point.minUnitPrice} /></strong>
+          <small>{data.marketScope === "realm" ? selected.point.realm : "区域共享"} · 第 {selectedIndex + 1} / {coordinates.length} 个采集点</small>
+        </div>
+        <button type="button" aria-label="下一个采集点" disabled={selectedIndex === coordinates.length - 1} onClick={() => step(1)}><ChevronRight size={16} /></button>
+      </div>
       {data.marketScope === "realm" && (
         <div className="chart-legend">
-          {groupRealmHistory(data).map((entry, index) => (
+          {realms.map((entry, index) => (
             <span key={entry.key}><i style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />{entry.name}</span>
           ))}
         </div>
