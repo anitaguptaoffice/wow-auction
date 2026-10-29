@@ -1,0 +1,9 @@
+{
+  "root": "/opt/wow-auction/data/sync",
+  "switch_lock": "/opt/wow-auction/data/sync/dataset-switch.lock",
+  "import_image": "sha256:REPLACE_WITH_BUILT_SYNC_IMAGE_ID",
+  "nginx_config": "/etc/nginx/wow-auction-api.conf",
+  "backup_dir": "/opt/wow-auction/backups/datasets",
+  "runtime_dir": "/opt/wow-auction/data/automatic/runtime",
+  "public_url": "https://wowplayer.fun"
+}

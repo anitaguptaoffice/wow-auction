@@ -1,5 +1,7 @@
 # 自动更新、增量导入和市场浏览
 
+外部程序新增快照优先使用 [HTTP 增量同步接口](SNAPSHOT_SYNC_API.md)：只上传一份 `snapshot.jsonl.gz`，Bearer 鉴权，服务器负责导入与发布。下文的 SSH 整库发布继续作为兼容管理路径；不要让旧版本发布器与新同步工作进程同时运行。
+
 ## Windows 一键同步
 
 本机设置好 `deploy/update.local.json`、`deploy/publish.local.json` 和 SSH 密钥后，双击仓库根目录的 **同步拍卖数据.cmd** 即可。它会自动查找客户端 SavedVariables 或采集器归档，按采集时间选择新快照，完成归档、校验、增量导入、图标补全、验收和线上切换。示例及本机使用 `realm_policy: discover`：新服务器自动接入，不需要逐服改名单、写导入或验收脚本。没有新数据时不会发布。游戏需要先正常退出或重载界面，将数据写入磁盘；正在写入的文件会被稳定性检查拒绝。

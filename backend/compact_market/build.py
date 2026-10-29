@@ -46,6 +46,8 @@ def insert_arrow(db, name: str, table: pa.Table, *, create: bool = False) -> Non
 
 
 def extract_source(source: Path, directory: Path) -> tuple[Path, dict]:
+    if source.name.endswith('.jsonl.gz'):
+        return source, {}
     candidates = [source.with_suffix('.manifest.json'), source.parent / 'manifest.json']
     manifest_path = next((p for p in candidates if p.is_file()), None)
     manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path else {}
@@ -114,7 +116,11 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
                 source_sha = sha256_file(lua)
                 log("parse", source=str(source), source_bytes=lua.stat().st_size,
                     sha256=source_sha, manifest_verified=bool(manifest))
-                decoded = decode_snapshot(lua)
+                if lua.name.endswith('.jsonl.gz'):
+                    from compact_market.jsonl import decode
+                    decoded = decode(lua)
+                else:
+                    decoded = decode_snapshot(lua)
                 scans = validate_snapshot(decoded)
                 log("validated", source=str(source), scans=len(scans),
                     listings=sum(s.record_count for s in scans),
@@ -127,6 +133,7 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
                     digest = hashlib.sha256()
                     facts: list[dict] = []
                     baseline_batch = []
+                    item = None
                     for index, item in enumerate(scan.items):
                         mapping = _listing_mapping(scan_id, index, item)
                         update_digest(digest, mapping)

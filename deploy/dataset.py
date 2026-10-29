@@ -332,7 +332,7 @@ def _activate(args):
 
 
 def activate(args):
-    runtime = Path(args.database).resolve().parent.parent / 'runtime'
+    runtime = Path(getattr(args, 'runtime_dir', None) or Path(args.database).resolve().parent.parent / 'runtime')
     runtime.mkdir(parents=True, exist_ok=True)
     os.chmod(str(runtime), 0o755)
     args.runtime_dir = str(runtime)
@@ -369,8 +369,13 @@ def main():
     if args.command not in ('switch', 'rollback', 'activate'):
         parser.error('Choose switch, activate or rollback')
     # One host-side data switch at a time. This lock is independent of imports.
-    lock = Path('/opt/wow-auction/data/.dataset-switch.lock')
-    fd = os.open(str(lock), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    lock = Path('/opt/wow-auction/data/sync/dataset-switch.lock')
+    from sync_state import Store, guard
+    sync_root = Path('/opt/wow-auction/data/sync')
+    with guard(sync_root):
+        if Store(sync_root).active():
+            raise ValueError('A snapshot sync job is active; retry after it finishes')
+        fd = os.open(str(lock), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         os.write(fd, str(os.getpid()).encode('ascii'))
         result = switch(args) if args.command == 'switch' else activate(args) if args.command == 'activate' else rollback(args)

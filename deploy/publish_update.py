@@ -33,6 +33,7 @@ def publish(config, generation, expected_sha):
         remote('mkdir', '-p', staging)
         files = [generation / name for name in ('market.duckdb', 'market.report.json', 'icon-map.json')]
         files.append(Path(__file__).with_name('dataset.py'))
+        files.append(Path(__file__).with_name('sync_state.py'))
         if (generation / 'wow-icons').is_dir():
             files.append(generation / 'wow-icons')
         # One compressed transfer avoids a round trip for every cached icon.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 from contextlib import contextmanager
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -100,7 +101,7 @@ def decode_snapshot(path: Path) -> dict[str, Any]:
 
 
 def _ordered_values(value: Any, label: str) -> list[Any]:
-    if isinstance(value, list):
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return value
     if isinstance(value, dict):
         try:

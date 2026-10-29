@@ -29,7 +29,7 @@ class UpdatePublishTest(unittest.TestCase):
                 calls.append(args)
                 if args[0] == 'scp':
                     with tarfile.open(args[-2]) as bundle:
-                        self.assertEqual(set(bundle.getnames()), {'market.duckdb', 'market.report.json', 'icon-map.json', 'dataset.py'})
+                        self.assertEqual(set(bundle.getnames()), {'market.duckdb', 'market.report.json', 'icon-map.json', 'dataset.py', 'sync_state.py'})
                 if args[0] == 'ssh':
                     remote = shlex.split(args[-1])
                     if remote[:2] == ['python3', '-c'] and 'os.path.exists' in remote[2]:
