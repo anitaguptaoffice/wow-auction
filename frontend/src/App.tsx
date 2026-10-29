@@ -507,7 +507,7 @@ function ItemGlyph({ item, size }: { item: MarketItem; size?: "small" }) {
           referrerPolicy="no-referrer"
           onError={() => setImageSource((current) => {
             if (current === localIconUrl) return iconUrl ?? proxyIconUrl;
-            if (current === iconUrl) return localIconUrl ?? proxyIconUrl;
+            if (current === iconUrl) return proxyIconUrl;
             return undefined;
           })}
         />

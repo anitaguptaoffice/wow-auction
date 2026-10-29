@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--local-map", default="frontend/src/generated/local-icon-map.json")
     parser.add_argument("--workers", type=int, default=24)
     parser.add_argument("--timeout", type=float, default=15)
+    parser.add_argument("--skip-casc", action="store_true", help="Skip remote CASC extraction after CDN checks.")
     parser.add_argument(
         "--refresh",
         action="store_true",
@@ -242,7 +243,7 @@ def main() -> int:
                         flush=True,
                     )
 
-    if failures:
+    if failures and not args.skip_casc:
         unresolved: list[str] = []
         for icon_name in sorted(failures):
             texture_ids = texture_ids_by_icon.get(icon_name, [])

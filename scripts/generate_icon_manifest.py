@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate frontend/backend icon allowlists from an auction SQLite database."""
+"""Generate icon allowlists from a compact DuckDB or legacy SQLite database."""
 
 from __future__ import annotations
 
@@ -20,6 +20,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_texture_ids(database: Path) -> list[int]:
+    if database.suffix == '.duckdb':
+        import duckdb
+        with duckdb.connect(str(database), read_only=True) as connection:
+            rows = connection.execute(
+                "SELECT DISTINCT texture FROM descriptors WHERE texture IS NOT NULL ORDER BY texture"
+            ).fetchall()
+        return [int(row[0]) for row in rows]
     with sqlite3.connect(database) as connection:
         rows = connection.execute(
             "SELECT DISTINCT texture FROM wow_auction_item_summaries "

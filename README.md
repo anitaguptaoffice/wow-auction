@@ -7,7 +7,7 @@ DuckDB/Arrow API. The CloudBase architecture documented below is legacy; the new
 runtime does not require CloudBase, MySQL, or Redis.
 
 - Frontend: `https://wowplayer.fun/`, served by the existing host Nginx.
-- API: one Docker process, loopback port `8181`, 2 GiB container limit; do not scale
+- API: one Docker process, loopback port `8180`, 2 GiB container limit; do not scale
   workers without budgeting another complete in-memory history index per worker.
 - Data: immutable DuckDB generations and original compressed snapshots outside Git.
 - Validation: 36 backend tests; public desktop/mobile search, detail pagination and
@@ -19,8 +19,8 @@ runtime does not require CloudBase, MySQL, or Redis.
   (UTC+8). Shared commodities and Silver Hand use this observation; Deathwing remains
   on its October 15 observation. This is not a live feed.
 - Active database: `/opt/wow-auction/data/offline-20261029/market-20261029-offline.duckdb`;
-  active API container: `wow-auction-offline-20261029`, loopback port `8181`.
-  The original `wow-auction-api` container is stopped and retained for rollback.
+  active API container: `wow-auction-icons-20261029`, loopback port `8180`.
+  The previous API containers are stopped and retained for rollback.
   Dataset verification is recorded in `experiments/compact-market/results/offline-generation.json`.
 - Region commodities use market server ID `0`; each actual realm has its own history.
   Default browsing combines only the latest observation from each market.
@@ -75,7 +75,19 @@ uv run --group compact python -m compact_market.build \
 ```
 
 Run this on a build machine initially (measured peak memory 2.52 GiB for the initial
-three archives). Transfer the result, verify SHA-256, and start a candidate container
+three archives). Refresh icon mappings and fallback assets before building the frontend/API release:
+
+```sh
+curl -fL https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv -o /tmp/community-listfile.csv
+uv run --group compact python scripts/generate_icon_manifest.py data/compact/market-NEXT.duckdb /tmp/community-listfile.csv
+python3 scripts/sync-icon-cache.py --skip-casc
+```
+
+Review reported missing icons; omit `--skip-casc` to attempt remote game-asset extraction.
+New item data is discovered during import, but new texture IDs also require this
+asset refresh. Deploy frontend and API allowlists together.
+
+Transfer the result, verify SHA-256, and start a candidate container
 with that generation using the same release procedure. Never replace a database
 file underneath a running reader. More frequent ingestion, incremental history
 compaction, off-host backups, and scheduled collection remain follow-up work.
