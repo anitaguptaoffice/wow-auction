@@ -5,6 +5,7 @@ import argparse
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
 import glob
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -51,17 +52,44 @@ def load_config(path):
     return config
 
 
+def market_policy(config, scans, current=None):
+    mode = config.get('realm_policy', 'allowlist')
+    if mode not in ('allowlist', 'discover'):
+        raise ValueError('realm_policy must be allowlist or discover')
+    known = {f"{s['region_id']}:{s['realm_id']}" for s in scans}
+    existing = current or {}
+    fallback = existing.get('new_realm_after') if existing.get('realm_policy') == 'discover' else None
+    floor = int(config.get('new_realm_after', fallback if fallback is not None else max((s['timestamp'] for s in scans), default=0)))
+    if floor < 0:
+        raise ValueError('new_realm_after must be a nonnegative Unix timestamp')
+    return dict(allowed=None if mode == 'discover' else set(config.get('allowed_realms', known)),
+                excluded=set(config.get('excluded_realms', [])), floor=floor)
+
+
+def verify_public_api(config, scans):
+    if not config.get('public_url'):
+        raise ValueError('Configure public_url for publication verification')
+    path = Path(__file__).resolve().parents[2] / 'deploy' / 'dataset.py'
+    spec = importlib.util.spec_from_file_location('compact_dataset_verifier', path)
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+    return verifier.verify_market_api(config['public_url'].rstrip('/'), scans)
+
+
 def discover_client_sources(config):
     """Header hints select candidates only; the importer still validates complete files."""
     pointer = Path(config['root']) / 'current.json'
-    database = json.loads(pointer.read_text(encoding='utf-8'))['database'] if pointer.exists() else config['seed_database']
+    current = json.loads(pointer.read_text(encoding='utf-8')) if pointer.exists() else {}
+    database = current.get('database', config['seed_database'])
     scans = inventory(Path(database))['scans']
-    permitted = set(config.get('allowed_realms', [f"{s['region_id']}:{s['realm_id']}" for s in scans]))
+    policy = market_policy(config, scans, current)
     latest = {}
     for scan in scans:
         identity = f"{scan['region_id']}:{scan['realm_id']}"
         latest[identity] = max(latest.get(identity, 0), scan['timestamp'])
     selected = []
+    observations = []
+    new_realms = {}
     skipped = []
     if not config.get('client_roots') and not config.get('archive_roots'):
         raise ValueError('Configure client_roots or archive_roots before discovery')
@@ -95,15 +123,24 @@ def discover_client_sources(config):
                     skipped.append(dict(source=str(source), reason='no_scan_header'))
                     continue
                 identity = f"{fields['regionID']}:{fields['realmID']}"
-                if identity not in permitted:
+                if identity in policy['excluded']:
+                    skipped.append(dict(source=str(source), reason='realm_excluded'))
+                elif policy['allowed'] is not None and identity not in policy['allowed']:
                     skipped.append(dict(source=str(source), reason='realm_not_configured'))
-                elif int(stamp[1]) <= latest.get(identity, 0):
-                    skipped.append(dict(source=str(source), reason='not_newer_than_current'))
+                elif int(stamp[1]) <= latest.get(identity, policy['floor']):
+                    skipped.append(dict(source=str(source), reason='not_newer_than_current' if identity in latest else 'older_than_new_realm_cutoff'))
                 else:
                     selected.append(str(source))
+                    name = re.search(r'\["realmName"\]\s*=\s*"([^"\r\n]+)"', summary[1])
+                    realm = name[1] if name else identity
+                    observations.append(dict(source=str(source), realm=realm, identity=identity,
+                                             scanned_at=datetime.fromtimestamp(int(stamp[1]), timezone.utc).isoformat()))
+                    if identity not in latest:
+                        new_realms[identity] = realm
             except (OSError, UnicodeError, tarfile.TarError) as exc:
                 skipped.append(dict(source=str(source), reason='unreadable', error=str(exc)))
-    return dict(sources=selected, skipped=skipped)
+    return dict(sources=selected, skipped=skipped, observations=observations,
+                new_realms=[dict(identity=k, realm=v) for k, v in sorted(new_realms.items())])
 
 
 def prepare_icons(database, destination, source_map=None, listfile=None, cache_dirs=()):
@@ -209,11 +246,12 @@ def run_update(config, sources=None, publish=False):
                 database = folder / 'market.duckdb'
                 save('importing', candidate_database=str(database), archives=[str(p) for p in changed])
                 with redirect_stdout(sys.stderr):
-                    permitted = config.get('allowed_realms', [f"{s['region_id']}:{s['realm_id']}"
-                                        for s in inventory(Path(current['database']))['scans']])
+                    policy = market_policy(config, inventory(Path(current['database']))['scans'], current)
                     report = stage_generation(Path(current['database']), database, sources=changed,
                                               memory_limit=config.get('memory_limit', '1GB'),
-                                              newer_only=True, allowed_realms=permitted)
+                                              newer_only=True, allowed_realms=policy['allowed'],
+                                              new_realm_after=policy['floor'] if policy['allowed'] is None else None,
+                                              excluded_realms=policy['excluded'])
             else:
                 database = Path(current['database'])
                 folder = database.parent
@@ -241,6 +279,12 @@ def run_update(config, sources=None, publish=False):
                                 previous={k: current[k] for k in ('database', 'database_sha256')},
                                 source_receipts=next_receipts, publication=None,
                                 published_database_sha256=current.get('published_database_sha256', current['database_sha256']))
+            next_current['new_realm_after'] = market_policy(config, report['scans'], current)['floor'] if not changed else policy['floor']
+            next_current['realm_policy'] = config.get('realm_policy', 'allowlist')
+            summary = dict(source_snapshot_count=len(report['scans']),
+                           source_record_count=report['listing_count'], added_snapshot_count=len(report['added_scans']),
+                           added_snapshots=[dict(realm=s['realm_name'], region_id=s['region_id'], realm_id=s['realm_id'],
+                                                timestamp=s['timestamp'], record_count=s['record_count']) for s in report['added_scans']])
             publication = None
             if publish:
                 if not config.get('publish_command'):
@@ -250,11 +294,13 @@ def run_update(config, sources=None, publish=False):
                 publication = json.loads(hook(config['publish_command'], context).stdout)
                 if publication.get('status') != 'active' or publication.get('database_sha256') != report['database_sha256']:
                     raise ValueError('Publisher did not confirm the exact candidate generation')
+                if config.get('public_url') and not isinstance(publication.get('verification'), dict):
+                    publication['verification'] = verify_public_api(config, report['scans'])
             next_current['publication'] = publication
             if publication:
                 next_current['published_database_sha256'] = report['database_sha256']
             write_json(pointer, next_current)
-            save('published' if publish else 'ready', database_sha256=report['database_sha256'], publication=publication)
+            save('published' if publish else 'ready', database_sha256=report['database_sha256'], publication=publication, summary=summary)
             return job
         except Exception as exc:
             phase = 'publication_unknown' if job['phase'] == 'publishing' else 'failed'
@@ -281,6 +327,27 @@ def reconcile(root, receipt):
         return status
 
 
+def verify_published(config):
+    root = Path(config['root'])
+    with generation_lock(root / 'update'):
+        status_path = root / 'status.json'
+        status = json.loads(status_path.read_text(encoding='utf-8')) if status_path.exists() else {}
+        if status.get('phase') in ('publishing', 'publication_unknown'):
+            raise ValueError('Publication outcome is unknown; reconcile the receipt before verification')
+        current = json.loads((root / 'current.json').read_text(encoding='utf-8'))
+        database = Path(current['database'])
+        report = json.loads(database.with_suffix('.report.json').read_text(encoding='utf-8'))
+        receipt = current.get('publication') or {}
+        if (receipt.get('status') != 'active' or receipt.get('database_sha256') != current['database_sha256']
+                or report['database_sha256'] != current['database_sha256'] or sha256_file(database) != current['database_sha256']):
+            raise ValueError('Published generation checksum or receipt mismatch')
+        verification = verify_public_api(config, report['scans'])
+        result = dict(phase='verified', database_sha256=current['database_sha256'], verification=verification,
+                      source_snapshot_count=len(report['scans']), source_record_count=report['listing_count'], verified_at=now())
+        write_json(root / 'verification.json', result)
+        return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', required=True, type=Path)
@@ -290,8 +357,12 @@ def main():
     parser.add_argument('--reconcile-receipt', type=Path)
     parser.add_argument('--discover-client', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--verify', action='store_true', help='Verify the current published generation without importing or uploading')
     args = parser.parse_args()
     config = load_config(args.config)
+    if args.verify:
+        print(json.dumps(verify_published(config), ensure_ascii=False))
+        return
     if args.reconcile_receipt:
         print(json.dumps(reconcile(config['root'], json.loads(args.reconcile_receipt.read_text(encoding='utf-8')))))
         return

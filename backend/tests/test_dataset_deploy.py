@@ -5,9 +5,50 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import contextlib
+import io
 from unittest.mock import patch
 
 from deploy import dataset
+
+
+class GenericMarketVerificationTest(unittest.TestCase):
+    def test_verifier_checks_actual_api_and_rejects_catalog_or_scope_corruption(self):
+        from fastapi.testclient import TestClient
+        from compact_market.api import app
+        from compact_market.build import build
+        from compact_market.manage import inventory
+        from tests.test_market_pipeline import _lua_snapshot
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / 'snapshot.lua'
+            source.write_text(_lua_snapshot(), encoding='utf-8')
+            database = root / 'market.duckdb'
+            with contextlib.redirect_stdout(io.StringIO()):
+                build([source], database)
+            scans = inventory(database)['scans']
+            with patch.dict('os.environ', {'COMPACT_ENGINE':'unified', 'COMPACT_DATABASE':str(database), 'COMPACT_MEMORY_LIMIT':'1GB'}):
+                with TestClient(app) as client:
+                    def api(base, path):
+                        response = client.get(path)
+                        response.raise_for_status()
+                        return response.json()
+                    with patch.object(dataset, 'api_json', side_effect=api):
+                        verified = dataset.verify_market_api('http://test', scans)
+                    self.assertEqual((verified['realm_count'], verified['market_count'], verified['source_record_count']), (1,2,6))
+                    for corrupt in ('status', 'count', 'time'):
+                        def broken(base, path):
+                            data = api(base, path)
+                            if corrupt == 'status' and path.startswith('/api/market/status'):
+                                data['realmID'] = 999
+                            if path == '/api/market/catalog':
+                                if corrupt == 'count':
+                                    data['realms'][0]['scans'][0]['listingCount'] += 1
+                                if corrupt == 'time':
+                                    data['realms'][0]['scans'][0]['scannedAtUnix'] += 1
+                            return data
+                        with patch.object(dataset, 'api_json', side_effect=broken), self.assertRaises(ValueError):
+                            dataset.verify_market_api('http://test', scans)
 
 
 class DatasetDeployTest(unittest.TestCase):
@@ -70,6 +111,16 @@ class DatasetDeployTest(unittest.TestCase):
              patch.object(dataset, 'api_json', return_value={}), \
              patch.object(dataset, 'wait_ready', side_effect=RuntimeError('bad health')):
             with self.assertRaises(RuntimeError):
+                dataset.switch(self.args)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        self.assertIn(('docker', 'stop', 'new'), self.calls)
+        self.assertNotIn(('docker', 'stop', 'old'), self.calls)
+
+    def test_failed_public_verification_restores_the_previous_route(self):
+        with patch.object(dataset, 'command', side_effect=self.run_command), \
+             patch.object(dataset, 'api_json', return_value={}), patch.object(dataset, 'wait_ready'), \
+             patch.object(dataset, 'wait_matching_catalog', side_effect=ValueError('Public row counts mismatch')):
+            with self.assertRaisesRegex(ValueError, 'row counts'):
                 dataset.switch(self.args)
         self.assertEqual(self.config.read_bytes(), self.original)
         self.assertIn(('docker', 'stop', 'new'), self.calls)

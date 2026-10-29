@@ -65,6 +65,54 @@ def verify_catalog(catalog, scans):
     actual = {(row['regionID'], row['realmID']): {s['scanId'] for s in row['scans']} for row in catalog['realms']}
     if actual != expected:
         raise ValueError('Candidate catalog does not exactly match the staged snapshot selection')
+    entries = {(r['regionID'], r['realmID'], s['scanId']): s for r in catalog['realms'] for s in r['scans']}
+    for source in scans:
+        observations = [entries[source['region_id'], realm, source['scan_id'] * 2 + offset]
+                        for realm, offset in ((0, 0), (source['realm_id'], 1))]
+        if 'timestamp' in source and any(s.get('scannedAtUnix') != source['timestamp'] for s in observations):
+            raise ValueError('Catalog snapshot timestamps differ from the verified report')
+        if 'record_count' in source and sum(s.get('listingCount', -1) for s in observations) != source['record_count']:
+            raise ValueError('Catalog snapshot row counts differ from the verified report')
+
+
+def verify_market_api(base, scans, catalog=None):
+    """Data-driven verification for every market; no realm IDs or fixture items."""
+    catalog = catalog or api_json(base, '/api/market/catalog')
+    verify_catalog(catalog, scans)
+    checked = []
+    for realm in catalog['realms']:
+        sid = realm['latestScanId']
+        observation = next(s for s in realm['scans'] if s['scanId'] == sid)
+        def query(path, **values):
+            return api_json(base, path + '?' + urllib.parse.urlencode(dict(scan_id=sid, **values)))
+        status = query('/api/market/status')
+        if (status.get('realmID') != realm['realmID'] or status.get('regionID') != realm['regionID']
+                or status.get('scannedAt') != observation['scannedAt']):
+            raise ValueError('Market status identity or timestamp mismatch')
+        result = query('/api/market/items', page_size=1)
+        if result.get('scanId') != sid or len(result['items']) != min(1, result['total']):
+            raise ValueError('Market listing page mismatch')
+        if result['items']:
+            item = result['items'][0]
+            if (item['scanId'], item['regionID'], item['realmID'], item['scannedAt']) != (
+                    sid, realm['regionID'], realm['realmID'], observation['scannedAt']):
+                raise ValueError('Market result belongs to a different observation')
+            detail = query('/api/market/listings', market_key=item['marketKey'], page_size=25)
+            if detail['total'] != item['listingCount'] or len(detail['items']) != min(25, item['listingCount']):
+                raise ValueError('Detail pagination count mismatch')
+            if detail['total'] > 25:
+                second = query('/api/market/listings', market_key=item['marketKey'], page_size=25, page=2)
+                if second['total'] != detail['total'] or len(second['items']) != min(25, detail['total'] - 25):
+                    raise ValueError('Second detail page mismatch')
+            history = query('/api/market/history/view', market_key=item['marketKey'], max_points=40)
+            if (not history['points'] or history['points'][-1]['scanId'] != sid
+                    or any(p['realmID'] != realm['realmID'] or p['regionID'] != realm['regionID'] for p in history['points'])):
+                raise ValueError('History observation identity mismatch')
+        checked.append(dict(realm=realm['realm'], region_id=realm['regionID'], realm_id=realm['realmID'],
+                            scan_id=sid, scanned_at=observation['scannedAt'], market_items=result['total']))
+    return dict(market_count=len(checked), realm_count=sum(r['realm_id'] != 0 for r in checked),
+                source_snapshot_count=len(scans), source_record_count=sum(s.get('record_count', 0) for s in scans),
+                markets=checked, checks='catalog identities, all snapshot timestamps/counts, per-market status, items, detail pagination and history')
 
 
 def wait_ready(base, scans, timeout=90):
@@ -75,13 +123,7 @@ def wait_ready(base, scans, timeout=90):
             health = api_json(base, '/health')
             if health.get('status') != 'ok':
                 raise ValueError('Candidate health is not ok')
-            verify_catalog(api_json(base, '/api/market/catalog'), scans)
-            first = api_json(base, '/api/market/items?page_size=1')['items'][0]
-            params = urllib.parse.urlencode(dict(scan_id=first['scanId'], market_key=first['marketKey'], page_size=1))
-            detail = api_json(base, '/api/market/listings?' + params)
-            if len(detail['items']) != 1:
-                raise ValueError('Candidate listing query failed')
-            return
+            return verify_market_api(base, scans)
         except Exception as exc:
             error = exc
             time.sleep(1)
@@ -106,6 +148,7 @@ def wait_matching_catalog(base, scans=None, expected_catalog=None):
                     raise ValueError('Public catalog does not match rollback state')
             else:
                 verify_catalog(catalog, scans)
+                return verify_market_api(base, scans, catalog)
             return
         except Exception:
             if time.monotonic() >= deadline:
@@ -175,7 +218,9 @@ def switch(args):
         command('nginx', '-t')
         command('nginx', '-s', 'reload')
         # Verify through the actual public Nginx route, not just the new container.
-        wait_matching_catalog(args.public_url.rstrip('/'), scans=report['scans'])
+        verification = wait_matching_catalog(args.public_url.rstrip('/'), scans=report['scans'])
+        if isinstance(verification, dict):
+            record['verification'] = verification
         record['status'] = 'active'
         save_record(record_path, record)
     except Exception as exc:
@@ -196,7 +241,10 @@ def switch(args):
     except Exception:
         record['previous_stopped'] = False
     save_record(record_path, record)
-    return dict(status='active', rollback_record=str(record_path), database_sha256=report['database_sha256'])
+    result = dict(status='active', rollback_record=str(record_path), database_sha256=report['database_sha256'])
+    if record.get('verification'):
+        result['verification'] = record['verification']
+    return result
 
 
 def rollback(args):

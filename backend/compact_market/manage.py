@@ -112,7 +112,7 @@ def _verify_scan(db, scan, original_id=None):
 
 def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), remove_realms=(),
                      keep_scans=None, expected_scans=None, memory_limit='1GB', full_verify=False,
-                     newer_only=False, allowed_realms=None) -> dict:
+                     newer_only=False, allowed_realms=None, new_realm_after=None, excluded_realms=()) -> dict:
     """Append verified snapshots or remove exact identities into a NEW generation.
 
     Existing scan IDs are stable, including after pruning. Reimports deduplicate by
@@ -199,10 +199,14 @@ def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), r
                     if row['region_id'] is None or row['realm_id'] is None or row['realm_id'] <= 0:
                         raise ValueError('New snapshots require captured region and realm IDs')
                     identity = (row['region_id'], row['realm_id'])
+                    if f'{identity[0]}:{identity[1]}' in excluded_realms:
+                        raise ValueError('Automatic update contains an excluded realm')
                     if allowed_realms is not None and f'{identity[0]}:{identity[1]}' not in allowed_realms:
                         raise ValueError('Automatic update contains an unconfigured realm')
                     if newer_only and row['timestamp'] <= latest_times.get(identity, -1):
                         raise ValueError('Automatic update cannot restore older snapshots; use explicit snapshot management')
+                    if identity not in latest_times and new_realm_after is not None and row['timestamp'] <= new_realm_after:
+                        raise ValueError('New realm snapshot predates the discovery cutoff; use explicit snapshot management')
                     original_id = row['scan_id']
                     row['scan_id'] = next_scan_id
                     expectations.append((row, original_id))

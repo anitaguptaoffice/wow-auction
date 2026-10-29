@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from compact_market.build import build
 from compact_market.manage import stage_generation, _verify_scan
-from compact_market.update import run_update, reconcile, discover_client_sources, prepare_icons
+from compact_market.update import run_update, reconcile, discover_client_sources, prepare_icons, verify_published
 from tests.test_market_pipeline import _lua_snapshot
 
 
@@ -74,6 +74,8 @@ class UpdatePipelineTest(unittest.TestCase):
             with self.assertRaises(TimeoutError):
                 self.run_job(sources=[], publish=True)
         self.assertEqual(self.current(), prepared)
+        with self.assertRaisesRegex(ValueError, 'outcome is unknown'):
+            verify_published(self.config)
         with self.assertRaisesRegex(ValueError, 'outcome is unknown'):
             self.run_job(publish=True)
         receipt = dict(status='active', database_sha256=prepared['database_sha256'], rollback_record='retained.json')
@@ -155,3 +157,34 @@ class UpdatePipelineTest(unittest.TestCase):
         names.write_text(json.dumps({'100': '../escape'}), encoding='utf-8')
         with self.assertRaises(ValueError):
             prepare_icons(self.database, output, names)
+
+    def test_discovery_mode_admits_new_realms_without_reviving_old_snapshots(self):
+        self.config.update(realm_policy='discover', new_realm_after=1700000000)
+        client = self.root / 'client'
+        for name, realm, stamp in [('fresh', 456, 1700086400), ('abandoned', 789, 1699990000)]:
+            source = client / 'account' / str(realm) / name / 'SavedVariables/AuctionSearchExample.lua'
+            source.parent.mkdir(parents=True)
+            source.write_text('AuctionSearchDB = { ["lastScan"] = { ["regionID"] = 5, ["realmID"] = %d }, ["lastScanTime"] = %d }' % (realm, stamp), encoding='utf-8')
+        self.config['client_roots'] = [str(client)]
+        found = discover_client_sources(self.config)
+        self.assertEqual(len(found['sources']), 1)
+        self.assertEqual(found['new_realms'][0]['identity'], '5:456')
+        self.assertEqual(found['skipped'][0]['reason'], 'older_than_new_realm_cutoff')
+        self.config['excluded_realms'] = ['5:456']
+        self.assertEqual(discover_client_sources(self.config)['sources'], [])
+
+    def test_new_realm_policy_is_checked_against_validated_data_and_persisted(self):
+        self.config.update(realm_policy='discover', new_realm_after=1700000000)
+        other = self.root / 'other.lua'
+        other.write_text(_lua_snapshot(timestamp=1699990000, realm_id=456), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'discovery cutoff'):
+            self.run_job(sources=[str(other)])
+        other.write_text(_lua_snapshot(timestamp=1700086400, realm_id=456), encoding='utf-8')
+        result = self.run_job(sources=[str(other)])
+        self.assertEqual(result['summary']['added_snapshot_count'], 1)
+        self.assertEqual(result['summary']['added_snapshots'][0]['realm_id'], 456)
+        self.assertEqual(self.current()['new_realm_after'], 1700000000)
+        self.config['excluded_realms'] = ['5:789']
+        other.write_text(_lua_snapshot(timestamp=1700172800, realm_id=789), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'excluded realm'):
+            self.run_job(sources=[str(other)])

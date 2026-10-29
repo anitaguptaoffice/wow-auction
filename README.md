@@ -7,23 +7,20 @@ DuckDB/Arrow API. The CloudBase architecture documented below is legacy; the new
 runtime does not require CloudBase, MySQL, or Redis.
 
 - Frontend: `https://wowplayer.fun/`, served by the existing host Nginx.
-- API: one Docker process, loopback port `8181`, 2 GiB container limit; do not scale
+- API: one active Docker process, alternating loopback ports `8180`/`8181`, 2 GiB container limit; do not scale
   workers without budgeting another complete in-memory history index per worker.
 - Data: immutable DuckDB generations and original compressed snapshots outside Git.
-- Validation: 70 backend tests; public desktop/mobile search, detail pagination and
+- Validation: backend regression tests; public desktop/mobile search, detail pagination and
   three-point history verified. Original migration loopback test: 800 requests, 8 concurrent,
   zero errors; P95 list/search/history about 116 ms, detail 189 ms with a 2-CPU limit.
   These are server measurements, not Internet round-trip timings.
-- Current dataset: four verified source snapshots, 1,756,007 original listing rows.
-  Silver Hand retains its October 29 02:58:50 snapshot and the new October 30
-  00:37:52 snapshot (UTC+8); Panda Brewmaster has October 30 00:13:58 and
-  Deathwing October 30 00:42:41. Earlier August/October snapshots are no longer
-  in the active dataset. Shared commodity history is derived from these four sources.
-- Current UI/API release: `a966f5a`, deployed October 30. Subsequent one-click data
-  updates use immutable generations under `/opt/wow-auction/data/automatic/` and
-  alternate ports `8180`/`8181` while retaining the API image and frontend.
-  Exact active paths, hashes and rollback records are recorded in
-  `experiments/compact-market/results/release-20261030-sync.json`.
+- Current data is read from `/api/market/catalog` and the updater's `current.json`
+  and `verification.json`; counts and server names are not maintained as code constants.
+  Run `./scripts/sync-market.ps1 -Verify` for a report bound to the published generation.
+- Data updates use immutable generations under `/opt/wow-auction/data/automatic/`
+  while retaining the API image and frontend. Each publication returns its hash,
+  verification results and rollback record. The initial rollout is documented in
+  `experiments/compact-market/results/release-20261030-sync.json` as historical evidence.
   The previous API container, frontend and database are retained for rollback.
 - Region commodities use market server ID `0`; each actual realm has its own history.
   Default browsing combines only the latest observation from each market.
@@ -78,6 +75,9 @@ opt-in runner/watch pipeline, candidate acceptance and SSH publication. This is
 functionality; background publication remains disabled by default. On Windows,
 use the root `同步拍卖数据.cmd` entry after configuring the local settings, or
 `./scripts/sync-market.ps1 -Preview` to discover new client data without uploading.
+Discovery mode accepts newly captured realms automatically and rejects old
+abandoned observations. The same verifier checks every market before and after
+publication; ordinary updates require no realm-specific scripts.
 
 The lower-level `compact_market.build` command still rebuilds a generation from
 all supplied originals. Keep each archive beside its manifest. Both the runner's
