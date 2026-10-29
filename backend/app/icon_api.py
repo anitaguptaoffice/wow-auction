@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.request import Request as UpstreamRequest, urlopen
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -16,7 +16,8 @@ from fastapi.responses import FileResponse
 router = APIRouter(prefix="/api/icons", tags=["icons"])
 
 _ICON_MAP_PATH = Path(__file__).with_name("icon-map.json")
-_ALLOWED_ICON_NAMES = frozenset(json.loads(_ICON_MAP_PATH.read_text(encoding="utf-8")).values())
+ICON_NAMES = json.loads(_ICON_MAP_PATH.read_text(encoding="utf-8"))
+_ALLOWED_ICON_NAMES = frozenset(ICON_NAMES.values())
 _UPSTREAM_BASE = "https://wow.zamimg.com/images/wow/icons/large"
 _MAX_ICON_BYTES = 512 * 1024
 _CACHE_HEADERS = {"Cache-Control": "public, max-age=31536000, immutable"}
@@ -32,8 +33,11 @@ def _cache_dir() -> Path:
 
 
 def _download_icon(icon_name: str) -> bytes:
-    upstream_name = icon_name.removeprefix('filedata-') if icon_name.startswith('filedata-') else icon_name
-    request = Request(
+    texture = icon_name.removeprefix('filedata-')
+    upstream_name = ICON_NAMES.get(texture, texture) if icon_name.startswith('filedata-') else icon_name
+    if upstream_name.startswith('filedata-'):
+        upstream_name = texture
+    request = UpstreamRequest(
         f"{_UPSTREAM_BASE}/{quote(upstream_name, safe='')}.jpg",
         headers={"User-Agent": "wow-auction-icon-cache/1.0", "Accept": "image/jpeg"},
     )
@@ -56,7 +60,8 @@ def _download_icon(icon_name: str) -> bytes:
 @router.get("/{icon_name}.jpg", response_class=FileResponse)
 def read_cached_icon(icon_name: str, request: Request = None):
     extra = getattr(request.app.state, 'icon_names', ()) if request else ()
-    if icon_name not in _ALLOWED_ICON_NAMES and icon_name not in extra:
+    known_id = icon_name.startswith('filedata-') and icon_name.removeprefix('filedata-') in ICON_NAMES
+    if icon_name not in _ALLOWED_ICON_NAMES and icon_name not in extra and not known_id:
         raise HTTPException(status_code=404, detail="未知图标")
 
     for extension, media_type in (('jpg', 'image/jpeg'), ('webp', 'image/webp')):
