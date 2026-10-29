@@ -36,6 +36,7 @@ class RaidFiltersTest(unittest.TestCase):
                   ["bidAmount"]=0, ["timeLeftBand"]=4, ["hasAllInfo"]=true, ["itemLink"]="%s" },'''
                             % (index, (index * 10 + offset) * index, link(tier, stats, bonuses)))
             snapshot = _lua_snapshot(realm_name=realm, realm_id=realm_id)
+            snapshot = snapshot.replace('["itemMarketScopes"] = {', '["itemMarketScopes"] = { [271435]="realm",')
             for key in ('itemCount', 'recordCount', 'linkedItemCount'):
                 snapshot = snapshot.replace(f'["{key}"] = 6', f'["{key}"] = 12')
             snapshot = snapshot.replace('["items"] = {', '["items"] = {' + '\n'.join(rows), 1)
@@ -81,6 +82,23 @@ class RaidFiltersTest(unittest.TestCase):
         result = self.items(difficulty='5', stats='49-40', socket='yes', tertiary='avoidance')
         self.assertEqual(result['total'], 2)
         self.assertEqual(result['items'][0]['minUnitPrice'], 60)
+
+    def test_grouped_market_filters_then_merges_before_sort_and_pagination(self):
+        result = self.items(group_markets=True, sort='price_desc', page_size=1)
+        self.assertEqual((result['total'], result['totalPages']), (2, 2))
+        first = result['items'][0]
+        self.assertEqual((first['realmID'], first['minUnitPrice']), (123, 60))
+        self.assertEqual(first['marketGroup']['listingCount'], 2)
+        second = self.items(group_markets=True, sort='price_desc', page=2, page_size=1)['items'][0]
+        self.assertEqual((second['minUnitPrice'], second['marketGroup']['listingCount'], second['marketGroup']['totalQuantity']), (10, 10, 30))
+        self.assertEqual(second['statCombinationCount'], 2)
+        filtered = self.items(group_markets=True, difficulty='6', stats='49-40', socket='yes')
+        self.assertEqual(filtered['total'], 1)
+        item = filtered['items'][0]
+        self.assertEqual((item['realmID'], item['minUnitPrice'], item['listingCount']), (123,20,2))
+        self.assertEqual((item['marketGroup']['marketCount'], item['marketGroup']['listingCount'], item['marketGroup']['totalQuantity']), (2,4,14))
+        self.assertEqual(item['statCombinationCount'], 1)
+        self.assertEqual(self.items(group_markets=True, scan_id=item['scanId'], difficulty='6')['total'], 1)
 
     def test_comparison_and_history_use_the_same_equipment_conditions(self):
         item = self.items(difficulty='6', stats='49-40', socket='yes')['items'][0]

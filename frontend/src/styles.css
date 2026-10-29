@@ -256,6 +256,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .comparison-row { display: grid; grid-template-columns: minmax(90px, 1fr) auto auto; gap: 12px; width: 100%; min-height: 52px; align-items: center; text-align: left; border: 0; border-bottom: 1px solid var(--line); color: var(--text); background: transparent; font-size: 12px; }
 .comparison-row:hover { background: var(--surface-muted); }
 .comparison-row small { display: block; color: var(--muted); margin-top: 3px; }
+.price-quote { display: flex; align-items: flex-end; flex-direction: column; gap: 4px; }
+.price-quote > small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.market-table tr.market-quotes-row { background: var(--surface-muted); }
+.market-table td.market-quotes-cell { padding: 4px 18px 14px; text-align: left !important; }
+.inline-market-quotes { max-width: 760px; margin-left: auto; }
+.quote-scope-note { margin: 8px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.comparison-row:disabled { cursor: default; }
 .market-data-warning { margin: 0; padding: 12px 20px; color: var(--warning); background: var(--surface-muted); font-size: 12px; }
 .market-toolbar { display: grid; grid-template-columns: minmax(180px, 1fr) auto; padding: 14px 18px 10px; align-items: center; gap: 10px; }
 .market-search { min-width: 0; height: 44px; }
@@ -567,6 +574,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .market-table .money { flex-wrap: nowrap; }
   .market-table td.action-cell { grid-column: 1 / -1; padding-top: 6px; }
   .action-cell button { width: 100%; }
+  .market-table tr.market-quotes-row { display: block; padding: 0 14px 14px; }
+  .market-table td.market-quotes-cell { display: block; padding: 0; }
+  .market-table td.market-quotes-cell::before { display: none; }
+  .inline-market-quotes { max-width: 100%; margin: 0; }
   .pagination { align-items: flex-start; flex-direction: column; }
   .pagination > div { width: 100%; justify-content: center; }
   .pagination > div button:not(:first-child):not(:last-child), .pagination > div span { display: none; }

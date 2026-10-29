@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select } from "./components/Select";
 import { WowheadLink } from "./components/WowheadLink";
@@ -408,6 +408,8 @@ function MarketTable({
   onRetry: () => void;
   onClearSearch: () => void;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  useEffect(() => setExpanded(new Set()), [items]);
   if (isLoading) return <PanelState kind="loading" title="正在加载市场数据" message="正在读取最新快照中的物品…" />;
   if (error) return <PanelState kind="error" title="无法加载物品列表" message={error.message} action="重新加载" onAction={onRetry} />;
   if (!items.length) {
@@ -422,6 +424,7 @@ function MarketTable({
     );
   }
   const showsDifficulty = items.some((item) => item.difficulty);
+  const grouped = items.some(item => item.marketGroup);
   return (
     <div className={`table-wrap ${isFetching ? "is-refreshing" : ""}`}>
       <table className="market-table">
@@ -431,14 +434,18 @@ function MarketTable({
             {showsDifficulty && <th>档位</th>}
             <th className="number-cell">最低单价</th>
             <th className="number-cell buyout-column">最低一口价</th>
-            <th className="number-cell">挂单</th>
-            <th className="number-cell">总数量</th>
+            <th className="number-cell">{grouped ? "挂单合计" : "挂单"}</th>
+            <th className="number-cell">{grouped ? "数量合计" : "总数量"}</th>
             <th><span className="sr-only">操作</span></th>
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
-            <tr key={`${item.marketKey}:${item.scanId}`}>
+          {items.map((item) => {
+            const key = `${item.marketKey}:${item.regionID}:${item.scanId}`;
+            const multiple = (item.marketGroup?.marketCount ?? 0) > 1;
+            const open = expanded.has(key);
+            const panelId = `quotes-${item.scanId}-${encodeURIComponent(item.marketKey)}`;
+            return <Fragment key={key}><tr>
               <td data-label="物品">
                 <div className="item-identity">
                   <WowheadLink item={item} className="wowhead-icon-link"><ItemGlyph item={item} /></WowheadLink>
@@ -446,7 +453,8 @@ function MarketTable({
                     <div className="item-title-line">
                       <WowheadLink item={item}><strong className={qualityClass(item.quality)}>{item.name}</strong></WowheadLink>
                       <CraftingQuality quality={item.craftingQuality} />
-                      <MarketScopeBadge scope={item.marketScope} realm={item.realm} />
+                      {multiple ? <span className="market-scope-badge scope-realm">{item.marketGroup!.marketCount} 服报价</span>
+                        : <MarketScopeBadge scope={item.marketScope} realm={item.realm} />}
                     </div>
                     <small>
                       ID {item.itemID}
@@ -455,7 +463,7 @@ function MarketTable({
                         ? ` · ${item.petBreedCode || "未知 Breed"}${item.petBreedLabel ? ` ${item.petBreedLabel}` : ""} · ${item.petLevel}级 · ${item.petQualityLabel || "未知品质"}`
                         : !item.difficulty && (item.statCombinationCount ?? 0) > 1 ? ` · ${item.statCombinationCount} 种副属性组合` : ""}
                     </small>
-                    <small className="item-observed-at"><time dateTime={item.scannedAt} title={formatDate(item.scannedAt)}>采集于 {formatShortDate(item.scannedAt)} · {observationAge(item.scannedAt)}</time></small>
+                    <small className="item-observed-at"><time dateTime={item.scannedAt} title={formatDate(item.scannedAt)}>{multiple && item.minUnitPrice != null ? "最低价采集于" : "采集于"} {formatShortDate(item.scannedAt)} · {observationAge(item.scannedAt)}</time></small>
                   </div>
                 </div>
               </td>
@@ -467,19 +475,43 @@ function MarketTable({
                   {(item.statCombinationCount ?? 0) > 1 && <small className="tier-variants">{item.statCombinationCount} 种副属性组合</small>}
                 </td>
               )}
-              <td data-label="最低单价" className="number-cell"><Money value={item.minUnitPrice} /></td>
-              <td data-label="最低一口价" className="number-cell buyout-column"><Money value={item.minBuyout} /></td>
-              <td data-label="挂单" className="number-cell count">{formatInteger(item.listingCount)}</td>
-              <td data-label="总数量" className="number-cell count">{formatInteger(item.totalQuantity)}</td>
+              <td data-label="最低单价" className="number-cell"><div className="price-quote"><Money value={item.minUnitPrice} />
+                {multiple && item.minUnitPrice != null && <small>{item.realm}</small>}</div></td>
+              <td data-label="最低一口价" className="number-cell buyout-column"><div className="price-quote"><Money value={item.marketGroup?.minBuyout ?? item.minBuyout} />
+                {multiple && item.marketGroup?.minBuyout != null && <small title={formatDate(item.marketGroup.buyoutScannedAt)}>{item.marketGroup.buyoutRealm}</small>}</div></td>
+              <td data-label={grouped ? "挂单合计" : "挂单"} className="number-cell count">{formatInteger(item.marketGroup?.listingCount ?? item.listingCount)}</td>
+              <td data-label={grouped ? "数量合计" : "总数量"} className="number-cell count">{formatInteger(item.marketGroup?.totalQuantity ?? item.totalQuantity)}</td>
               <td className="action-cell">
-                <button type="button" disabled={isFetching} onClick={() => onSelect(item)}>查看挂单</button>
+                {multiple ? <button type="button" disabled={isFetching} aria-expanded={open} aria-controls={open ? panelId : undefined}
+                  onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })}>
+                  {open ? "收起报价" : "各服报价"}</button>
+                  : <button type="button" disabled={isFetching} onClick={() => onSelect(item)}>查看挂单</button>}
               </td>
             </tr>
-          ))}
+            {multiple && open && <tr className="market-quotes-row"><td className="market-quotes-cell" colSpan={showsDifficulty ? 7 : 6}>
+              <div id={panelId} className="inline-market-quotes"><RealmQuotePanel item={item} onSelect={onSelect} /></div>
+            </td></tr>}</Fragment>;
+          })}
         </tbody>
       </table>
     </div>
   );
+}
+
+function RealmQuotePanel({ item, onSelect }: { item: MarketItem; onSelect: (item: MarketItem) => void }) {
+  const query = useQuery({
+    queryKey: ["item-comparison", item.regionID, item.marketKey, item.variantFilters],
+    queryFn: ({ signal }) => fetchItemComparison(item, signal), staleTime: 60_000, retry: false,
+  });
+  return <>
+    <p className="quote-scope-note">各服采集时间可能不同；沿用当前装备筛选，点击报价查看该服挂单。</p>
+    {query.isLoading && <p role="status">正在读取各服报价…</p>}
+    {query.isError && <button type="button" className="equipment-filter-reset" onClick={() => query.refetch()}>报价读取失败，重试</button>}
+    {query.data?.items.map(row => <button type="button" className="comparison-row" key={row.scanId} disabled={!row.listingCount} onClick={() => onSelect(row)}>
+      <span>{row.realm}<small title={formatDate(row.scannedAt)}>{formatShortDate(row.scannedAt)}</small></span>
+      <Money value={row.minUnitPrice} /><span>{row.listingCount ? `${formatInteger(row.listingCount)} 条挂单` : '无匹配挂单'}</span>
+    </button>)}
+  </>;
 }
 
 function MarketScopeBadge({ scope, realm }: { scope: MarketItem["marketScope"]; realm?: string | null }) {
@@ -574,7 +606,7 @@ function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: (
   const [historyDays, setHistoryDays] = useState(0);
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const comparisonQuery = useQuery({
-    queryKey: ["item-comparison", item.marketKey, item.variantFilters],
+    queryKey: ["item-comparison", item.regionID, item.marketKey, item.variantFilters],
     queryFn: ({ signal }) => fetchItemComparison(item, signal), enabled: comparisonOpen, staleTime: 60_000, retry: false,
   });
   const historyQuery = useQuery({

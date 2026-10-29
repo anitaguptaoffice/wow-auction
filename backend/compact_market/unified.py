@@ -1,6 +1,7 @@
 """Unified market identities backed by dictionary-encoded Arrow columns."""
 from array import array
 from collections import defaultdict, OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 import sys
 import threading
@@ -27,6 +28,16 @@ class ArrowRows:
 
     def __getitem__(self, index):
         return {name: column[index].as_py() for name, column in self.columns.items()}
+
+
+@dataclass(frozen=True, slots=True)
+class MarketGroup:
+    indices: tuple
+    winner: int
+    buyout_winner: int
+    listing_count: int
+    total_quantity: int
+    stat_count: int | None
 
 
 class UnifiedMarketStore(MarketStore):
@@ -135,6 +146,24 @@ class UnifiedMarketStore(MarketStore):
             GROUP BY f.scan_id, d.market_key, f.descriptor_id
         ''', list(RAID_BOE_12_1_ITEM_IDS))):
             self.raid_facts[row['scan_id'], row['market_key']].append(row)
+        buckets = defaultdict(list)
+        for (sid, key), index in self.lookup.items():
+            if sid not in self.latest_scans:
+                continue
+            scope = self.records.columns['market_scope'][index].as_py()
+            scan = self.scans[sid]
+            identity = (scan['region_id'], scope, scan['realm_id'] if scope == 'unknown' else None, key)
+            buckets[identity].append(index)
+        self.group_id_by_record = array('i', [-1]) * len(self.records)
+        self.market_groups = []
+        for indices in buckets.values():
+            gid = len(self.market_groups)
+            self.market_groups.append(self._make_group(indices, sort_values=sort_values))
+            for index in indices:
+                self.group_id_by_record[index] = gid
+        self.group_sorts = {sort: array('I', sorted(range(len(self.market_groups)),
+                            key=lambda gid: self._group_order(self.market_groups[gid], sort, sort_values=sort_values)))
+                            for sort in SORTS}
         del sort_values
         for key, indices in self.history_index.items():
             self.history_index[key] = array('I', sorted(indices, key=lambda i: (
@@ -159,6 +188,75 @@ class UnifiedMarketStore(MarketStore):
                 count = self._stat_combination_count(self.raid_facts[source, row['market_key']]) if row['listing_count'] else 0
             result['statCombinationCount'] = count
         return result
+
+    def _make_group(self, indices, *, overrides=None, sort_values=None, filters=None):
+        values = {i: sort_values[i] if sort_values is not None else
+                  (overrides[i]['min_unit_price'], overrides[i]['total_quantity'], overrides[i]['listing_count'],
+                   overrides[i]['name'], overrides[i]['market_key']) for i in indices}
+        def price_key(i):
+            sid = self.records.columns['scan_id'][i].as_py()
+            price = values[i][0]
+            return price is None, price or 0, -self.scans[sid]['timestamp'], -sid
+        winner = min(indices, key=price_key)
+        buyouts = {i: overrides[i]['min_buyout'] if overrides is not None else
+                   self.records.columns['min_buyout'][i].as_py() for i in indices}
+        buyout_winner = min(indices, key=lambda i: (buyouts[i] is None, buyouts[i] or 0, price_key(i)))
+        stat_count = None
+        if self.records.columns['item_id'][winner].as_py() in RAID_BOE_12_1_ITEM_IDS:
+            facts = []
+            for i in indices:
+                sid = self.records.columns['scan_id'][i].as_py()
+                source = self.scans[sid]['source_scan_id']
+                for fact in self.raid_facts[source, values[i][4]]:
+                    if not filters or filters.matches(self.raid_descriptors[fact['descriptor_id']]):
+                        facts.append(fact)
+            stat_count = self._stat_combination_count(facts)
+        return MarketGroup(tuple(indices), winner, buyout_winner,
+                           sum(v[2] for v in values.values()), sum(v[1] for v in values.values()), stat_count)
+
+    def _group_order(self, group, sort, *, overrides=None, sort_values=None):
+        if sort_values is not None:
+            price, _, _, name, key = sort_values[group.winner]
+        else:
+            row = overrides[group.winner]
+            price, name, key = row['min_unit_price'], row['name'], row['market_key']
+        if sort.startswith('price_'):
+            return price is None, (price or 0) * (-1 if sort == 'price_desc' else 1), key, group.winner
+        if sort == 'quantity_desc':
+            return -group.total_quantity, key, group.winner
+        if sort == 'listings_desc':
+            return -group.listing_count, key, group.winner
+        return name, key, group.winner
+
+    def _grouped_items(self, ordered, matched, filters, sort, page, page_size):
+        eligible = {self.group_id_by_record[i] for i in ordered}
+        overrides = None
+        if matched is None:
+            groups = [self.market_groups[gid] for gid in self.group_sorts[sort] if gid in eligible]
+        else:
+            overrides = {self.lookup[row['scan_id'], row['market_key']]: row for row in matched}
+            buckets = defaultdict(list)
+            for i in overrides:
+                buckets[self.group_id_by_record[i]].append(i)
+            groups = [self._make_group(ids, overrides=overrides, filters=filters) for ids in buckets.values()]
+            groups.sort(key=lambda g: self._group_order(g, sort, overrides=overrides))
+        total = len(groups)
+        public = []
+        for group in groups[(page - 1) * page_size:page * page_size]:
+            row = overrides[group.winner] if overrides is not None else self.records[group.winner]
+            buyout = overrides[group.buyout_winner] if overrides is not None else self.records[group.buyout_winner]
+            item = self._public_record(row)
+            buyout_scan = self.scans[buyout['scan_id']]
+            item['marketGroup'] = dict(marketCount=len(group.indices), listingCount=group.listing_count,
+                totalQuantity=group.total_quantity, minBuyout=buyout['min_buyout'],
+                buyoutRealm=buyout_scan['realm_name'], buyoutScannedAt=iso(buyout_scan['timestamp']))
+            if group.stat_count is not None:
+                item['statCombinationCount'] = group.stat_count
+            if filters.active:
+                item['variantFilters'] = filters.public()
+            public.append(item)
+        return dict(scanId=None, page=page, pageSize=page_size, total=total,
+                    totalPages=(total + page_size - 1) // page_size, items=public, grouped=True)
 
     def ordered_ids(self, scan_id, sort):
         key = (scan_id, sort)
@@ -189,7 +287,7 @@ class UnifiedMarketStore(MarketStore):
         return result
 
     def items(self, *, scan_id=None, q='', sort='price_asc', page=1, page_size=20, collection='',
-              difficulty='', stats='', socket='', tertiary=''):
+              difficulty='', stats='', socket='', tertiary='', group_markets=False):
         scan = self.scan(scan_id)
         filters = VariantFilters(difficulty, stats, socket, tertiary)
         if filters.active and collection != 'raid_boe_12_1':
@@ -213,6 +311,11 @@ class UnifiedMarketStore(MarketStore):
             matches = {i for i in matches if text in self.names[i]}
             matches.update(self.item_index.get(text, ()))
             ordered = [i for i in ordered if i in matches]
+        if group_markets and scan_id is None and filters.active:
+            # A translated/fallback name in one realm must not hide that same
+            # item's eligible quotes from other realms.
+            eligible = {self.group_id_by_record[i] for i in ordered}
+            ordered = [i for gid in eligible for i in self.market_groups[gid].indices]
         if filters.active:
             matched = []
             for i in ordered:
@@ -232,6 +335,8 @@ class UnifiedMarketStore(MarketStore):
             matched.sort(key=lambda row: self._sort_key(row, sort))
         else:
             matched = None
+        if group_markets and scan_id is None:
+            return self._grouped_items(ordered, matched, filters, sort, page, page_size)
         total = len(matched) if matched is not None else len(ordered)
         start = (page - 1) * page_size
         page_rows = matched[start:start + page_size] if matched is not None else [self.records[i] for i in ordered[start:start + page_size]]

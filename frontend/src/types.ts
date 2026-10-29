@@ -60,6 +60,14 @@ export interface MarketCatalog {
 }
 
 export interface MarketItem {
+  marketGroup?: {
+    marketCount: number;
+    listingCount: number;
+    totalQuantity: number;
+    minBuyout: number | null;
+    buyoutRealm: string;
+    buyoutScannedAt: string;
+  };
   iconName?: string | null;
   variantFilters?: EquipmentFilters;
   scanId: number;

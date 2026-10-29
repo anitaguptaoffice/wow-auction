@@ -43,6 +43,9 @@ vm.runInNewContext(compiled, context);
 
   await context.exports.fetchMarketItems({ q: '', page: 1, pageSize: 20, sort: 'price_asc', collection: '', scanId: 9 });
   assert.equal(requests.at(-1).url.searchParams.get('scan_id'), '9');
+  assert.equal(requests.at(-1).url.searchParams.get('group_markets'), 'false');
+  await context.exports.fetchMarketItems({ q: '', page: 1, pageSize: 20, sort: 'price_asc', collection: '' });
+  assert.equal(requests.at(-1).url.searchParams.get('group_markets'), 'true');
   await context.exports.fetchItemHistory(item, undefined, 1700000000);
   assert.equal(requests.at(-1).url.searchParams.get('start'), '1700000000');
   assert.equal(requests.at(-1).url.searchParams.get('socket'), 'yes');

@@ -106,6 +106,60 @@ class UnifiedMarketTest(unittest.TestCase):
                 self.assertEqual(client.get('/api/market/compare', params={'market_key': ore['marketKey']}).status_code, 200)
                 self.assertEqual(client.get('/api/market/history/view', params={'market_key': 'missing', 'scan_id': 6}).status_code, 404)
 
+    def test_grouping_retains_pet_identities_and_does_not_invent_bid_only_prices(self):
+        flat = self.store.items(page_size=100)['items']
+        grouped = self.store.items(group_markets=True, page_size=100)
+        self.assertEqual(grouped['total'], len({(r['regionID'],r['marketKey'],r['marketScope']) for r in flat}))
+        bid_only = next(r for r in grouped['items'] if r['itemID'] == 20)
+        self.assertIsNone(bid_only['minUnitPrice'])
+        self.assertIsNone(bid_only['marketGroup']['minBuyout'])
+        self.assertEqual(bid_only['marketGroup']['listingCount'], 2)
+        pets = [r for r in grouped['items'] if r.get('petVariantKey')]
+        self.assertEqual(len({r['petVariantKey'] for r in pets}), len(pets))
+
+    def test_group_minimum_unit_and_buyout_prices_keep_their_own_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = []
+            for realm, rid, quantity, buyout in [('A',123,10,100),('B',456,1,20)]:
+                content = _lua_snapshot(realm_name=realm,realm_id=rid)
+                content = content.replace('["name"] = "仅竞价物品", ["quantity"] = 1', f'["name"] = "仅竞价物品", ["quantity"] = {quantity}')
+                content = content.replace('["buyoutAmount"] = 0, ["bidAmount"] = 0, ["timeLeftBand"] = 2', f'["buyoutAmount"] = {buyout}, ["bidAmount"] = 0, ["timeLeftBand"] = 2')
+                source = root / f'{rid}.lua'
+                source.write_text(content,encoding='utf-8')
+                paths.append(source)
+            with contextlib.redirect_stdout(io.StringIO()):
+                build(paths,root/'grouped.duckdb')
+            store = UnifiedMarketStore(root/'grouped.duckdb')
+            try:
+                row = store.items(q='20',group_markets=True)['items'][0]
+                self.assertEqual((row['realm'],row['minUnitPrice'],row['minBuyout']), ('A',10,100))
+                self.assertEqual((row['marketGroup']['minBuyout'],row['marketGroup']['buyoutRealm'],row['marketGroup']['totalQuantity']), (20,'B',11))
+                groups = store.items(q='矿',group_markets=True)['items']
+                self.assertEqual(len(groups),1)
+                self.assertEqual(groups[0]['marketGroup']['marketCount'],1)
+            finally:
+                store.close()
+
+    def test_grouping_never_merges_regions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = []
+            for region in (3,5):
+                source = root / f'{region}.lua'
+                source.write_text(_lua_snapshot().replace('["regionID"] = 5', f'["regionID"] = {region}'),encoding='utf-8')
+                paths.append(source)
+            with contextlib.redirect_stdout(io.StringIO()):
+                build(paths, root/'regions.duckdb')
+            store = UnifiedMarketStore(root/'regions.duckdb')
+            try:
+                rows = store.items(q='20',group_markets=True)['items']
+                self.assertEqual({r['regionID'] for r in rows}, {3,5})
+                self.assertEqual(len(rows),2)
+                self.assertTrue(all(r['marketGroup']['marketCount']==1 for r in rows))
+            finally:
+                store.close()
+
     def test_new_item_is_discovered_without_catalog_update(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

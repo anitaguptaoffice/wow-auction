@@ -84,6 +84,7 @@ export function fetchMarketItems(query: MarketQuery): Promise<MarketItemsRespons
   if (useMockData) return mockItems(query);
   return requestJson<MarketItemsResponse>("/market/items", {
     scan_id: query.scanId,
+    group_markets: !query.scanId,
     q: query.q,
     collection: query.collection,
     page: query.page,

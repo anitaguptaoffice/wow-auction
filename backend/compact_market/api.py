@@ -87,10 +87,12 @@ def items(request: Request, scan_id: int | None = Query(None, ge=1),
           q: str = Query("", max_length=100), collection: str = "", sort: str = "price_asc",
           difficulty: str = Query('', max_length=1), stats: str = Query('', max_length=5),
           socket: str = Query('', max_length=3), tertiary: str = Query('', max_length=20),
+          group_markets: bool = False,
           page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
     params = dict(scan_id=scan_id, q=q, sort=sort, page=page, page_size=page_size)
     if isinstance(request.app.state.store, UnifiedMarketStore):
         params['collection'] = collection
+        params['group_markets'] = group_markets
         params.update(difficulty=difficulty, stats=stats, socket=socket, tertiary=tertiary)
     elif collection:
         raise HTTPException(422, 'Collections require unified engine')
