@@ -1,28 +1,16 @@
 /* Auction controls: opaque surfaces, legible states, consistent touch targets. */
 :root {
-  --control-bg: #ffffff;
-  --control-text: #262b33;
-  --control-muted: #646b77;
-  --control-border: #cdd3de;
-  --menu-bg: #ffffff;
-  --menu-hover: #f0f2f5;
-  --menu-selected: #f5eedc;
-  --menu-accent: #775400;
-  --focus-ring: #a67600;
+  --control-bg: #f8f1e3;
+  --control-text: #382c23;
+  --control-muted: #6e5b49;
+  --control-border: #968060;
+  --menu-bg: #f8f1e3;
+  --menu-hover: #eadbbf;
+  --menu-selected: #e8d3a7;
+  --menu-accent: #70451f;
+  --focus-ring: #87562e;
   --control-radius: 6px;
   --control-height: 44px;
-}
-
-:root[data-theme="dark"] {
-  --control-bg: #1b2027;
-  --control-text: #f4f1e9;
-  --control-muted: #b4bac4;
-  --control-border: #586171;
-  --menu-bg: #20262e;
-  --menu-hover: #303946;
-  --menu-selected: #3b3220;
-  --menu-accent: #f1cc72;
-  --focus-ring: #e5bc5b;
 }
 
 .ui-select { min-width: 0; }

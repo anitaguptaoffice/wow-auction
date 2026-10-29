@@ -10,11 +10,9 @@ import {
   ChevronRight,
   Clock3,
   Database,
-  Moon,
   PackageSearch,
   RefreshCw,
   Search,
-  Sun,
   X,
 } from "lucide-react";
 import { fetchItemComparison, fetchItemHistory, fetchItemListings, fetchMarketCatalog, fetchMarketItems, fetchMarketStatus, getIconProxyUrl } from "./lib/api";
@@ -89,19 +87,14 @@ function initialQuery(): MarketQuery {
 export function App() {
   useEffect(enableWowheadTooltips, []);
   const queryClient = useQueryClient();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    const saved = localStorage.getItem("wow-auction-theme");
-    if (saved === "light" || saved === "dark") return saved;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
   const [query, setQuery] = useState<MarketQuery>(initialQuery);
   const [searchDraft, setSearchDraft] = useState(query.q);
   const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("wow-auction-theme", theme);
-  }, [theme]);
+    document.documentElement.dataset.theme = "parchment";
+    localStorage.removeItem("wow-auction-theme");
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -181,14 +174,6 @@ export function App() {
                 size={18}
                 className={statusQuery.isFetching || itemsQuery.isFetching ? "spin-slow" : ""}
               />
-            </button>
-            <button
-              className="icon-button"
-              type="button"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label={theme === "dark" ? "切换浅色主题" : "切换深色主题"}
-            >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           </div>
         </div>
