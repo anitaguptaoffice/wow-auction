@@ -328,7 +328,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .metric-card > div { min-width: 0; }
-.metric-card span, .metric-card strong, .metric-card small { display: block; }
+.metric-card > div > span,
+.metric-card > div > strong,
+.metric-card > div > small { display: block; }
 .metric-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
 .metric-card strong { overflow: hidden; margin-top: 3px; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
 .metric-card small { overflow: hidden; margin-top: 1px; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
