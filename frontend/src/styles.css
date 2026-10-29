@@ -270,6 +270,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .market-table td, .listing-table td { padding: 14px 15px; border-top: 1px solid var(--line); vertical-align: middle; }
 .market-table tbody tr, .listing-table tbody tr { transition: background 0.15s; }
 .market-table tbody tr:hover, .listing-table tbody tr:hover { background: var(--surface-muted); }
+.market-item-row:not([aria-disabled="true"]) { cursor: pointer; }
+.market-item-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; background: var(--surface-muted); }
 .number-cell { text-align: right !important; font-variant-numeric: tabular-nums; }
 
 .item-identity { display: flex; min-width: 0; align-items: center; gap: 11px; }

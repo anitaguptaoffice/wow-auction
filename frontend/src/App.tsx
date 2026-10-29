@@ -267,6 +267,7 @@ export function App() {
             error={itemsQuery.error}
             hasSearch={Boolean(query.q || query.collection)}
             hasFilters={equipmentFilterLabels(query).length > 0}
+            equipmentView={query.collection === "raid_boe_12_1"}
             onSelect={(item) => { if (!itemsQuery.isFetching) setSelectedItem(item); }}
             onRetry={() => itemsQuery.refetch()}
             onClearSearch={() => {
@@ -379,6 +380,7 @@ function MarketTable({
   error,
   hasSearch,
   hasFilters = false,
+  equipmentView = false,
   onSelect,
   onRetry,
   onClearSearch,
@@ -389,6 +391,7 @@ function MarketTable({
   error: Error | null;
   hasSearch: boolean;
   hasFilters?: boolean;
+  equipmentView?: boolean;
   onSelect: (item: MarketItem) => void;
   onRetry: () => void;
   onClearSearch: () => void;
@@ -428,9 +431,29 @@ function MarketTable({
           {items.map((item) => {
             const key = `${item.marketKey}:${item.regionID}:${item.scanId}`;
             const multiple = (item.marketGroup?.marketCount ?? 0) > 1;
+            const showsQuotes = Boolean(item.marketGroup) && (equipmentView || Boolean(item.difficulty));
             const open = expanded.has(key);
             const panelId = `quotes-${item.scanId}-${encodeURIComponent(item.marketKey)}`;
-            return <Fragment key={key}><tr>
+            const actionLabel = showsQuotes ? (open ? "收起报价" : "各服报价") : "查看挂单";
+            const activate = () => {
+              if (isFetching) return;
+              if (!showsQuotes) { onSelect(item); return; }
+              setExpanded(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+            };
+            return <Fragment key={key}><tr className="market-item-row" tabIndex={isFetching ? -1 : 0}
+              aria-label={`${item.name}，${actionLabel}`} aria-disabled={isFetching || undefined}
+              aria-expanded={showsQuotes ? open : undefined} aria-controls={showsQuotes && open ? panelId : undefined}
+              onClick={event => {
+                if ((event.target as Element).closest('a, button, input, select, textarea, summary, [role="button"], [role="combobox"]')) return;
+                const selection = window.getSelection();
+                if (selection && !selection.isCollapsed && selection.anchorNode && event.currentTarget.contains(selection.anchorNode)) return;
+                activate();
+              }}
+              onKeyDown={event => {
+                if (event.target !== event.currentTarget || !["Enter", " "].includes(event.key)) return;
+                event.preventDefault();
+                if (!event.repeat) activate();
+              }}>
               <td data-label="物品">
                 <div className="item-identity">
                   <WowheadLink item={item} className="wowhead-icon-link"><ItemGlyph item={item} /></WowheadLink>
@@ -467,13 +490,11 @@ function MarketTable({
               <td data-label={grouped ? "挂单合计" : "挂单"} className="number-cell count">{formatInteger(item.marketGroup?.listingCount ?? item.listingCount)}</td>
               <td data-label={grouped ? "数量合计" : "总数量"} className="number-cell count">{formatInteger(item.marketGroup?.totalQuantity ?? item.totalQuantity)}</td>
               <td className="action-cell">
-                {multiple ? <button type="button" disabled={isFetching} aria-expanded={open} aria-controls={open ? panelId : undefined}
-                  onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; })}>
-                  {open ? "收起报价" : "各服报价"}</button>
-                  : <button type="button" disabled={isFetching} onClick={() => onSelect(item)}>查看挂单</button>}
+                <button type="button" disabled={isFetching} aria-expanded={showsQuotes ? open : undefined}
+                  aria-controls={showsQuotes && open ? panelId : undefined} onClick={activate}>{actionLabel}</button>
               </td>
             </tr>
-            {multiple && open && <tr className="market-quotes-row"><td className="market-quotes-cell" colSpan={showsDifficulty ? 7 : 6}>
+            {showsQuotes && open && <tr className="market-quotes-row"><td className="market-quotes-cell" colSpan={showsDifficulty ? 7 : 6}>
               <div id={panelId} className="inline-market-quotes"><RealmQuotePanel item={item} onSelect={onSelect} /></div>
             </td></tr>}</Fragment>;
           })}
@@ -582,6 +603,7 @@ function paginationTokens(current: number, pages: number): Array<number | "…">
 }
 
 function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: () => void; onSelect: (item: MarketItem) => void }) {
+  const backdropPress = useRef(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [pageDraft, setPageDraft] = useState("1");
@@ -644,7 +666,14 @@ function ItemDetails({ item, onClose, onSelect }: { item: MarketItem; onClose: (
     displayColumns.petVariant ? "宠物 Breed、等级、品质与三围" : null,
   ].filter((label): label is string => Boolean(label));
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className="modal-backdrop" role="presentation"
+      onPointerDown={event => { backdropPress.current = event.button === 0 && event.target === event.currentTarget; }}
+      onPointerCancel={() => { backdropPress.current = false; }}
+      onClick={event => {
+        const startedOutside = backdropPress.current;
+        backdropPress.current = false;
+        if (startedOutside && event.target === event.currentTarget) onClose();
+      }}>
       <section className="details-dialog" role="dialog" aria-modal="true" aria-labelledby="details-title">
         <header>
           <div className="item-identity">
