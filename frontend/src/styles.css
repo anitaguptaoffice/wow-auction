@@ -446,6 +446,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .number-cell { text-align: right !important; font-variant-numeric: tabular-nums; }
 
 .item-identity { display: flex; min-width: 0; align-items: center; gap: 11px; }
+.wowhead-item-link { min-width: 0; color: inherit; text-decoration: none; }
+.wowhead-item-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.wowhead-item-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+.wowhead-icon-link { display: flex; flex: 0 0 auto; }
+.wowhead-icon-link:hover { text-decoration: none; }
+/* Optional external enhancement: never show loading, blocked, or missing data. */
+.wowhead-tooltip:not([data-status="ok"]) { visibility: hidden !important; pointer-events: none !important; }
+.wowhead-tooltip { z-index: 200 !important; }
 .item-glyph {
   display: grid;
   width: 40px;

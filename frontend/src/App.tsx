@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select } from "./components/Select";
+import { WowheadLink } from "./components/WowheadLink";
+import { enableWowheadTooltips } from "./lib/wowhead";
 import {
   Boxes,
   ChevronLeft,
@@ -78,6 +80,7 @@ function initialQuery(): MarketQuery {
 }
 
 export function App() {
+  useEffect(enableWowheadTooltips, []);
   const queryClient = useQueryClient();
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("wow-auction-theme");
@@ -481,7 +484,6 @@ function ItemGlyph({ item, size }: { item: MarketItem; size?: "small" }) {
     <span
       className={`item-glyph ${qualityClass(item.quality)} ${size === "small" ? "small" : ""} ${imageSource ? "has-image" : "is-fallback"}`}
       aria-hidden="true"
-      title={iconName ? `${item.name} · ${iconName}` : item.name}
     >
       {imageSource ? (
         <img
@@ -577,10 +579,10 @@ function MarketTable({
             <tr key={`${item.marketKey}:${item.scanId}`}>
               <td data-label="物品">
                 <div className="item-identity">
-                  <ItemGlyph item={item} />
+                  <WowheadLink item={item} className="wowhead-icon-link"><ItemGlyph item={item} /></WowheadLink>
                   <div className="item-copy">
                     <div className="item-title-line">
-                      <strong className={qualityClass(item.quality)}>{item.name}</strong>
+                      <WowheadLink item={item}><strong className={qualityClass(item.quality)}>{item.name}</strong></WowheadLink>
                       <CraftingQuality quality={item.craftingQuality} />
                       <MarketScopeBadge scope={item.marketScope} realm={item.realm} />
                     </div>
@@ -739,11 +741,11 @@ function ItemDetails({ item, onClose }: { item: MarketItem; onClose: () => void 
       <section className="details-dialog" role="dialog" aria-modal="true" aria-labelledby="details-title">
         <header>
           <div className="item-identity">
-            <ItemGlyph item={item} />
+            <WowheadLink item={item} className="wowhead-icon-link"><ItemGlyph item={item} /></WowheadLink>
             <div className="item-copy">
               <p className="eyebrow">AUCTION LISTINGS</p>
               <div className="details-title-line">
-                <h2 id="details-title" className={qualityClass(item.quality)}>{item.name}</h2>
+                <h2 id="details-title" className={qualityClass(item.quality)}><WowheadLink item={item}>{item.name}</WowheadLink></h2>
                 <CraftingQuality quality={item.craftingQuality} />
               </div>
               <small>
@@ -1052,7 +1054,7 @@ function ListingsTable({
               <td className="count">{formatInteger(listing.quantity)}</td>
               {displayColumns.tier && <td>
                 <div className="variant-tier">
-                  <strong>{listing.difficulty || "未标注档位"}</strong>
+                  <WowheadLink item={listing}><strong>{listing.difficulty || "未标注档位"}</strong></WowheadLink>
                   {tierDetails.length > 0 && <small>{tierDetails.join(" · ")}</small>}
                 </div>
               </td>}
