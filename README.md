@@ -7,15 +7,21 @@ DuckDB/Arrow API. The CloudBase architecture documented below is legacy; the new
 runtime does not require CloudBase, MySQL, or Redis.
 
 - Frontend: `https://wowplayer.fun/`, served by the existing host Nginx.
-- API: one Docker process, loopback port `8180`, 2 GiB container limit; do not scale
+- API: one Docker process, loopback port `8181`, 2 GiB container limit; do not scale
   workers without budgeting another complete in-memory history index per worker.
 - Data: immutable DuckDB generations and original compressed snapshots outside Git.
 - Validation: 36 backend tests; public desktop/mobile search, detail pagination and
   three-point history verified. Server loopback test: 800 requests, 8 concurrent,
   zero errors; P95 list/search/history about 116 ms, detail 189 ms with a 2-CPU limit.
   These are server measurements, not Internet round-trip timings.
-- Initial dataset: three verified source snapshots, 1,373,832 original listing rows;
-  latest data is October 15, 2026 (UTC+8), not a live feed.
+- Current dataset: four verified source snapshots, 1,792,810 original listing rows.
+  The offline release contributes 418,978 rows captured October 29, 2026 at 02:58:50
+  (UTC+8). Shared commodities and Silver Hand use this observation; Deathwing remains
+  on its October 15 observation. This is not a live feed.
+- Active database: `/opt/wow-auction/data/offline-20261029/market-20261029-offline.duckdb`;
+  active API container: `wow-auction-offline-20261029`, loopback port `8181`.
+  The original `wow-auction-api` container is stopped and retained for rollback.
+  Dataset verification is recorded in `experiments/compact-market/results/offline-generation.json`.
 - Region commodities use market server ID `0`; each actual realm has its own history.
   Default browsing combines only the latest observation from each market.
 - Accounts and automatic snapshot collection are not enabled on this deployment.

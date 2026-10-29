@@ -1,0 +1,127 @@
+{
+  "source_release": "https://github.com/anitaguptaoffice/wow-auction-offline/releases/tag/handoff-2026-10-29",
+  "database_sha256": "93434503136e6957446808340a3f10bb60fd29d3140f7ba5f122098215db4235",
+  "database_bytes": 87044096,
+  "counts": {
+    "listings": 1792810,
+    "descriptors": 95640,
+    "people": 1,
+    "summaries": 104599,
+    "scans": 4
+  },
+  "source_snapshot_sha256": "720b048c3b724d3213fe6e119775cce723a886789fd5c6a646242f9b8b933a31",
+  "latest_timestamp": 1793213930,
+  "roundtrip_checks": [
+    {
+      "scan_id": 1,
+      "rows": 491609,
+      "total_quantity": 36201633,
+      "mapping_sha256": "a5523bb96a93d756fb077728cb7e05c990dc091c642527200dd356d9a2720a33",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 2,
+      "rows": 451807,
+      "total_quantity": 35559804,
+      "mapping_sha256": "91502a140e446496eefebd992494165e5261fe89df022694e54434f53526e387",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 3,
+      "rows": 430416,
+      "total_quantity": 34166125,
+      "mapping_sha256": "a355327191f709459e929917c3f7169c9f018ff00a51be6f496d7dc7dbbda2ef",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 4,
+      "rows": 418978,
+      "total_quantity": 40539716,
+      "mapping_sha256": "b708ab9ff938356ac2149edc53948d14fd1a46c191f661fe585bbe4fe5e9df9b",
+      "all_modeled_fields_match": true
+    }
+  ],
+  "catalog": {
+    "realms": [
+      {
+        "key": "5:0",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "全服",
+        "realmID": 0,
+        "latestScanId": 8,
+        "scans": [
+          {
+            "scanId": 8,
+            "scannedAt": "2026-10-28T18:58:50Z",
+            "scannedAtUnix": 1793213930,
+            "listingCount": 354193
+          },
+          {
+            "scanId": 6,
+            "scannedAt": "2026-10-14T16:25:45Z",
+            "scannedAtUnix": 1791995145,
+            "listingCount": 381762
+          },
+          {
+            "scanId": 4,
+            "scannedAt": "2026-10-14T15:54:16Z",
+            "scannedAtUnix": 1791993256,
+            "listingCount": 383250
+          },
+          {
+            "scanId": 2,
+            "scannedAt": "2026-08-20T20:07:27Z",
+            "scannedAtUnix": 1787256447,
+            "listingCount": 425194
+          }
+        ]
+      },
+      {
+        "key": "5:707",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "白银之手",
+        "realmID": 707,
+        "latestScanId": 9,
+        "scans": [
+          {
+            "scanId": 9,
+            "scannedAt": "2026-10-28T18:58:50Z",
+            "scannedAtUnix": 1793213930,
+            "listingCount": 64785
+          },
+          {
+            "scanId": 5,
+            "scannedAt": "2026-10-14T15:54:16Z",
+            "scannedAtUnix": 1791993256,
+            "listingCount": 68557
+          },
+          {
+            "scanId": 3,
+            "scannedAt": "2026-08-20T20:07:27Z",
+            "scannedAtUnix": 1787256447,
+            "listingCount": 66415
+          }
+        ]
+      },
+      {
+        "key": "5:741",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "死亡之翼",
+        "realmID": 741,
+        "latestScanId": 7,
+        "scans": [
+          {
+            "scanId": 7,
+            "scannedAt": "2026-10-14T16:25:45Z",
+            "scannedAtUnix": 1791995145,
+            "listingCount": 48654
+          }
+        ]
+      }
+    ]
+  },
+  "sample_history_points": 4
+}
