@@ -38,6 +38,12 @@ data/
 game/
 automation/
 frontend/
+!frontend/
+frontend/*
+!frontend/public/
+frontend/public/*
+!frontend/public/wow-icons/
+!frontend/public/wow-icons/**
 certs/
 
 # 文档与本地开发产物
