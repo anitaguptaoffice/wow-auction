@@ -143,6 +143,23 @@ class UnifiedMarketStore(MarketStore):
         self.default_scan = max(self.scans, key=lambda s: (self.scans[s]['timestamp'], -self.scans[s]['realm_id']))
         self.load_seconds = time.perf_counter() - started
 
+    def _stat_combination_count(self, facts):
+        # Link bonuses, sockets and tertiary attributes do not create a new
+        # secondary-stat pair. Preserve the captured primary/secondary order.
+        return len({self.raid_descriptors[f['descriptor_id']]['statKey'] for f in facts
+                    if self.raid_descriptors[f['descriptor_id']]['statKey'] is not None})
+
+    def _public_record(self, row):
+        result = super()._public_record(row)
+        if row['item_id'] in RAID_BOE_12_1_ITEM_IDS:
+            if 'stat_combination_count' in row:
+                count = row['stat_combination_count']
+            else:
+                source = self.scans[row['scan_id']]['source_scan_id']
+                count = self._stat_combination_count(self.raid_facts[source, row['market_key']]) if row['listing_count'] else 0
+            result['statCombinationCount'] = count
+        return result
+
     def ordered_ids(self, scan_id, sort):
         key = (scan_id, sort)
         if key in self.sorted_ids:
@@ -208,6 +225,7 @@ class UnifiedMarketStore(MarketStore):
                 row.update(listing_count=sum(f['listing_count'] for f in facts),
                            total_quantity=sum(f['total_quantity'] for f in facts),
                            variant_count=len(facts),
+                           stat_combination_count=self._stat_combination_count(facts),
                            min_unit_price=min((f['min_unit_price'] for f in facts if f['min_unit_price'] is not None), default=None),
                            min_buyout=min((f['min_buyout'] for f in facts if f['min_buyout'] is not None), default=None))
                 matched.append(row)

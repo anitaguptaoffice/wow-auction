@@ -66,6 +66,16 @@ class RaidFiltersTest(unittest.TestCase):
         self.assertEqual([i['unitPrice'] for i in detail['items']], [20, 50])
         self.assertTrue(all(i['hasSocket'] and i['statKey'] == '49-40' for i in detail['items']))
 
+    def test_secondary_stat_count_does_not_count_link_socket_or_tertiary_differences(self):
+        mythic = self.items(difficulty='6')['items'][0]
+        self.assertEqual(mythic['variantCount'], 5)
+        self.assertEqual(mythic['statCombinationCount'], 2)
+        selected = self.items(difficulty='6', stats='49-40', socket='yes')['items'][0]
+        self.assertEqual(selected['variantCount'], 2)
+        self.assertEqual(selected['statCombinationCount'], 1)
+        plain = next(row for row in self.items()['items'] if row['scanId'] == mythic['scanId'] and row['marketKey'] == mythic['marketKey'])
+        self.assertEqual(plain['statCombinationCount'], 2)
+
     def test_conditions_cannot_match_different_listings(self):
         self.assertEqual(self.items(difficulty='6', stats='49-40', socket='yes', tertiary='avoidance')['total'], 0)
         result = self.items(difficulty='5', stats='49-40', socket='yes', tertiary='avoidance')

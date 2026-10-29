@@ -92,7 +92,9 @@ export interface MarketItem {
   texture: number | null;
   craftingQuality?: number | null;
   listingCount: number;
+  /** Distinct complete links; not the number of secondary-stat combinations. */
   variantCount: number;
+  statCombinationCount?: number;
   totalQuantity: number;
   minUnitPrice: number | null;
   minBuyout: number | null;

@@ -453,7 +453,7 @@ function MarketTable({
                       {item.battlePetCreatureID ? ` · 战宠 ${item.battlePetCreatureID}` : ""}
                       {item.petVariantKey
                         ? ` · ${item.petBreedCode || "未知 Breed"}${item.petBreedLabel ? ` ${item.petBreedLabel}` : ""} · ${item.petLevel}级 · ${item.petQualityLabel || "未知品质"}`
-                        : !item.difficulty && item.variantCount > 1 ? ` · ${item.variantCount} 种变体` : ""}
+                        : !item.difficulty && (item.statCombinationCount ?? 0) > 1 ? ` · ${item.statCombinationCount} 种副属性组合` : ""}
                     </small>
                     <small className="item-observed-at"><time dateTime={item.scannedAt} title={formatDate(item.scannedAt)}>采集于 {formatShortDate(item.scannedAt)} · {observationAge(item.scannedAt)}</time></small>
                   </div>
@@ -464,7 +464,7 @@ function MarketTable({
                   <span className={`difficulty-badge context-${item.itemContext ?? "unknown"}`}>
                     {item.difficulty || "未识别"}
                   </span>
-                  {item.variantCount > 1 && <small className="tier-variants">{item.variantCount} 种属性变体</small>}
+                  {(item.statCombinationCount ?? 0) > 1 && <small className="tier-variants">{item.statCombinationCount} 种副属性组合</small>}
                 </td>
               )}
               <td data-label="最低单价" className="number-cell"><Money value={item.minUnitPrice} /></td>
