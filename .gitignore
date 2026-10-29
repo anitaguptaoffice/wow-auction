@@ -5,6 +5,7 @@
 .env
 .env.local
 .env.*.local
+deploy/*.local.json
 !.env.example
 
 # Python cache

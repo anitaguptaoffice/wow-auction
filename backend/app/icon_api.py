@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
 router = APIRouter(prefix="/api/icons", tags=["icons"])
@@ -32,8 +32,9 @@ def _cache_dir() -> Path:
 
 
 def _download_icon(icon_name: str) -> bytes:
+    upstream_name = icon_name.removeprefix('filedata-') if icon_name.startswith('filedata-') else icon_name
     request = Request(
-        f"{_UPSTREAM_BASE}/{quote(icon_name, safe='')}.jpg",
+        f"{_UPSTREAM_BASE}/{quote(upstream_name, safe='')}.jpg",
         headers={"User-Agent": "wow-auction-icon-cache/1.0", "Accept": "image/jpeg"},
     )
     try:
@@ -53,9 +54,15 @@ def _download_icon(icon_name: str) -> bytes:
 
 
 @router.get("/{icon_name}.jpg", response_class=FileResponse)
-def read_cached_icon(icon_name: str):
-    if icon_name not in _ALLOWED_ICON_NAMES:
+def read_cached_icon(icon_name: str, request: Request = None):
+    extra = getattr(request.app.state, 'icon_names', ()) if request else ()
+    if icon_name not in _ALLOWED_ICON_NAMES and icon_name not in extra:
         raise HTTPException(status_code=404, detail="未知图标")
+
+    for extension, media_type in (('jpg', 'image/jpeg'), ('webp', 'image/webp')):
+        static = Path('/data/wow-icons') / f'{icon_name}.{extension}'
+        if static.is_file():
+            return FileResponse(static, media_type=media_type, headers=_CACHE_HEADERS)
 
     destination = _cache_dir() / f"{icon_name}.jpg"
     if not destination.is_file():

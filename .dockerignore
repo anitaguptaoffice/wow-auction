@@ -1,6 +1,8 @@
 # 虚拟环境
 .venv
 node_modules/
+dist/
+deploy/*.local.json
 
 # 本地环境变量与密钥（仅保留可提交的 .env.example）
 .env

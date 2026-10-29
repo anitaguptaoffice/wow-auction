@@ -1,0 +1,118 @@
+{
+  "database_sha256": "344227cc2bb4eafc31b3fe83cba931d8aa278538f04fa03aced4838aff1e1677",
+  "snapshot_count": 4,
+  "listing_count": 1756007,
+  "scans": [
+    {
+      "scan_id": 4,
+      "snapshot_sha256": "720b048c3b724d3213fe6e119775cce723a886789fd5c6a646242f9b8b933a31",
+      "fingerprint": "ebf85cb3d3aeecb6c648824f205d070f7e7ed9078fabf16b885b3319d2305171",
+      "timestamp": 1793213930,
+      "source_date": "2026-10-29",
+      "realm_name": "白银之手",
+      "realm_id": 707,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 418978,
+      "total_quantity": 40539716,
+      "mapping_sha256": "b708ab9ff938356ac2149edc53948d14fd1a46c191f661fe585bbe4fe5e9df9b",
+      "scanned_at": "2026-10-28T18:58:50+00:00"
+    },
+    {
+      "scan_id": 5,
+      "snapshot_sha256": "4382625e2d81a239046e2abd707a2b562f33b58421f89e8fcc76b6c22c55a69a",
+      "fingerprint": "a75853a8890948465d90cd262669069ae11ece5d472ea8bec1ef10130cb000b5",
+      "timestamp": 1793290438,
+      "source_date": "2026-10-30",
+      "realm_name": "熊猫酒仙",
+      "realm_id": 838,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 423843,
+      "total_quantity": 40736353,
+      "mapping_sha256": "de360879b039f1c7f2e6c23127bcdbee1ba6a00a858416ffe4840eaac65a2a59",
+      "scanned_at": "2026-10-29T16:13:58+00:00"
+    },
+    {
+      "scan_id": 6,
+      "snapshot_sha256": "e1192b7f1fc91f85d01a9cf1de63aa33af4d12a6a58fb41caaccc4ea6e595d48",
+      "fingerprint": "411c514b3c7166fe5e317f6b2e29f788d427dcafc7a372b2ae7220bf65e3aa50",
+      "timestamp": 1793291872,
+      "source_date": "2026-10-30",
+      "realm_name": "白银之手",
+      "realm_id": 707,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 464159,
+      "total_quantity": 40323932,
+      "mapping_sha256": "c73f408d8816a2c2c8ee9f7e73aea1cac9b980c78cfeb28eff861ae35b8e58ff",
+      "scanned_at": "2026-10-29T16:37:52+00:00"
+    },
+    {
+      "scan_id": 7,
+      "snapshot_sha256": "96e5162e47bf0841b4959353dc01d762f15014747f043a04ccff80a358f60e6b",
+      "fingerprint": "7827e4dd7e063e49c7bdf1cdf8b1531e424b0b9a216cf95d4bcb807cfe87f261",
+      "timestamp": 1793292161,
+      "source_date": "2026-10-30",
+      "realm_name": "死亡之翼",
+      "realm_id": 741,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 449027,
+      "total_quantity": 40042713,
+      "mapping_sha256": "3ea98f7609bcde06c1da5a5ae197ebc0de81eed85a1953e57f57ba7d05d112db",
+      "scanned_at": "2026-10-29T16:42:41+00:00"
+    }
+  ],
+  "roundtrip_checks": [
+    {
+      "scan_id": 4,
+      "rows": 418978,
+      "total_quantity": 40539716,
+      "mapping_sha256": "b708ab9ff938356ac2149edc53948d14fd1a46c191f661fe585bbe4fe5e9df9b",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 5,
+      "rows": 423843,
+      "total_quantity": 40736353,
+      "mapping_sha256": "de360879b039f1c7f2e6c23127bcdbee1ba6a00a858416ffe4840eaac65a2a59",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 6,
+      "rows": 464159,
+      "total_quantity": 40323932,
+      "mapping_sha256": "c73f408d8816a2c2c8ee9f7e73aea1cac9b980c78cfeb28eff861ae35b8e58ff",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 7,
+      "rows": 449027,
+      "total_quantity": 40042713,
+      "mapping_sha256": "3ea98f7609bcde06c1da5a5ae197ebc0de81eed85a1953e57f57ba7d05d112db",
+      "all_modeled_fields_match": true
+    }
+  ],
+  "active_database": "/opt/wow-auction/data/client-20261030-four/market.duckdb",
+  "active_container": "wow-auction-data-20261030-four",
+  "api_port": 8181,
+  "previous_database_sha256": "93434503136e6957446808340a3f10bb60fd29d3140f7ba5f122098215db4235",
+  "retained_old_source_scan_ids": [
+    4
+  ],
+  "removed_old_source_scan_ids": [
+    1,
+    2,
+    3
+  ],
+  "added_source_scan_ids": [
+    5,
+    6,
+    7
+  ],
+  "rollback_record": "/opt/wow-auction/backups/datasets/20261029-170117-5f8fe9fe.json",
+  "frontend_changed": false,
+  "api_image_changed": false,
+  "validation": "56 backend tests; exact public catalog and local preview catalog; source archive and database SHA-256; per-snapshot lossless verification"
+}

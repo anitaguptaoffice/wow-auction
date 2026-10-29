@@ -65,6 +65,18 @@ class CompactMarketTest(unittest.TestCase):
             self.assertEqual(detail["total"], 1)
             self.assertEqual(detail["items"][0]["battlePetCreatureID"], 1001)
 
+    def test_public_page_contains_only_display_fields_and_provenance(self):
+        row = self.store.items(scan_id=2, q='10')['items'][0]
+        page = self.store.listings(scan_id=2, market_key=row['marketKey'], page_size=1, public_only=True)
+        item = page['items'][0]
+        self.assertEqual((page['total'], page['totalPages'], len(page['items'])), (2, 2, 1))
+        self.assertEqual((item['scan_id'], item['itemID'], item['unitPrice'], item['quantity']), (2, 10, 4, 3))
+        self.assertIn('source_index', item)
+        self.assertIn('itemLink', item)
+        self.assertNotIn('item_link', item)
+        self.assertNotIn('owner_full_name', item)
+        self.assertNotIn('unit_price', item)
+
     def test_history_isolates_realms_and_selected_time(self):
         key = self.store.items(scan_id=2, q="10")["items"][0]["marketKey"]
         self.assertEqual([p["scan_id"] for p in self.store.history(scan_id=2, market_key=key)["points"]], [1, 2])

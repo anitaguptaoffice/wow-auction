@@ -27,7 +27,7 @@ export function getIconProxyUrl(iconName: string): string {
   ).toString();
 }
 
-async function requestJson<T>(path: string, params?: Record<string, unknown>): Promise<T> {
+async function requestJson<T>(path: string, params?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const search = new URLSearchParams();
   Object.entries(params ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
@@ -38,22 +38,36 @@ async function requestJson<T>(path: string, params?: Record<string, unknown>): P
   const queryString = search.toString();
   const suffix = queryString ? `?${queryString}` : "";
   const url = new URL(`${getApiBase()}${path}${suffix}`, window.location.href);
-  const response = await fetch(url, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
-  const data = (await response.json().catch(() => null)) as unknown;
-  if (!response.ok) {
-    const detail =
-      data && typeof data === "object" && "detail" in data
-        ? String((data as { detail: unknown }).detail)
-        : `请求失败（HTTP ${response.status}）`;
-    throw new Error(detail);
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  let timedOut = false;
+  signal?.addEventListener("abort", cancel, { once: true });
+  if (signal?.aborted) cancel();
+  const timeout = window.setTimeout(() => { timedOut = true; controller.abort(); }, 12_000);
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const data = (await response.json().catch(() => null)) as unknown;
+    if (controller.signal.aborted) throw new DOMException("Request aborted", "AbortError");
+    if (!response.ok) {
+      const detail =
+        data && typeof data === "object" && "detail" in data
+          ? String((data as { detail: unknown }).detail)
+          : `请求失败（HTTP ${response.status}）`;
+      throw new Error(detail);
+    }
+    if (!data || typeof data !== "object") throw new Error("服务器返回了无法识别的数据");
+    return data as T;
+  } catch (error) {
+    if (timedOut) throw new Error("请求超时，请重试");
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", cancel);
   }
-  if (!data || typeof data !== "object") {
-    throw new Error("服务器返回了无法识别的数据");
-  }
-  return data as T;
 }
 
 export function fetchMarketCatalog(): Promise<MarketCatalog> {
@@ -69,11 +83,16 @@ export function fetchMarketStatus(scanId?: number | null): Promise<MarketStatus>
 export function fetchMarketItems(query: MarketQuery): Promise<MarketItemsResponse> {
   if (useMockData) return mockItems(query);
   return requestJson<MarketItemsResponse>("/market/items", {
+    scan_id: query.scanId,
     q: query.q,
     collection: query.collection,
     page: query.page,
     page_size: query.pageSize,
     sort: query.sort,
+    difficulty: query.difficulty,
+    stats: query.stats,
+    socket: query.socket,
+    tertiary: query.tertiary,
   });
 }
 
@@ -81,6 +100,7 @@ export function fetchItemListings(
   item: MarketItem,
   page: number,
   pageSize = 25,
+  signal?: AbortSignal,
 ): Promise<ItemListingsResponse> {
   if (useMockData) return mockListings(item, page, pageSize);
   return requestJson<ItemListingsResponse>(
@@ -92,11 +112,18 @@ export function fetchItemListings(
       page,
       page_size: pageSize,
       scan_id: item.scanId,
+      ...item.variantFilters,
     },
+    signal,
   );
 }
 
-export function fetchItemHistory(item: MarketItem): Promise<ItemHistoryResponse> {
+export function fetchItemComparison(item: MarketItem, signal?: AbortSignal): Promise<{ items: MarketItem[] }> {
+  if (useMockData) return Promise.resolve({ items: [item] });
+  return requestJson("/market/compare", { market_key: item.marketKey, scan_id: item.scanId, ...item.variantFilters }, signal);
+}
+
+export function fetchItemHistory(item: MarketItem, signal?: AbortSignal, start?: number): Promise<ItemHistoryResponse> {
   if (useMockData) return mockHistory(item);
   return requestJson<ItemHistoryResponse>(
     "/market/history/view",
@@ -105,6 +132,10 @@ export function fetchItemHistory(item: MarketItem): Promise<ItemHistoryResponse>
       item_context: item.itemContext,
       pet_variant_key: item.petVariantKey,
       scan_id: item.scanId,
+      start,
+      max_points: 400,
+      ...item.variantFilters,
     },
+    signal,
   );
 }

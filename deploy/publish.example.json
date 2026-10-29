@@ -1,0 +1,8 @@
+{
+  "host": "root@43.154.216.238",
+  "port": 9722,
+  "remote_root": "/opt/wow-auction/data/automatic",
+  "nginx_config": "/etc/nginx/wow-auction-api.conf",
+  "backup_dir": "/opt/wow-auction/backups/datasets",
+  "public_url": "https://wowplayer.fun"
+}

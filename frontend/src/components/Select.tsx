@@ -12,12 +12,13 @@ type SelectProps<Value extends string | number> = {
   value: Value;
   options: readonly SelectOption<Value>[];
   icon?: ReactNode;
+  appearance?: "field" | "filter";
   onChange: (value: Value) => void;
 };
 
 /** Shared, theme-aware select. The portal keeps menus outside table clipping. */
 export function Select<Value extends string | number>({
-  label, prefix, value, options, icon, onChange,
+  label, prefix, value, options, icon, appearance = "field", onChange,
 }: SelectProps<Value>) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -136,7 +137,7 @@ export function Select<Value extends string | number>({
   }
 
   return (
-    <div className="ui-select">
+    <div className={`ui-select ${appearance === "filter" ? "ui-select-filter" : ""}`} data-active={appearance === "filter" && value !== "" ? "true" : undefined}>
       <button
         ref={triggerRef}
         className="ui-select-trigger"
@@ -152,7 +153,7 @@ export function Select<Value extends string | number>({
       >
         {icon && <span className="ui-select-icon" aria-hidden="true">{icon}</span>}
         <span className="ui-select-prefix">{prefix}</span>
-        <span className="ui-select-value">{selected?.label}</span>
+        <span className="ui-select-value">{appearance === "filter" && selected?.value === "" ? "不限" : selected?.label}</span>
         <ChevronDown className="ui-select-chevron" size={16} aria-hidden="true" />
       </button>
       {open && createPortal(

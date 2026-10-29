@@ -55,6 +55,9 @@ func importSnapshotToDatabase(cfg *config.Root, source, expectedSHA string, expe
 	cmd := exec.CommandContext(ctx, python, importer, source, "--json")
 	cmd.Dir = filepath.Dir(importer)
 	cmd.Env = os.Environ()
+	if updateConfig := strings.TrimSpace(cfg.Snapshot.CompactUpdateConfig); updateConfig != "" {
+		cmd.Env = append(cmd.Env, "COMPACT_UPDATE_CONFIG="+cfg.ResolveSnapshotPath(updateConfig))
+	}
 	if databaseURL := strings.TrimSpace(cfg.Snapshot.DatabaseURL); databaseURL != "" {
 		cmd.Env = append(cmd.Env, "DATABASE_URL="+databaseURL)
 	}

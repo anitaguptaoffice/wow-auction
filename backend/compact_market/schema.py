@@ -57,3 +57,22 @@ LEFT JOIN people owner ON owner.person_id = f.owner_id
 LEFT JOIN people full_owner ON full_owner.person_id = f.owner_full_name_id
 LEFT JOIN people bidder ON bidder.person_id = f.bidder_full_name_id
 """
+
+
+SUMMARY_SELECT_SQL = """
+            SELECT f.scan_id, d.market_key, first(d.item_id) AS item_id,
+                   first(d.name) AS name, first(d.texture) AS texture,
+                   max(d.quality_id) AS quality_id,
+                   first(d.battle_pet_creature_id) AS battle_pet_creature_id,
+                   first(d.item_context) AS item_context,
+                   first(d.crafting_quality) AS crafting_quality,
+                   first(d.pet_variant_key) AS pet_variant_key,
+                   first(d.item_link) AS representative_link,
+                   count(*)::UBIGINT AS listing_count,
+                   count(DISTINCT d.item_link)::UINTEGER AS variant_count,
+                   sum(f.quantity)::UBIGINT AS total_quantity,
+                   min(f.unit_price) AS min_unit_price,
+                   min(nullif(f.buyout_amount, 0)) AS min_buyout
+            FROM listings f JOIN descriptors d USING (descriptor_id)
+            GROUP BY f.scan_id, d.market_key
+"""

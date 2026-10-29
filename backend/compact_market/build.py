@@ -8,7 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import resource
+import sys
 import tarfile
 import tempfile
 import time
@@ -20,7 +20,7 @@ from app.services.auction_importer import decode_snapshot, validate_snapshot, _l
 from app.services.market_queries import _parse_item_variant, _parse_battle_pet_variant, _pet_variant_key
 from compact_market.schema import (
     DESCRIPTOR_FIELDS, PERSON_FIELDS, FACT_FIELDS, FACT_SCHEMA,
-    DESCRIPTOR_SCHEMA, SCAN_SCHEMA, SCOPE_SCHEMA, RESTORE_SQL,
+    DESCRIPTOR_SCHEMA, SCAN_SCHEMA, SCOPE_SCHEMA, RESTORE_SQL, SUMMARY_SELECT_SQL,
 )
 
 
@@ -46,8 +46,9 @@ def insert_arrow(db, name: str, table: pa.Table, *, create: bool = False) -> Non
 
 
 def extract_source(source: Path, directory: Path) -> tuple[Path, dict]:
-    manifest_path = source.parent / "manifest.json"
-    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    candidates = [source.with_suffix('.manifest.json'), source.parent / 'manifest.json']
+    manifest_path = next((p for p in candidates if p.is_file()), None)
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path else {}
     if source.suffix == ".lua":
         lua = source
     else:
@@ -195,22 +196,7 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
         ])), create=True)
         insert_arrow(db, "scans", pa.Table.from_pylist(scan_rows, schema=SCAN_SCHEMA), create=True)
         insert_arrow(db, "scopes", pa.Table.from_pylist(scope_rows, schema=SCOPE_SCHEMA), create=True)
-        db.execute("""CREATE TABLE summaries AS
-            SELECT f.scan_id, d.market_key, first(d.item_id) AS item_id,
-                   first(d.name) AS name, first(d.texture) AS texture,
-                   max(d.quality_id) AS quality_id,
-                   first(d.battle_pet_creature_id) AS battle_pet_creature_id,
-                   first(d.item_context) AS item_context,
-                   first(d.crafting_quality) AS crafting_quality,
-                   first(d.pet_variant_key) AS pet_variant_key,
-                   first(d.item_link) AS representative_link,
-                   count(*)::UBIGINT AS listing_count,
-                   count(DISTINCT d.item_link)::UINTEGER AS variant_count,
-                   sum(f.quantity)::UBIGINT AS total_quantity,
-                   min(f.unit_price) AS min_unit_price,
-                   min(nullif(f.buyout_amount, 0)) AS min_buyout
-            FROM listings f JOIN descriptors d USING (descriptor_id)
-            GROUP BY f.scan_id, d.market_key""")
+        db.execute("CREATE TABLE summaries AS " + SUMMARY_SELECT_SQL)
         db.execute("CREATE INDEX listing_lookup ON listings(scan_id, descriptor_id)")
         db.execute("CREATE INDEX descriptor_lookup ON descriptors(market_key)")
         db.execute("CREATE INDEX summary_lookup ON summaries(scan_id, market_key)")
@@ -250,11 +236,12 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
         db.close()
         staging.rename(destination)
         report = {
-            "format_version": 1, "source_commit": "a2950eb7d1e9f4ef07be388c77474a7ce8009c33",
+            "format_version": 1, "source_commit": os.getenv('WOW_AUCTION_SOURCE_COMMIT'),
+            "builder_sha256": sha256_file(Path(__file__)),
             "database": str(destination), "duckdb_version": duckdb.__version__,
             "threads": threads, "duckdb_memory_limit": memory_limit,
             "build_seconds": round(time.perf_counter() - started, 3),
-            "build_peak_rss_bytes": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024,
+            "build_peak_rss_bytes": peak_rss_bytes(),
             "database_bytes": destination.stat().st_size,
             "baseline_sqlite_bytes": baseline.stat().st_size if baseline else None,
             "baseline_note": "Denormalized SQLite copy with two indexes; not a MySQL size or latency benchmark.",
@@ -262,7 +249,7 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
             "sources": source_reports, "counts": stats, "scans": scan_rows,
             "roundtrip_checks": checks,
         }
-        destination.with_suffix(".report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+        destination.with_suffix(".report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding='utf-8')
         log("complete", **report)
         return report
     finally:
@@ -272,6 +259,16 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
             db.close()
         except Exception:
             pass
+
+
+def peak_rss_bytes() -> int:
+    if sys.platform == 'win32':
+        import psutil
+        memory = psutil.Process().memory_info()
+        return getattr(memory, 'peak_wset', memory.rss)
+    import resource
+    value = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return value if sys.platform == 'darwin' else value * 1024
 
 
 def main() -> None:

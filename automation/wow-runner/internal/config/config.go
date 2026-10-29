@@ -151,6 +151,8 @@ type Snapshot struct {
 	ImporterScript string `yaml:"importer_script"`
 	// DatabaseURL 为空时使用后端默认 data/wow-auction.db；非空时仅通过子进程环境传递。
 	DatabaseURL string `yaml:"database_url"`
+	// CompactUpdateConfig 指向独立的紧凑库更新配置，仅在使用 import_compact.py 时设置。
+	CompactUpdateConfig string `yaml:"compact_update_config"`
 	// ClearSourceAfterImport 仅在归档、导入和复核全部成功后原子清空 WoW 源文件。
 	ClearSourceAfterImport bool `yaml:"clear_source_after_import"`
 }

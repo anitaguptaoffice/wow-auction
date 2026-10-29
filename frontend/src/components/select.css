@@ -1,12 +1,12 @@
 /* Auction controls: opaque surfaces, legible states, consistent touch targets. */
 :root {
-  --control-bg: #fffefb;
+  --control-bg: #ffffff;
   --control-text: #262b33;
   --control-muted: #646b77;
-  --control-border: #b9b2a5;
-  --menu-bg: #fffefb;
-  --menu-hover: #efede6;
-  --menu-selected: #f6e8bc;
+  --control-border: #cdd3de;
+  --menu-bg: #ffffff;
+  --menu-hover: #f0f2f5;
+  --menu-selected: #f5eedc;
   --menu-accent: #775400;
   --focus-ring: #a67600;
   --control-radius: 6px;
@@ -106,4 +106,17 @@ select, select option { color: var(--control-text); background-color: var(--cont
   .ui-select-option { color: CanvasText; }
   .ui-select-option.is-active { border-color: Highlight; }
   .ui-select-option[aria-selected="true"] { color: HighlightText; background: Highlight; }
+}
+
+/* Secondary filters read as a quiet toolbar, with full-size keyboard/touch targets. */
+.ui-select-filter .ui-select-trigger { min-width: 0; min-height: 44px; padding: 0 8px; gap: 6px; border-color: transparent; background: transparent; font-size: 12px; }
+.ui-select-filter .ui-select-trigger:hover { background: var(--surface-muted); }
+.ui-select-filter .ui-select-trigger[aria-expanded="true"] { border-color: var(--control-border); background: var(--control-bg); }
+.ui-select-filter .ui-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 550; }
+.ui-select-filter .ui-select-prefix { display: inline; font-size: 12px; }
+.ui-select-filter .ui-select-chevron { width: 14px; height: 14px; }
+.ui-select-filter[data-active="true"] .ui-select-trigger { color: var(--gold-text); background: var(--surface-muted); }
+.ui-select-filter[data-active="true"] .ui-select-value { color: var(--gold-text); }
+@media (max-width: 640px) {
+  .ui-select-filter .ui-select-trigger { padding-inline: 6px; gap: 4px; }
 }

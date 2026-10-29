@@ -7,7 +7,16 @@ export type MarketSort =
 
 export type MarketCollection = "" | "raid_boe_12_1";
 
+export interface EquipmentFilters {
+  difficulty: string;
+  stats: string;
+  socket: string;
+  tertiary: string;
+}
+
 export interface MarketStatus {
+  updateState?: string;
+  lastUpdateAttemptAt?: string;
   available: boolean;
   complete: boolean;
   scanId?: number | null;
@@ -51,6 +60,8 @@ export interface MarketCatalog {
 }
 
 export interface MarketItem {
+  iconName?: string | null;
+  variantFilters?: EquipmentFilters;
   scanId: number;
   scannedAt: string;
   scannedAtUnix: number;
@@ -118,6 +129,7 @@ export interface AuctionListing {
   upgradeLevel: string | null;
   statLabel: string | null;
   hasSocket: boolean;
+  tertiaryStats?: string[];
   petSpeciesID: number | null;
   petLevel: number | null;
   petQuality: number | null;
@@ -162,6 +174,8 @@ export interface HistoryMetricChange {
 }
 
 export interface ItemHistoryPoint {
+  state?: "observed" | "no_price" | "absent";
+  breakBefore?: boolean;
   scanId: number;
   scannedAt: string;
   scannedAtUnix: number;
@@ -199,7 +213,9 @@ export interface ItemHistoryResponse {
   points: ItemHistoryPoint[];
 }
 
-export interface MarketQuery {
+export interface MarketQuery extends Partial<EquipmentFilters> {
+  market?: string;
+  scanId?: number;
   q: string;
   collection: MarketCollection;
   page: number;

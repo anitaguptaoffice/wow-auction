@@ -1,27 +1,29 @@
 # 艾泽拉斯交易所（WoW Auction）
 
-## Single-server deployment (2026-10-29)
+## Single-server deployment (2026-10-30)
 
 The active migration branch uses the existing React frontend with the compact
 DuckDB/Arrow API. The CloudBase architecture documented below is legacy; the new
 runtime does not require CloudBase, MySQL, or Redis.
 
 - Frontend: `https://wowplayer.fun/`, served by the existing host Nginx.
-- API: one Docker process, loopback port `8180`, 2 GiB container limit; do not scale
+- API: one Docker process, loopback port `8181`, 2 GiB container limit; do not scale
   workers without budgeting another complete in-memory history index per worker.
 - Data: immutable DuckDB generations and original compressed snapshots outside Git.
-- Validation: 36 backend tests; public desktop/mobile search, detail pagination and
-  three-point history verified. Server loopback test: 800 requests, 8 concurrent,
+- Validation: 69 backend tests; public desktop/mobile search, detail pagination and
+  three-point history verified. Original migration loopback test: 800 requests, 8 concurrent,
   zero errors; P95 list/search/history about 116 ms, detail 189 ms with a 2-CPU limit.
   These are server measurements, not Internet round-trip timings.
-- Current dataset: four verified source snapshots, 1,792,810 original listing rows.
-  The offline release contributes 418,978 rows captured October 29, 2026 at 02:58:50
-  (UTC+8). Shared commodities and Silver Hand use this observation; Deathwing remains
-  on its October 15 observation. This is not a live feed.
-- Active database: `/opt/wow-auction/data/offline-20261029/market-20261029-offline.duckdb`;
-  active API container: `wow-auction-icons-20261029`, loopback port `8180`.
-  The previous API containers are stopped and retained for rollback.
-  Dataset verification is recorded in `experiments/compact-market/results/offline-generation.json`.
+- Current dataset: four verified source snapshots, 1,756,007 original listing rows.
+  Silver Hand retains its October 29 02:58:50 snapshot and the new October 30
+  00:37:52 snapshot (UTC+8); Panda Brewmaster has October 30 00:13:58 and
+  Deathwing October 30 00:42:41. Earlier August/October snapshots are no longer
+  in the active dataset. Shared commodity history is derived from these four sources.
+- Active database: `/opt/wow-auction/data/client-20261030-four/market.duckdb`;
+  active API container: `wow-auction-data-20261030-four`, loopback port `8181`.
+  The data-only switch uses the previous API image and leaves the frontend unchanged.
+  The previous API container and database are retained for rollback.
+  Dataset verification is recorded in `experiments/compact-market/results/client-four-generation-20261030.json`.
 - Region commodities use market server ID `0`; each actual realm has its own history.
   Default browsing combines only the latest observation from each market.
 - Accounts and automatic snapshot collection are not enabled on this deployment.
@@ -63,10 +65,22 @@ must be rolled back as a pair. Cloudreve is a separate application and is untouc
 
 ### Import another snapshot
 
-Keep each `auction.lua.tgz` beside its own `manifest.json` in an archive directory.
-Build a **new** database from all snapshots to retain; the current builder performs
-an offline rebuild, not an incremental append. It refuses to overwrite an existing
-output and verifies archive hashes and lossless row reconstruction before publishing.
+Use `compact_market.manage` to list, archive, add, remove or retain exact source
+snapshots. It writes a new immutable generation, preserves existing IDs, skips
+reimports and fully verifies new rows. Retained rows inherit verification only
+when the base file SHA and per-snapshot evidence match; `--full-verify` audits all
+rows. Old summaries are reused instead of being recomputed. Data-only blue/green switching
+and rollback use the existing API image and leave the frontend untouched.
+See [snapshot management](deploy/SNAPSHOT_MANAGEMENT.md) for complete commands.
+See [automatic updates and market history](deploy/AUTOMATIC_UPDATES.md) for the
+opt-in runner/watch pipeline, candidate acceptance and SSH publication. This is
+  functionality; automatic publication remains disabled by default. On Windows,
+  use the root `同步拍卖数据.cmd` entry after configuring the local settings, or
+  `./scripts/sync-market.ps1 -Preview` to discover new client data without uploading.
+
+The lower-level `compact_market.build` command still rebuilds a generation from
+all supplied originals. Keep each archive beside its manifest. Both the runner's
+`*.lua.manifest.json` and content-addressed `manifest.json` are supported.
 
 ```sh
 uv run --group compact python -m compact_market.build \

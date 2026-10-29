@@ -1,0 +1,27 @@
+{
+  "root": "../data/compact/updates",
+  "seed_database": "../data/compact/market-four-snapshots-20261030.duckdb",
+  "sources": ["../data/archive/incoming/**/*.tgz"],
+  "client_roots": ["F:/World of Warcraft/_retail_/WTF/Account"],
+  "archive_roots": [],
+  "allowed_realms": ["5:707", "5:838", "5:741"],
+  "memory_limit": "1GB",
+  "icon_map": "../frontend/src/generated/icon-map.json",
+  "icon_cache": "../frontend/public/wow-icons",
+  "icon_state": "../frontend/src/generated/icon-source-status.json",
+  "icon_sync_command": [
+    "{python}", "{repo}/scripts/sync-icon-cache.py",
+    "--icon-map", "{generation}/icon-map.json",
+    "--output-dir", "{generation}/wow-icons",
+    "--state-file", "{generation}/icon-source-status.json",
+    "--local-map", "{generation}/local-icon-map.json",
+    "--skip-casc", "--workers", "4", "--timeout", "5"
+  ],
+  "publish_command": [
+    "{python}", "{repo}/deploy/publish_update.py",
+    "--config", "{config_dir}/publish.local.json",
+    "--generation", "{generation}",
+    "--expected-sha", "{base_sha256}"
+  ],
+  "publish": false
+}

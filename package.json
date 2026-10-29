@@ -11,7 +11,8 @@
     "icons:sync": "python3 scripts/sync-icon-cache.py",
     "preview": "vite preview --config frontend/vite.config.ts",
     "typecheck": "tsc -p frontend/tsconfig.json --noEmit",
-    "test:wowhead": "node scripts/test-wowhead-links.cjs"
+    "test:wowhead": "node scripts/test-wowhead-links.cjs",
+    "test:market-requests": "node scripts/test-market-requests.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.85.5",

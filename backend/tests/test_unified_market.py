@@ -54,6 +54,9 @@ class UnifiedMarketTest(unittest.TestCase):
         for query in ('试矿', '矿', '10'):
             self.assertEqual(self.store.items(scan_id=6, q=query)['total'], 1)
         self.assertEqual(self.store.items(scan_id=6, q="%' OR 1=1 --")['total'], 0)
+        self.assertEqual(self.store.items(scan_id=2, q='试矿')['total'], 1)
+        self.assertNotIn((2, 'price_asc'), self.store.sorted_ids)
+        self.assertIn((2, 'price_asc'), self.store.historical_sorts)
 
     def test_combined_latest_market_and_public_history(self):
         rows = self.store.items(page_size=100)['items']
@@ -90,6 +93,17 @@ class UnifiedMarketTest(unittest.TestCase):
                 self.assertEqual(detail.status_code, 200)
                 self.assertIn('displayColumns', detail.json())
                 self.assertEqual(client.get('/api/market/items', params={'collection': 'bad'}).status_code, 422)
+                catalog = client.get('/api/market/catalog').json()['realms']
+                for realm in catalog:
+                    for snapshot in realm['scans']:
+                        sid = snapshot['scanId']
+                        status = client.get('/api/market/status', params={'scan_id': sid}).json()
+                        self.assertEqual(status['realmID'], realm['realmID'])
+                        self.assertEqual(status['scannedAt'], snapshot['scannedAt'])
+                        rows = client.get('/api/market/items', params={'scan_id': sid}).json()['items']
+                        self.assertTrue(all(row['realmID'] == realm['realmID'] and row['scanId'] == sid for row in rows))
+                self.assertEqual(client.get('/api/market/history/view', params={**params, 'max_points': 10000}).status_code, 422)
+                self.assertEqual(client.get('/api/market/compare', params={'market_key': ore['marketKey']}).status_code, 200)
                 self.assertEqual(client.get('/api/market/history/view', params={'market_key': 'missing', 'scan_id': 6}).status_code, 404)
 
     def test_new_item_is_discovered_without_catalog_update(self):

@@ -853,6 +853,9 @@ def _parse_item_variant(item_link: str | None) -> dict[str, Any]:
         "upgradeLevel": None,
         "statLabel": None,
         "hasSocket": False,
+        "variantKnown": False,
+        "statKey": None,
+        "tertiaryStats": [],
         "craftingQuality": _crafting_quality_from_item_link(item_link),
     }
     if not item_link:
@@ -872,13 +875,16 @@ def _parse_item_variant(item_link: str | None) -> dict[str, Any]:
     except ValueError:
         return result
 
+    if bonus_count < 0 or bonus_count > 100 or len(fields) < 13 + bonus_count:
+        return result
+
     bonus_start = 13
     bonus_ids: list[int] = []
     for value in fields[bonus_start : bonus_start + bonus_count]:
         try:
             bonus_ids.append(int(value))
         except ValueError:
-            continue
+            return result
 
     modifier_count_index = bonus_start + bonus_count
     modifiers: dict[int, int] = {}
@@ -914,6 +920,11 @@ def _parse_item_variant(item_link: str | None) -> dict[str, Any]:
             "upgradeLevel": "1/6" if 13332 in bonus_ids else None,
             "statLabel": " > ".join(stats) if stats else None,
             "hasSocket": 13695 in bonus_ids,
+            "variantKnown": True,
+            "statKey": "-".join(str(modifiers[k]) for k in (29, 30)) if len(stats) == 2 else None,
+            "tertiaryStats": [name for bonus, name in ((40, "avoidance"), (41, "leech"),
+                                                       (42, "speed"), (43, "indestructible"))
+                              if bonus in bonus_ids],
         }
     )
     return result

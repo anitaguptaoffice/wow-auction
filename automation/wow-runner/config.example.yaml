@@ -94,6 +94,9 @@ snapshot:
   import_enabled: true
   python_exe: '../../.venv/Scripts/python.exe'
   importer_script: '../../backend/import_auction.py'
+  # 紧凑市场模式：将 importer_script 改为 ../../backend/import_compact.py，
+  # 并取消下一行注释；配置默认只准备候选库，不自动上线。
+  # compact_update_config: '../../deploy/update.local.json'
   # 留空时后端默认写入仓库 data/wow-auction.db；生产环境可填 mysql+pymysql://...
   database_url: ''
   # 仅最后一个角色正常退出 Wow.exe、且归档/导入/复核全部成功后执行。

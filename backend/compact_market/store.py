@@ -11,10 +11,20 @@ import time
 import duckdb
 
 from app.services.auction_labels import label_time_left_band
-from app.services.market_queries import _parse_item_variant, _parse_battle_pet_variant
+from app.services.market_queries import _parse_item_variant, _parse_battle_pet_variant, RAID_BOE_12_1_ITEM_IDS
+from compact_market.variant_filters import VariantFilters
 from compact_market.schema import RESTORE_SQL
 
 SORTS = ("price_asc", "price_desc", "quantity_desc", "listings_desc", "name_asc")
+
+# Public pages need neither person joins nor duplicate internal snake_case fields.
+# LIMIT/OFFSET is applied to facts before joining and decoding item descriptors.
+PUBLIC_LISTINGS_SQL = """
+SELECT f.scan_id, f.source_index, d.item_id, d.name, d.texture, f.quantity,
+       d.quality_id, f.buyout_amount, f.unit_price, f.min_bid, f.bid_amount,
+       d.item_link, f.time_left_band, d.battle_pet_creature_id
+FROM listings f JOIN descriptors d USING (descriptor_id)
+"""
 
 
 def iso(timestamp: int) -> str:
@@ -111,6 +121,7 @@ class MarketStore:
             "regionID": scan["region_id"], "marketKey": row["market_key"],
             "itemID": row["item_id"], "name": row["name"], "texture": row["texture"],
             "quality": row["quality_id"], "battlePetCreatureID": row["battle_pet_creature_id"],
+            "iconName": getattr(self, 'icon_map', {}).get(str(row['texture'])),
             "itemContext": row["item_context"], "craftingQuality": row["crafting_quality"],
             "petVariantKey": row["pet_variant_key"] or None,
             "marketScope": row["market_scope"], "listingCount": row["listing_count"],
@@ -179,20 +190,35 @@ class MarketStore:
         return scan, row
 
     def listings(self, *, market_key: str, scan_id: int | None = None,
-                 page: int = 1, page_size: int = 50) -> dict:
+                 page: int = 1, page_size: int = 50,
+                 difficulty='', stats='', socket='', tertiary='', public_only=False) -> dict:
         if page < 1 or not 1 <= page_size <= 100:
             raise ValueError("Invalid pagination")
         scan, summary = self.require_market(scan_id, market_key)
+        filters = VariantFilters(difficulty, stats, socket, tertiary)
+        descriptor_condition = ''
+        descriptor_params = []
+        if filters.active:
+            if summary['item_id'] not in RAID_BOE_12_1_ITEM_IDS:
+                raise ValueError('Equipment filters require a raid item')
+            descriptors = rows_as_dicts(self.connection().execute(
+                'SELECT descriptor_id, item_link FROM descriptors WHERE market_key = ?', [market_key]))
+            descriptor_params = [d['descriptor_id'] for d in descriptors if filters.matches(_parse_item_variant(d['item_link']))]
+            descriptor_condition = ' AND descriptor_id IN (' + ','.join('?' for _ in descriptor_params) + ')' if descriptor_params else ' AND false'
         selected = """(SELECT * FROM listings WHERE scan_id = ?
             AND descriptor_id IN (SELECT descriptor_id FROM descriptors WHERE market_key = ?)
+            """ + descriptor_condition + """
             ORDER BY unit_price ASC NULLS LAST, source_index ASC LIMIT ? OFFSET ?)"""
-        query = RESTORE_SQL.replace("FROM listings f", "FROM " + selected + " f")
+        query = (PUBLIC_LISTINGS_SQL if public_only else RESTORE_SQL).replace("FROM listings f", "FROM " + selected + " f")
         cursor = self.connection().execute(query + " ORDER BY f.unit_price ASC NULLS LAST, f.source_index",
-            [scan.get("source_scan_id", scan["scan_id"]), market_key, page_size, (page - 1) * page_size])
+            [scan.get("source_scan_id", scan["scan_id"]), market_key, *descriptor_params, page_size, (page - 1) * page_size])
         items = []
         for row in rows_as_dicts(cursor):
             items.append({
-                **row, "itemID": row["item_id"], "quality": row["quality_id"],
+                **({} if public_only else row),
+                "scan_id": row["scan_id"], "source_index": row["source_index"],
+                "itemID": row["item_id"], "quality": row["quality_id"],
+                "name": row["name"], "texture": row["texture"], "quantity": row["quantity"],
                 "unitPrice": row["unit_price"], "buyoutAmount": row["buyout_amount"],
                 "minBid": row["min_bid"], "bidAmount": row["bid_amount"],
                 "itemLink": row["item_link"], "timeLeftBand": row["time_left_band"],
@@ -202,10 +228,14 @@ class MarketStore:
                 **(_parse_battle_pet_variant(row["item_link"]) or {}),
             })
         total = summary["listing_count"]
+        if filters.active:
+            total = self.connection().execute('''SELECT count(*) FROM listings WHERE scan_id = ?
+                AND descriptor_id IN (SELECT descriptor_id FROM descriptors WHERE market_key = ?)'''
+                + descriptor_condition, [scan.get('source_scan_id', scan['scan_id']), market_key, *descriptor_params]).fetchone()[0]
         return {**self._public_record(summary),
                 "displayColumns": {
                     "tier": any(i.get('itemLevel') or i.get('difficulty') or i.get('upgradeTrack') for i in items),
-                    "attributes": any(i.get('statLabel') or i.get('hasSocket') for i in items),
+                    "attributes": any(i.get('statLabel') or i.get('hasSocket') or i.get('tertiaryStats') for i in items),
                     "petVariant": any(i.get('petSpeciesID') for i in items),
                 },
                 "page": page, "pageSize": page_size, "total": total,
