@@ -162,7 +162,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .market-search input:focus {
   border-color: var(--gold);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 12%, transparent);
+  box-shadow: 0 0 0 3px rgba(135, 86, 46, 0.12);
 }
 
 .market-search input::-webkit-search-cancel-button { display: none; }
@@ -334,7 +334,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .action-cell button, .panel-state button {
   min-height: 44px;
   padding: 7px 12px;
-  border: 1px solid color-mix(in srgb, var(--gold) 70%, var(--line));
+  /* Fixed palette values also keep the outline visible in older Safari. */
+  border: 1px solid #9f7752;
   border-radius: 3px;
   color: var(--gold-text);
   background: transparent;
@@ -426,15 +427,15 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .variant-tier strong, .variant-tier small, .variant-stats strong, .variant-stats small, .pet-variant strong, .pet-variant small { display: block; white-space: nowrap; }
 .variant-tier strong { color: var(--success); font-size: 11px; }
 .variant-tier small, .variant-stats small { margin-top: 2px; color: var(--muted); font-size: 9px; }
-.difficulty-badge { display: inline-flex; min-width: 54px; padding: 4px 8px; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--gold) 32%, var(--line)); border-radius: 999px; color: var(--gold-text); background: color-mix(in srgb, var(--gold) 8%, transparent); font-size: 10px; font-weight: 800; white-space: nowrap; }
-.difficulty-badge.context-4 { color: #326c9d; border-color: color-mix(in srgb, #4f8abf 38%, var(--line)); background: color-mix(in srgb, #4f8abf 10%, transparent); }
-.difficulty-badge.context-5 { color: #7950ac; border-color: color-mix(in srgb, #8e62c7 38%, var(--line)); background: color-mix(in srgb, #8e62c7 10%, transparent); }
-.difficulty-badge.context-6 { color: #954521; border-color: color-mix(in srgb, #c86b42 38%, var(--line)); background: color-mix(in srgb, #c86b42 10%, transparent); }
+.difficulty-badge { display: inline-flex; min-width: 54px; padding: 4px 8px; align-items: center; justify-content: center; border: 1px solid #bda180; border-radius: 999px; color: var(--gold-text); background: rgba(135, 86, 46, 0.08); font-size: 10px; font-weight: 800; white-space: nowrap; }
+.difficulty-badge.context-4 { color: #326c9d; border-color: #a3afb0; background: rgba(79, 138, 191, 0.1); }
+.difficulty-badge.context-5 { color: #7950ac; border-color: #bb9fb3; background: rgba(142, 98, 199, 0.1); }
+.difficulty-badge.context-6 { color: #954521; border-color: #d1a380; background: rgba(200, 107, 66, 0.1); }
 .tier-variants { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .item-title-line, .details-title-line { display: flex; align-items: center; gap: 7px; }
 .item-title-line { min-width: 0; }
 .item-title-line strong { min-width: 0; }
-.crafting-quality { flex: 0 0 auto; color: #d99a24; font-size: 11px; font-weight: 900; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 5px color-mix(in srgb, #d99a24 28%, transparent); }
+.crafting-quality { flex: 0 0 auto; color: #d99a24; font-size: 11px; font-weight: 900; letter-spacing: 1px; line-height: 1; text-shadow: 0 1px 5px rgba(217, 154, 36, 0.28); }
 .details-title-line .crafting-quality { font-size: 13px; }
 .details-market-context { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 7px; color: var(--muted); font-size: 9px; font-weight: 700; }
 .details-market-context span { display: inline-flex; align-items: center; gap: 4px; }
@@ -457,7 +458,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .pet-variant strong { color: var(--success); font-size: 11px; }
 .pet-variant small { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .pet-variant .pet-stats { color: var(--text); }
-.history-panel { padding: 20px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface-muted) 60%, var(--surface-solid)); }
+.history-panel { padding: 20px; border-bottom: 1px solid var(--line); background: #ede2ca; }
 .history-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .history-heading .eyebrow { margin-bottom: 2px; }
 .history-heading h3, .details-section-heading h3 { margin: 0; font-family: Georgia, "STSong", serif; font-size: 17px; }
@@ -480,7 +481,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .chart-axis-price { fill: var(--muted); font-size: 10px; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 7px 14px; padding: 0 12px 10px 38px; color: var(--muted); font-size: 10px; font-weight: 700; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.chart-legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 12%, transparent); }
+.chart-legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(110, 91, 73, 0.12); }
 .chart-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
 .chart-area { color: var(--gold-text); }
 .chart-line { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -499,8 +500,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .down { color: var(--success) !important; }
 .flat { color: var(--muted) !important; }
 .change-badge { flex: 0 0 auto; padding: 6px 9px; border: 1px solid currentColor; border-radius: 99px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 800; }
-.change-badge.up { background: color-mix(in srgb, var(--danger) 8%, transparent); }
-.change-badge.down { background: color-mix(in srgb, var(--success) 8%, transparent); }
+.change-badge.up { background: rgba(155, 56, 56, 0.08); }
+.change-badge.down { background: rgba(35, 105, 64, 0.08); }
 .history-loading, .history-error { display: flex; min-height: 100px; padding: 20px; align-items: center; justify-content: center; gap: 12px; border-bottom: 1px solid var(--line); color: var(--muted); background: var(--surface-muted); font-size: 10px; }
 .history-loading .spinner { width: 22px; height: 22px; }
 .history-error { justify-content: space-between; }
