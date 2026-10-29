@@ -1,0 +1,110 @@
+{
+  "recovered_from_casc": 21,
+  "numeric_fallback_checks": [
+    {
+      "texture": "7489644",
+      "name": "inv_12tr_amani_ritual_loashrine_eagle01_7489644",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "7950437",
+      "name": "inv_7lf_lightforged_teleporter01_7950437",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8017300",
+      "name": "inv_10xp_halloween_witchhat01_8017300",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8017304",
+      "name": "inv_10xp_halloween_applebob_8017304",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8033246",
+      "name": "inv_6hu_petstable_murlocplushie01_8033246",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8033266",
+      "name": "inv_8du_zuldazarraid_gem05_8033266",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8106983",
+      "name": "inv_8096059_8106983",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8106986",
+      "name": "inv_10xp_otterplush_8106986",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8106989",
+      "name": "inv_10xp_otterplushlongboi_8106989",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8148392",
+      "name": "inv_8vp_vulpera_forge01_8148392",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8174643",
+      "name": "inv_8vp_vulpera_stove01_8174643",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8174662",
+      "name": "inv_8se_serpentine_pillow02_8174662",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8174664",
+      "name": "inv_8se_serpentine_scroll02_8174664",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179434",
+      "name": "inv_7lf_lightforged_blacksmith_oil01_8179434",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179444",
+      "name": "inv_7lf_lightforged_blacksmith_workbench01_8179444",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179462",
+      "name": "inv_7lf_lightforged_cloth01_8179462",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179472",
+      "name": "inv_7lf_lightforged_forge01_8179472",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179474",
+      "name": "inv_7lf_lightforged_lantern01_8179474",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179979",
+      "name": "inv_9nc_necro_lich_booksfloating01_8179979",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8179995",
+      "name": "inv_9fa_fae_magiccraftanvil01_8179995",
+      "numeric_url_status": "cached"
+    },
+    {
+      "texture": "8180007",
+      "name": "inv_9fa_fae_scroll03_8180007",
+      "numeric_url_status": "cached"
+    }
+  ]
+}

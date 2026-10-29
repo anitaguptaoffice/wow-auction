@@ -80,10 +80,12 @@ three archives). Refresh icon mappings and fallback assets before building the f
 ```sh
 curl -fL https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv -o /tmp/community-listfile.csv
 uv run --group compact python scripts/generate_icon_manifest.py data/compact/market-NEXT.duckdb /tmp/community-listfile.csv
-python3 scripts/sync-icon-cache.py --skip-casc
+python3 scripts/sync-icon-cache.py --strict
 ```
 
-Review reported missing icons; omit `--skip-casc` to attempt remote game-asset extraction.
+The default pipeline tries named CDN icons, Wowhead numeric FileDataID icons, then
+remote CASC extraction. Use `--skip-casc` only for a deliberately limited CDN check.
+`--strict` prevents silently publishing unresolved icons.
 New item data is discovered during import, but new texture IDs also require this
 asset refresh. Deploy frontend and API allowlists together.
 
@@ -208,9 +210,11 @@ npm run icons:generate -- data/wow-auction.db /path/to/community-listfile.csv fr
 npm run build:cloudbase
 ```
 
+2026-10-29 补图记录：21 个家宅装饰图标用 community listfile 长文件名访问两个 JPEG 源均失败，但 Wowhead 数字 FileDataID 地址全部可用。例如物品 `284240` 的 tooltip 返回 `icon: "8106986"`，对应 `https://wow.zamimg.com/images/wow/icons/large/8106986.jpg`。同时已按原始 FileDataID 从 CASC 导出全部 21 个 WebP 并部署；当前图标清单没有 `missing` 项。脚本现依次尝试官方文件名、备用文件名、备用数字 ID、CASC。验收记录见 `experiments/compact-market/results/icon-recovery.json`。
+
 同步结果持久化在 `frontend/src/generated/icon-source-status.json`；该完整状态仅供发布工具使用，不会打进前端包。前端只读取自动生成的 `local-icon-map.json`，其中仅包含已固化静态图标的文件格式。后续发布会跳过已经确认可走 Blizzard CDN 的图标，并验证已经固化的静态文件，只处理新出现的图标和之前未补成功的 `missing`。新纹理即使没有 community listfile 文件名，也会以 `filedata-<FileDataID>` 合成名称进入清单并直接从 CASC 导出，不会静默漏掉。新图标先检查默认 CDN；默认 CDN 不可用或状态为 `missing` 时，自动依次尝试备用 JPEG 和 CASC，并把成功结果统一写入静态资源目录。需要主动重新核验全部官方 CDN 状态时运行 `npm run icons:sync -- --refresh`。
 
-Blizzard CDN 缺失的图标会统一补入 `frontend/public/wow-icons/`：优先下载备用 JPEG；JPEG 镜像尚未收录的新图标，则由完整的 `icons:prepare` 使用固定版本的 `wowdata` 按 `FileDataID` 从国服 Retail CASC 导出 WebP。两种格式都属于同一个 TCB 本地静态来源，状态清单会告诉前端直接请求正确格式，不会逐个试探。最终仍无法导出的资源只会告警，前端使用内置占位，不会阻断整站发布；需要在 CI 中把这类告警视为失败时，可运行 `npm run icons:sync -- --strict`。
+Blizzard CDN 缺失的图标会统一补入 `frontend/public/wow-icons/`：优先下载备用 JPEG（先用文件名，再用数字 FileDataID）；JPEG 镜像尚未收录的新图标，则由完整的 `icons:prepare` 使用固定版本的 `wowdata` 按 `FileDataID` 从国服 Retail CASC 导出 WebP。两种格式都属于同一个 TCB 本地静态来源，状态清单会告诉前端直接请求正确格式，不会逐个试探。最终仍无法导出的资源只会告警，前端使用内置占位，不会阻断整站发布；需要在 CI 中把这类告警视为失败时，可运行 `npm run icons:sync -- --strict`。
 
 清单生成器同时接受 `interface/icons/` 和 `housing/icons/`，并把路径中的字面空格转换为 CDN 使用的 `-`，避免把可用图标误判为缺失资源。
 

@@ -95,21 +95,27 @@ def sync_one(
     output_dir: Path,
     timeout: float,
     check_official: bool,
+    texture_ids: tuple[str, ...] = (),
 ) -> tuple[str, str]:
     destination = output_dir / f"{icon_name}.jpg"
     if destination.is_file() or (output_dir / f"{icon_name}.webp").is_file():
         return "existing", icon_name
 
-    # Synthetic names deliberately have no CDN slug. Report them as a CDN
-    # miss immediately so the caller exports the original FileDataID via CASC.
-    if icon_name.startswith(FILEDATA_PREFIX):
-        return "failed", icon_name
+    # Synthetic names have no CDN slug, but may still resolve by FileDataID.
+    synthetic = icon_name.startswith(FILEDATA_PREFIX)
 
     encoded = quote(icon_name, safe="")
-    if check_official and fetch_jpeg(f"{OFFICIAL_BASE}/{encoded}.jpg", timeout) is not None:
+    if check_official and not synthetic and fetch_jpeg(f"{OFFICIAL_BASE}/{encoded}.jpg", timeout) is not None:
         return "official", icon_name
 
-    payload = fetch_jpeg(f"{FALLBACK_BASE}/{encoded}.jpg", timeout)
+    payload = None if synthetic else fetch_jpeg(f"{FALLBACK_BASE}/{encoded}.jpg", timeout)
+    if payload is None:
+        # New Wowhead icons can be keyed by FileDataID rather than listfile slug.
+        for texture_id in texture_ids:
+            if texture_id.isdecimal():
+                payload = fetch_jpeg(f"{FALLBACK_BASE}/{texture_id}.jpg", timeout)
+                if payload is not None:
+                    break
     if payload is None:
         return "failed", icon_name
     write_atomic(destination, payload)
@@ -219,7 +225,7 @@ def main() -> int:
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.workers)) as executor:
         futures = [
-            executor.submit(sync_one, name, output_dir, args.timeout, check_official)
+            executor.submit(sync_one, name, output_dir, args.timeout, check_official, tuple(texture_ids_by_icon[name]))
             for name, check_official in pending
         ]
         for future in concurrent.futures.as_completed(futures):
