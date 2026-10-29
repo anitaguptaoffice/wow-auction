@@ -168,7 +168,10 @@ export function Select<Value extends string | number>({
                 aria-selected={option.value === value}
                 className={`ui-select-option${index === activeIndex ? " is-active" : ""}`}
                 onPointerMove={() => setActiveIndex(index)}
-                onPointerDown={(event) => event.preventDefault()}
+                onPointerDown={(event) => {
+                  // Keep mouse focus on the trigger; cancelling touch down suppresses Safari's click.
+                  if (event.pointerType === "mouse") event.preventDefault();
+                }}
                 onClick={() => choose(index)}
               >
                 <span>{option.label}</span>
