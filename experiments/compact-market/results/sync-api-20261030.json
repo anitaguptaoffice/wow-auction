@@ -1,0 +1,24 @@
+{
+  "verified_at": "2026-10-30T05:25:33.198575+08:00",
+  "endpoint": "https://wowplayer.fun/api/sync/jobs",
+  "ingress_image": "sha256:df9479a42991ae357c37df15784c9d52f21bc079ee330cf92bcf39aefd4ab50e",
+  "ingress_source_commit": "6764d9f",
+  "installer_commit": "bea109c",
+  "backend_tests": 92,
+  "real_snapshot_records": 454666,
+  "compressed_upload_bytes": 13578403,
+  "job_id": "5eaf5976fb034796b9052f3c7035193c",
+  "result": "succeeded_unchanged",
+  "repeat_submit": "same_completed_receipt_without_upload",
+  "busy_status": 409,
+  "unauthorized_status": 401,
+  "worker_restart": "same_running_import_container_resumed",
+  "active_database_sha256": "8afa61c44420b7f5876711c36a57f240372713e623d9855fed5765d58106be4e",
+  "source_snapshot_count": 8,
+  "ingress_observed_memory_mib": 52.44,
+  "limitations": [
+    "The real production replay was an existing snapshot, so no auction observations were invented.",
+    "Changed-data append, evidence inheritance and publication state transitions were exercised with isolated tests.",
+    "The server still clones a full candidate DuckDB for acceptance and rollback; the network transfers only one new snapshot."
+  ]
+}
