@@ -11,17 +11,12 @@ import { mockCatalog, mockHistory, mockItems, mockListings, mockStatus } from ".
 
 const useMockData = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_DATA === "true";
 
-const productionApiByHost: Record<string, string> = {
-  "raidbot-5gh3h2nx762bedc5-1251932919.tcloudbaseapp.com":
-    "https://wow-auction-api-273424-4-1251932919.sh.run.tcloudbase.com/api",
-};
-
 function getApiBase(): string {
   const runtimeBase = (window as typeof window & { WOW_AUCTION_API_BASE?: string })
     .WOW_AUCTION_API_BASE;
   const buildTimeBase = import.meta.env.VITE_API_BASE as string | undefined;
   const configured =
-    runtimeBase || buildTimeBase || productionApiByHost[window.location.hostname] || "/api";
+    runtimeBase || buildTimeBase || "/api";
   return configured.replace(/\/+$/, "");
 }
 
@@ -87,9 +82,9 @@ export function fetchItemListings(
 ): Promise<ItemListingsResponse> {
   if (useMockData) return mockListings(item, page, pageSize);
   return requestJson<ItemListingsResponse>(
-    `/market/items/${encodeURIComponent(item.itemID)}/listings`,
+    "/market/listings",
     {
-      battle_pet_creature_id: item.battlePetCreatureID,
+      market_key: item.marketKey,
       item_context: item.itemContext,
       pet_variant_key: item.petVariantKey,
       page,
@@ -102,11 +97,12 @@ export function fetchItemListings(
 export function fetchItemHistory(item: MarketItem): Promise<ItemHistoryResponse> {
   if (useMockData) return mockHistory(item);
   return requestJson<ItemHistoryResponse>(
-    `/market/items/${encodeURIComponent(item.itemID)}/history`,
+    "/market/history/view",
     {
-      battle_pet_creature_id: item.battlePetCreatureID,
+      market_key: item.marketKey,
       item_context: item.itemContext,
       pet_variant_key: item.petVariantKey,
+      scan_id: item.scanId,
     },
   );
 }

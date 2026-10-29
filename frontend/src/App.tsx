@@ -231,7 +231,7 @@ export function App() {
           />
           <MetricCard
             icon={<Database size={18} />}
-            label="服务器"
+            label="市场"
             value={catalogQuery.isLoading ? "读取中…" : `${realms.length} 个`}
             detail={realms.length ? realms.map((realm) => realm.realm).join("、") : "等待快照元数据"}
           />
@@ -243,9 +243,9 @@ export function App() {
           />
           <MetricCard
             icon={<Boxes size={18} />}
-            label="历史时间点"
+            label="市场快照"
             value={catalogQuery.isLoading ? "读取中…" : formatInteger(scanCount)}
-            detail="已通过完整性校验的服务器快照"
+            detail="全服与各服务器的历史观测"
           />
         </section>
 
@@ -270,7 +270,7 @@ export function App() {
               <b>
                 {raidBoeQuery.isLoading
                   ? "读取中"
-                  : `${raidBoeQuery.data?.total ?? 0}/9 种 · ${formatInteger(raidBoeQuery.data?.items.reduce((sum, item) => sum + item.listingCount, 0))} 条`}
+                  : `${raidBoeQuery.data?.total ?? 0} 个市场条目 · 按服务器与变体区分`}
               </b>
             </button>
 
@@ -409,7 +409,7 @@ function AccountNotice({ onClose }: { onClose: () => void }) {
         <span className="notice-icon"><UserRound size={23} /></span>
         <p className="eyebrow">ACCOUNT MIGRATION</p>
         <h2 id="account-notice-title">账户功能正在迁移</h2>
-        <p>市场浏览保持公开可用。CloudBase 登录、收藏和关注列表会在 React 基础页面稳定后接入。</p>
+        <p>市场浏览保持公开可用。账号、收藏和关注列表暂未开放。</p>
         <button className="notice-action" type="button" onClick={onClose}>知道了</button>
       </section>
     </div>
@@ -718,7 +718,7 @@ function paginationTokens(current: number, pages: number): Array<number | "…">
 function ItemDetails({ item, onClose }: { item: MarketItem; onClose: () => void }) {
   const [page, setPage] = useState(1);
   const historyQuery = useQuery({
-    queryKey: ["item-history", item.marketKey],
+    queryKey: ["item-history", item.regionID, item.realmID, item.scanId, item.marketKey],
     queryFn: () => fetchItemHistory(item),
   });
   const listingsQuery = useQuery({

@@ -1,0 +1,114 @@
+{
+  "format_version": 1,
+  "source_commit": "a2950eb7d1e9f4ef07be388c77474a7ce8009c33",
+  "database": "data/compact/market.duckdb",
+  "duckdb_version": "2.0.0",
+  "threads": 2,
+  "duckdb_memory_limit": "1GB",
+  "build_seconds": 119.606,
+  "build_peak_rss_bytes": 2703540224,
+  "database_bytes": 68956160,
+  "baseline_sqlite_bytes": 303390720,
+  "baseline_note": "Denormalized SQLite copy with two indexes; not a MySQL size or latency benchmark.",
+  "repeated_string_payload_bytes": 163290839,
+  "sources": [
+    {
+      "path": "data/archive/compact-source/silvermoon-old/auction.lua.tgz",
+      "archive_bytes": 25497466,
+      "source_bytes": 227686554,
+      "sha256": "1625f3a1ee45f09517a4765b4ba0c48d8f918e17a1919cb8a66d42d095512e49",
+      "manifest_verified": true,
+      "seconds": 38.813
+    },
+    {
+      "path": "data/archive/compact-source/silvermoon-new/auction.lua.tgz",
+      "archive_bytes": 23931649,
+      "source_bytes": 209122230,
+      "sha256": "ccf8b030e4266ea7005262be1491cf124c9c547c64dd609142d059c89021588d",
+      "manifest_verified": true,
+      "seconds": 35.542
+    },
+    {
+      "path": "data/archive/compact-source/deathwing-new/auction.lua.tgz",
+      "archive_bytes": 22485428,
+      "source_bytes": 198438900,
+      "sha256": "a67665f7b69f8dd7f25809cf18056492774586c3ccabfe7688212096f7e3e323",
+      "manifest_verified": true,
+      "seconds": 33.927
+    }
+  ],
+  "counts": {
+    "listings": 1373832,
+    "descriptors": 86544,
+    "people": 1,
+    "summaries": 77750,
+    "scans": 3
+  },
+  "scans": [
+    {
+      "scan_id": 1,
+      "snapshot_sha256": "1625f3a1ee45f09517a4765b4ba0c48d8f918e17a1919cb8a66d42d095512e49",
+      "fingerprint": "f297296aa44781b8e757c526594eed762d80d1915b0df21be4e31502ae534879",
+      "timestamp": 1787256447,
+      "source_date": "2026-08-21",
+      "realm_name": "白银之手",
+      "realm_id": 707,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 491609,
+      "total_quantity": 36201633,
+      "mapping_sha256": "a5523bb96a93d756fb077728cb7e05c990dc091c642527200dd356d9a2720a33"
+    },
+    {
+      "scan_id": 2,
+      "snapshot_sha256": "ccf8b030e4266ea7005262be1491cf124c9c547c64dd609142d059c89021588d",
+      "fingerprint": "8d402e7c8b4f3a91e146042c5579e845813fa10606d94b2313eb132bded41f24",
+      "timestamp": 1791993256,
+      "source_date": "2026-10-14",
+      "realm_name": "白银之手",
+      "realm_id": 707,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 451807,
+      "total_quantity": 35559804,
+      "mapping_sha256": "91502a140e446496eefebd992494165e5261fe89df022694e54434f53526e387"
+    },
+    {
+      "scan_id": 3,
+      "snapshot_sha256": "a67665f7b69f8dd7f25809cf18056492774586c3ccabfe7688212096f7e3e323",
+      "fingerprint": "43dd54bfda426bb207e614475a1dce3b78a61801e4265b6b17f574862586c126",
+      "timestamp": 1791995145,
+      "source_date": "2026-10-15",
+      "realm_name": "死亡之翼",
+      "realm_id": 741,
+      "region_name": "CN",
+      "region_id": 5,
+      "record_count": 430416,
+      "total_quantity": 34166125,
+      "mapping_sha256": "a355327191f709459e929917c3f7169c9f018ff00a51be6f496d7dc7dbbda2ef"
+    }
+  ],
+  "roundtrip_checks": [
+    {
+      "scan_id": 1,
+      "rows": 491609,
+      "total_quantity": 36201633,
+      "mapping_sha256": "a5523bb96a93d756fb077728cb7e05c990dc091c642527200dd356d9a2720a33",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 2,
+      "rows": 451807,
+      "total_quantity": 35559804,
+      "mapping_sha256": "91502a140e446496eefebd992494165e5261fe89df022694e54434f53526e387",
+      "all_modeled_fields_match": true
+    },
+    {
+      "scan_id": 3,
+      "rows": 430416,
+      "total_quantity": 34166125,
+      "mapping_sha256": "a355327191f709459e929917c3f7169c9f018ff00a51be6f496d7dc7dbbda2ef",
+      "all_modeled_fields_match": true
+    }
+  ]
+}

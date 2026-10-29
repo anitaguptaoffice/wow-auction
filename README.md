@@ -1,5 +1,85 @@
 # 艾泽拉斯交易所（WoW Auction）
 
+## Single-server deployment (2026-10-29)
+
+The active migration branch uses the existing React frontend with the compact
+DuckDB/Arrow API. The CloudBase architecture documented below is legacy; the new
+runtime does not require CloudBase, MySQL, or Redis.
+
+- Frontend: `https://wowplayer.fun/`, served by the existing host Nginx.
+- API: one Docker process, loopback port `8180`, 2 GiB container limit; do not scale
+  workers without budgeting another complete in-memory history index per worker.
+- Data: immutable DuckDB generations and original compressed snapshots outside Git.
+- Validation: 36 backend tests; public desktop/mobile search, detail pagination and
+  three-point history verified. Server loopback test: 800 requests, 8 concurrent,
+  zero errors; P95 list/search/history about 116 ms, detail 189 ms with a 2-CPU limit.
+  These are server measurements, not Internet round-trip timings.
+- Initial dataset: three verified source snapshots, 1,373,832 original listing rows;
+  latest data is October 15, 2026 (UTC+8), not a live feed.
+- Region commodities use market server ID `0`; each actual realm has its own history.
+  Default browsing combines only the latest observation from each market.
+- Accounts and automatic snapshot collection are not enabled on this deployment.
+
+### Build and release
+
+```sh
+uv sync --frozen --group compact
+uv run --group compact python -m unittest discover -s backend/tests -v
+npm ci
+npm run typecheck
+npm run build
+docker build -f deploy/Dockerfile -t wow-auction:RELEASE .
+docker save wow-auction:RELEASE | gzip > image.tar.gz
+tar -czf web.tar.gz -C frontend/dist .
+```
+
+Transfer artifacts to `/opt/wow-auction/releases/RELEASE/` using SSH. Never transfer
+credentials into the image. On the host, load the image and start a candidate on
+an unused loopback port (alternate `8180` and `8181` for subsequent releases):
+
+```sh
+docker load -i image.tar.gz
+bash run-api.sh wow-auction:RELEASE /absolute/path/market.duckdb wow-auction-RELEASE 8181
+```
+
+`deploy/run-api.sh` waits for health and fails if startup fails. Keep the current
+container running during candidate validation. Extract `web.tar.gz` into the release's
+`web/` directory. Back up the existing site config and public directory; point
+`/var/www/wowplayer.fun/public` at that release's `web/`. Include
+`deploy/nginx-api.conf` in the existing HTTPS server block, adjusting the candidate
+port. Validate with `nginx -t`, then reload. Check the public homepage, catalog,
+search, listings, and history before stopping the previous API container.
+
+Rollback restores the previous public-directory symlink and Nginx upstream port,
+starts the previous container if stopped, then validates and reloads Nginx.
+Retain previous image, frontend, and database together; API and frontend contracts
+must be rolled back as a pair. Cloudreve is a separate application and is untouched.
+
+### Import another snapshot
+
+Keep each `auction.lua.tgz` beside its own `manifest.json` in an archive directory.
+Build a **new** database from all snapshots to retain; the current builder performs
+an offline rebuild, not an incremental append. It refuses to overwrite an existing
+output and verifies archive hashes and lossless row reconstruction before publishing.
+
+```sh
+uv run --group compact python -m compact_market.build \
+  data/archive/compact-source/*/auction.lua.tgz \
+  --output data/compact/market-NEXT.duckdb
+```
+
+Run this on a build machine initially (measured peak memory 2.52 GiB for the initial
+three archives). Transfer the result, verify SHA-256, and start a candidate container
+with that generation using the same release procedure. Never replace a database
+file underneath a running reader. More frequent ingestion, incremental history
+compaction, off-host backups, and scheduled collection remain follow-up work.
+Current memory and latency measurements cover three snapshots, not months of data.
+See `experiments/compact-market/README.md` for the original benchmark evidence.
+
+---
+
+## Legacy CloudBase deployment
+
 魔兽世界拍卖行快照采集、完整性校验、持久化和在线查询项目。游戏插件负责调用 WoW 拍卖行 API 获取快照；本项目后半段将快照保存到 CloudBase 私有对象存储，校验后写入 MySQL，再由 FastAPI 和静态网站展示真实数据。
 
 ## 当前状态

@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  />
+  <title>拍卖行情 · 单机原型</title>
+  <link rel="icon" href="data:," />
+  <style>
+    :root {
+      color-scheme: dark;
+      font:
+        15px/1.6 system-ui,
+        sans-serif;
+      background: #11151c;
+      color: #e8ebf1;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0;
+    }
+    p {
+      color: #a9b4c6;
+    }
+    header {
+      margin-bottom: 24px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    input,
+    select,
+    button {
+      font: inherit;
+      border: 1px solid #3c4658;
+      border-radius: 8px;
+      background: #1a2130;
+      color: inherit;
+      padding: 10px 12px;
+    }
+    input {
+      flex: 1;
+      min-width: 200px;
+    }
+    button {
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2a3c55;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .panel {
+      background: #171e29;
+      border: 1px solid #303b4c;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      overflow: auto;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      white-space: nowrap;
+    }
+    th,
+    td {
+      text-align: left;
+      padding: 11px;
+      border-bottom: 1px solid #2b3444;
+    }
+    th {
+      color: #a8b9d0;
+      font-size: 13px;
+    }
+    tr[data-index] {
+      cursor: pointer;
+    }
+    tr[data-index]:hover {
+      background: #243348;
+    }
+    .muted {
+      color: #a9b4c6;
+      font-size: 13px;
+    }
+    .pager {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    #error {
+      color: #ffaba7;
+    }
+    #details[hidden] {
+      display: none;
+    }
+    .detail-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    #metrics {
+      color: #8bdcbb;
+    }
+    a {
+      color: #b8d4ff;
+    }
+    .tag {
+      font-size: 12px;
+      border: 1px solid #45526a;
+      border-radius: 5px;
+      padding: 1px 6px;
+      color: #b7c8df;
+    }
+    .stats {
+      font-variant-numeric: tabular-nums;
+    }
+    #trend {
+      display: block;
+      width: 100%;
+      height: 100px;
+      margin: 10px 0;
+    }
+    #detail-table {
+      max-height: 420px;
+      overflow: auto;
+    }
+    #empty {
+      padding: 35px;
+      text-align: center;
+      color: #a9b4c6;
+    }
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid #8bdcbb;
+      outline-offset: 3px;
+    }
+  </style>
+  <header>
+    <span class="tag">真实归档快照</span>
+    <h1>拍卖行情 · 单机原型</h1>
+    <p>选择服务器和采集时间，搜索物品并查看挂单与历史价格。价格单位为金币。</p>
+    <div id="status" class="stats muted">正在载入快照…</div>
+  </header>
+  <form id="search" class="controls">
+    <select id="scan" aria-label="服务器和快照"></select
+    ><input
+      id="query"
+      placeholder="输入物品名称或 itemID"
+      aria-label="物品名称或 itemID"
+    /><select id="sort" aria-label="排序">
+      <option value="price_asc">最低价从低到高</option>
+      <option value="price_desc">最低价从高到低</option>
+      <option value="quantity_desc">库存从多到少</option>
+      <option value="listings_desc">挂单从多到少</option>
+      <option value="name_asc">名称排序</option></select
+    ><button>搜索</button>
+  </form>
+  <p id="error" role="alert"></p>
+  <p id="metrics" class="muted stats"></p>
+  <section class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>物品</th>
+          <th>最低单价</th>
+          <th>库存</th>
+          <th>挂单</th>
+          <th>版本 / 品质</th>
+          <th>范围</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" hidden>没有匹配的物品</div>
+  </section>
+  <div class="pager">
+    <button id="prev">上一页</button><span id="page" class="muted stats"></span
+    ><button id="next">下一页</button>
+  </div>
+  <section id="details" class="panel" hidden>
+    <div class="detail-head">
+      <h2 id="detail-title"></h2>
+      <button id="close">关闭</button>
+    </div>
+    <p id="detail-info" class="muted"></p>
+    <div id="history"></div>
+    <div id="detail-table">
+      <table>
+        <thead>
+          <tr>
+            <th>单价</th>
+            <th>数量</th>
+            <th>一口价</th>
+            <th>卖家</th>
+            <th>剩余时间</th>
+            <th>版本</th>
+          </tr>
+        </thead>
+        <tbody id="listing-rows"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <button id="detail-prev">上一页</button
+      ><span id="detail-page" class="muted stats"></span
+      ><button id="detail-next">下一页</button>
+    </div>
+  </section>
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const number = (v) => new Intl.NumberFormat("zh-CN").format(v);
+    const gold = (v) =>
+      v == null
+        ? "—"
+        : new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 4 }).format(
+            v / 10000,
+          );
+    let page = 1,
+      totalPages = 0,
+      current = [],
+      selected = null,
+      detailPage = 1,
+      detailTotal = 0,
+      listSequence = 0,
+      detailSequence = 0;
+    function cell(row, value) {
+      const td = document.createElement("td");
+      td.textContent = String(value ?? "—");
+      row.append(td);
+    }
+    async function api(path, params = {}) {
+      const start = performance.now();
+      const res = await fetch(
+        "/api/market/" + path + "?" + new URLSearchParams(params),
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || res.statusText);
+      return {
+        data,
+        ms: performance.now() - start,
+        server: res.headers.get("Server-Timing"),
+      };
+    }
+    function error(e) {
+      $("error").textContent = e.message;
+    }
+    async function load() {
+      const sequence = ++listSequence;
+      $("error").textContent = "";
+      $("details").hidden = true;
+      detailSequence++;
+      selected = null;
+      const result = await api("items", {
+        scan_id: $("scan").value,
+        q: $("query").value,
+        sort: $("sort").value,
+        page,
+        page_size: 25,
+      });
+      if (sequence !== listSequence) return;
+      const d = result.data;
+      current = d.items;
+      totalPages = d.totalPages;
+      const fragment = document.createDocumentFragment();
+      current.forEach((item, i) => {
+        const tr = document.createElement("tr");
+        tr.dataset.index = String(i);
+        tr.tabIndex = 0;
+        tr.setAttribute("aria-label", "查看 " + item.name);
+        cell(tr, item.name + " · " + item.itemID);
+        cell(tr, gold(item.minUnitPrice));
+        cell(tr, number(item.totalQuantity));
+        cell(tr, number(item.listingCount));
+        cell(
+          tr,
+          [
+            item.difficulty,
+            item.craftingQuality ? "制造 " + item.craftingQuality : null,
+            item.petBreedLabel,
+          ]
+            .filter(Boolean)
+            .join(" / ") || "默认",
+        );
+        cell(
+          tr,
+          { region: "区域共享", realm: "服务器独有", unknown: "范围待确认" }[
+            item.marketScope
+          ],
+        );
+        fragment.append(tr);
+      });
+      $("rows").replaceChildren(fragment);
+      $("empty").hidden = !!current.length;
+      $("page").textContent =
+        `第 ${page} / ${Math.max(1, totalPages)} 页 · ${number(d.total)} 个市场分组`;
+      $("prev").disabled = page <= 1;
+      $("next").disabled = page >= totalPages;
+      $("metrics").textContent =
+        `本次请求 ${result.ms.toFixed(1)} ms · ${result.server || ""}`;
+    }
+    async function refreshStatus() {
+      const { data: d } = await api("status", { scan_id: $("scan").value });
+      $("status").textContent =
+        `${d.realm} · ${new Date(d.scannedAt).toLocaleString("zh-CN")} · ${number(d.listingCount)} 条挂单 · ${number(d.totalQuantity)} 件物品`;
+    }
+    async function details(index) {
+      selected = current[index];
+      detailPage = 1;
+      $("details").hidden = false;
+      $("detail-title").textContent = selected.name;
+      $("history").replaceChildren();
+      $("detail-info").textContent = "正在查询挂单与历史…";
+      await loadDetail();
+      $("details").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    async function loadDetail() {
+      const sequence = ++detailSequence;
+      const item = selected;
+      if (!item) return;
+      const params = { market_key: item.marketKey, scan_id: item.scanId };
+      const [list, history] = await Promise.all([
+        api("listings", { ...params, page: detailPage, page_size: 25 }),
+        api("history", params),
+      ]);
+      if (sequence !== detailSequence) return;
+      const d = list.data;
+      detailTotal = d.totalPages;
+      $("detail-info").textContent =
+        `${item.realm} · ${number(d.total)} 条挂单 · 明细 ${list.ms.toFixed(1)} ms / 历史 ${history.ms.toFixed(1)} ms`;
+      $("listing-rows").replaceChildren();
+      for (const v of d.items) {
+        const tr = document.createElement("tr");
+        cell(tr, gold(v.unitPrice));
+        cell(tr, number(v.quantity));
+        cell(tr, gold(v.buyoutAmount));
+        cell(tr, v.owner_full_name || v.owner || "未提供");
+        cell(tr, v.timeLeftLabel);
+        cell(
+          tr,
+          [v.difficulty, v.statLabel, v.petBreedLabel]
+            .filter(Boolean)
+            .join(" / ") || "默认",
+        );
+        $("listing-rows").append(tr);
+      }
+      $("detail-page").textContent =
+        `第 ${detailPage} / ${Math.max(1, detailTotal)} 页`;
+      $("detail-prev").disabled = detailPage <= 1;
+      $("detail-next").disabled = detailPage >= detailTotal;
+      $("history").replaceChildren();
+      const points = history.data.points;
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = points
+        .map(
+          (v) =>
+            `${new Date(v.timestamp * 1000).toLocaleDateString("zh-CN")}：${gold(v.min_unit_price)} 金`,
+        )
+        .join(" → ");
+      $("history").append(p);
+      const valid = points.filter((v) => v.min_unit_price != null);
+      if (valid.length > 1) {
+        const svg = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg",
+        );
+        svg.id = "trend";
+        svg.setAttribute("viewBox", "0 0 800 100");
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", "历史最低单价趋势");
+        const min = Math.min(...valid.map((v) => v.min_unit_price)),
+          max = Math.max(...valid.map((v) => v.min_unit_price));
+        const poly = document.createElementNS(svg.namespaceURI, "polyline");
+        poly.setAttribute(
+          "points",
+          valid
+            .map(
+              (v, i) =>
+                `${10 + (i * 780) / (valid.length - 1)},${90 - (80 * (v.min_unit_price - min)) / (max - min || 1)}`,
+            )
+            .join(" "),
+        );
+        poly.setAttribute("fill", "none");
+        poly.setAttribute("stroke", "#8bdcbb");
+        poly.setAttribute("stroke-width", "3");
+        svg.append(poly);
+        $("history").append(svg);
+      }
+    }
+    $("search").onsubmit = (e) => {
+      e.preventDefault();
+      page = 1;
+      load().catch(error);
+    };
+    $("scan").onchange = () => {
+      page = 1;
+      Promise.all([load(), refreshStatus()]).catch(error);
+    };
+    $("sort").onchange = () => {
+      page = 1;
+      load().catch(error);
+    };
+    $("prev").onclick = () => {
+      page--;
+      load().catch(error);
+    };
+    $("next").onclick = () => {
+      page++;
+      load().catch(error);
+    };
+    $("rows").onclick = (e) => {
+      const tr = e.target.closest("tr[data-index]");
+      if (tr) details(Number(tr.dataset.index)).catch(error);
+    };
+    $("rows").onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        const tr = e.target.closest("tr[data-index]");
+        if (tr) {
+          e.preventDefault();
+          details(Number(tr.dataset.index)).catch(error);
+        }
+      }
+    };
+    $("close").onclick = () => {
+      $("details").hidden = true;
+      detailSequence++;
+      selected = null;
+    };
+    $("detail-prev").onclick = () => {
+      detailPage--;
+      loadDetail().catch(error);
+    };
+    $("detail-next").onclick = () => {
+      detailPage++;
+      loadDetail().catch(error);
+    };
+    try {
+      const { data } = await api("catalog");
+      for (const realm of data.realms) {
+        const group = document.createElement("optgroup");
+        group.label = realm.realm;
+        for (const scan of realm.scans) {
+          const option = document.createElement("option");
+          option.value = scan.scanId;
+          option.textContent = `${realm.realm} · ${new Date(scan.scannedAt).toLocaleString("zh-CN")}`;
+          group.append(option);
+        }
+        $("scan").append(group);
+      }
+      await Promise.all([load(), refreshStatus()]);
+    } catch (e) {
+      error(e);
+    }
+  </script>
+</html>

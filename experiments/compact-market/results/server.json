@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-29",
+  "target": "wowplayer.fun",
+  "requests": 800,
+  "concurrency": 8,
+  "errors": 0,
+  "seconds": 7.722,
+  "rps": 103.61,
+  "p95_ms": {
+    "list": 116.2,
+    "search": 116.94,
+    "history": 116.37,
+    "detail": 189.43
+  },
+  "container_cpu_limit": 2,
+  "container_memory_limit_gib": 2,
+  "notes": "Short loopback load test on deployed host, client inside API container; excludes public network latency. Docker working-set memory before load approximately 278 MiB. Not a long-duration soak or months-of-history test."
+}

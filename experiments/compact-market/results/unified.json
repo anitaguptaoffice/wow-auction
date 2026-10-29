@@ -1,0 +1,132 @@
+{
+  "database": "data/compact/market.duckdb",
+  "database_bytes": 68956160,
+  "host": {
+    "cpu": "",
+    "logical_cpus": 32,
+    "server_cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "host_memory_bytes": 64866848768,
+    "python": "3.13.15"
+  },
+  "conditions": [
+    "Real archived inputs, no synthetic row multiplication.",
+    "A fresh server process; OS file cache was not flushed.",
+    "API restricted to at most four host logical CPUs, DuckDB threads=2 and memory_limit=256MB.",
+    "DuckDB memory_limit is not a process RSS limit; no 8GB cgroup limit was applied.",
+    "Loopback HTTP includes JSON serialization and local network; excludes Internet latency.",
+    "Steady-state query load excludes snapshot import and old/new generation overlap.",
+    "History test contains only the archived scan points, not months of hourly samples.",
+    "No response cache; immutable summaries and sort/search indexes are precomputed at startup."
+  ],
+  "store_load_ms": 1027.648,
+  "store_load_rss_delta_bytes": 310767616,
+  "direct_queries": {
+    "search": {
+      "requests": 94,
+      "p50_ms": 0.3,
+      "p95_ms": 0.638,
+      "p99_ms": 0.712,
+      "max_ms": 0.715
+    },
+    "list": {
+      "requests": 99,
+      "p50_ms": 0.244,
+      "p95_ms": 0.292,
+      "p99_ms": 0.308,
+      "max_ms": 0.382
+    },
+    "detail": {
+      "requests": 106,
+      "p50_ms": 3.659,
+      "p95_ms": 4.325,
+      "p99_ms": 4.49,
+      "max_ms": 6.49
+    },
+    "history": {
+      "requests": 101,
+      "p50_ms": 0.033,
+      "p95_ms": 0.051,
+      "p99_ms": 0.052,
+      "max_ms": 0.052
+    }
+  },
+  "first_http_request_ms": {
+    "search": 1.527,
+    "list": 1.274,
+    "detail": 7.172,
+    "history": 0.657
+  },
+  "server_startup_rss_bytes": 438890496,
+  "server_peak_rss_bytes": 484601856,
+  "server_final_rss_bytes": 467828736,
+  "concurrency": 16,
+  "total_requests": 16000,
+  "elapsed_seconds": 16.22,
+  "requests_per_second": 986.45,
+  "errors": [],
+  "loopback_http": {
+    "list": {
+      "requests": 3979,
+      "p50_ms": 11.653,
+      "p95_ms": 19.831,
+      "p99_ms": 25.132,
+      "max_ms": 102.962
+    },
+    "search": {
+      "requests": 4022,
+      "p50_ms": 11.492,
+      "p95_ms": 19.825,
+      "p99_ms": 25.515,
+      "max_ms": 102.157
+    },
+    "history": {
+      "requests": 3995,
+      "p50_ms": 10.742,
+      "p95_ms": 18.741,
+      "p99_ms": 24.092,
+      "max_ms": 92.137
+    },
+    "detail": {
+      "requests": 4004,
+      "p50_ms": 25.922,
+      "p95_ms": 40.792,
+      "p99_ms": 51.365,
+      "max_ms": 107.028
+    }
+  },
+  "server_time": {
+    "list": {
+      "requests": 3979,
+      "p50_ms": 5.921,
+      "p95_ms": 11.175,
+      "p99_ms": 13.793,
+      "max_ms": 59.195
+    },
+    "search": {
+      "requests": 4022,
+      "p50_ms": 5.763,
+      "p95_ms": 11.037,
+      "p99_ms": 13.768,
+      "max_ms": 69.271
+    },
+    "history": {
+      "requests": 3995,
+      "p50_ms": 5.018,
+      "p95_ms": 10.507,
+      "p99_ms": 13.356,
+      "max_ms": 68.258
+    },
+    "detail": {
+      "requests": 4004,
+      "p50_ms": 19.851,
+      "p95_ms": 33.044,
+      "p99_ms": 42.619,
+      "max_ms": 82.512
+    }
+  }
+}

@@ -4,7 +4,7 @@ import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig(({ command }) => ({
   root: fileURLToPath(new URL(".", import.meta.url)),
-  base: command === "build" ? "/wow-auction/" : "/",
+  base: "/",
   plugins: [react()],
   build: {
     outDir: "dist",
