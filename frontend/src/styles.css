@@ -386,41 +386,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .sidebar-card { padding: 20px; }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.card-heading.compact { justify-content: flex-start; }
-.heading-icon { display: grid; place-items: center; color: var(--gold); }
 .card-heading h2 { margin: 0; font-family: Georgia, "STSong", serif; font-size: 19px; }
 .card-heading p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
 
-.popular-list {
-  display: grid;
-  gap: 0;
-  margin: 17px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.popular-list li {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 22px 34px minmax(0, 1fr);
-  align-items: center;
-  gap: 9px;
-  padding: 11px 0;
-  border-top: 1px solid var(--line);
-}
-
-.popular-list .rank { color: var(--faint); font-family: Georgia, serif; font-size: 17px; }
-.popular-list button { min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
-.popular-list strong, .popular-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.popular-list strong { font-size: 11px; }
-.popular-list small { margin-top: 2px; color: var(--muted); font-size: 9px; }
-.popular-list button:hover strong { text-decoration: underline; text-underline-offset: 2px; }
-.sidebar-placeholder { display: block !important; color: var(--muted); font-size: 11px; }
-
-.trust-card { display: flex; gap: 12px; color: var(--success); }
-.trust-card svg { flex: 0 0 auto; }
-.trust-card strong { display: block; font-size: 12px; }
-.trust-card p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
 
 .market-panel { min-width: 0; overflow: hidden; scroll-margin-top: 92px; }
 .market-toolbar {
@@ -473,7 +441,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .item-glyph.has-image { background: #090b0f; }
 .item-glyph img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .item-glyph.is-fallback { background: linear-gradient(145deg, #1e222b, #0e1015); }
-.item-glyph.small { width: 34px; height: 34px; font-size: 12px; }
 .quality-0 { color: var(--quality-0) !important; }
 .quality-1 { color: var(--quality-1) !important; }
 .quality-2 { color: var(--quality-2) !important; }
@@ -686,7 +653,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .account-button { width: 40px; padding: 0; }
   .intro-row { align-items: flex-start; flex-direction: column; }
   .workspace-grid { grid-template-columns: 1fr; }
-  .market-sidebar { grid-template-columns: 1fr 1fr; order: 2; }
+  .market-sidebar { grid-template-columns: 1fr; order: 2; }
   .market-panel { order: 1; }
 }
 

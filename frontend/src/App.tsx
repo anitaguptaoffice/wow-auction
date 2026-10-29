@@ -14,10 +14,8 @@ import {
   PackageSearch,
   RefreshCw,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
   Sun,
-  TrendingUp,
   UserRound,
   X,
 } from "lucide-react";
@@ -129,11 +127,6 @@ export function App() {
     queryKey: ["market-items", query],
     queryFn: () => fetchMarketItems(query),
     placeholderData: (previous) => previous,
-  });
-  const popularQuery = useQuery({
-    queryKey: ["market-items", "popular"],
-    queryFn: () =>
-      fetchMarketItems({ q: "", collection: "", page: 1, pageSize: 3, sort: "quantity_desc" }),
   });
   const raidBoeQuery = useQuery({
     queryKey: ["market-items", "raid-boe-12-1"],
@@ -280,39 +273,6 @@ export function App() {
               </b>
             </button>
 
-            <section className="sidebar-card">
-              <div className="card-heading compact">
-                <span className="heading-icon"><TrendingUp size={17} /></span>
-                <div>
-                  <h2>库存热门</h2>
-                  <p>全服务器统一数量排行</p>
-                </div>
-              </div>
-              <ol className="popular-list">
-                {popularQuery.isLoading && <li className="sidebar-placeholder">正在计算排行…</li>}
-                {popularQuery.data?.items.map((item, index) => (
-                  <li key={`${item.marketKey}:${item.scanId}`}>
-                    <span className="rank">{index + 1}</span>
-                    <ItemGlyph item={item} size="small" />
-                    <button type="button" onClick={() => setSelectedItem(item)}>
-                      <strong className={qualityClass(item.quality)}>{item.name}</strong>
-                      <small>
-                        {formatInteger(item.totalQuantity)} 件
-                        {item.marketScope === "realm" && item.realm ? ` · ${item.realm}` : ""}
-                      </small>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            </section>
-
-            <section className="sidebar-card trust-card">
-              <ShieldCheck size={21} />
-              <div>
-                <strong>完整快照校验</strong>
-                <p>原始记录、聚合数量与价格字段均在导入时闭环校验。</p>
-              </div>
-            </section>
           </aside>
 
           <section className="market-panel" aria-labelledby="market-title">
@@ -461,7 +421,7 @@ function MetricCard({
   );
 }
 
-function ItemGlyph({ item, size }: { item: MarketItem; size?: "small" }) {
+function ItemGlyph({ item }: { item: MarketItem }) {
   const glyph = Array.from(item.name.trim())[0] || "?";
   const iconName = item.texture
     ? (iconMap as Record<string, string>)[String(item.texture)]
@@ -482,14 +442,14 @@ function ItemGlyph({ item, size }: { item: MarketItem; size?: "small" }) {
 
   return (
     <span
-      className={`item-glyph ${qualityClass(item.quality)} ${size === "small" ? "small" : ""} ${imageSource ? "has-image" : "is-fallback"}`}
+      className={`item-glyph ${qualityClass(item.quality)} ${imageSource ? "has-image" : "is-fallback"}`}
       aria-hidden="true"
     >
       {imageSource ? (
         <img
           src={imageSource}
           alt=""
-          loading={size === "small" ? "eager" : "lazy"}
+          loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
           onError={() => setImageSource((current) => {
