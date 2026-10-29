@@ -10,7 +10,7 @@ runtime does not require CloudBase, MySQL, or Redis.
 - API: one Docker process, loopback port `8181`, 2 GiB container limit; do not scale
   workers without budgeting another complete in-memory history index per worker.
 - Data: immutable DuckDB generations and original compressed snapshots outside Git.
-- Validation: 69 backend tests; public desktop/mobile search, detail pagination and
+- Validation: 70 backend tests; public desktop/mobile search, detail pagination and
   three-point history verified. Original migration loopback test: 800 requests, 8 concurrent,
   zero errors; P95 list/search/history about 116 ms, detail 189 ms with a 2-CPU limit.
   These are server measurements, not Internet round-trip timings.

@@ -3,13 +3,13 @@
 from contextlib import asynccontextmanager
 import os
 import json
-import re
 from pathlib import Path
 import time
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from app.icon_api import router as icon_router
+from app.icon_names import safe_icon_name
 
 from compact_market.store import MarketStore, SORTS
 from compact_market.unified import UnifiedMarketStore
@@ -23,7 +23,7 @@ async def lifespan(app):
                                   memory_limit=os.environ.get("COMPACT_MEMORY_LIMIT", "1GB"))
     manifest = app.state.store.database.parent / 'icon-map.json'
     app.state.store.icon_map = json.loads(manifest.read_text(encoding='utf-8')) if manifest.is_file() else {}
-    if any(not re.fullmatch(r'[A-Za-z0-9_-]+', v) for v in app.state.store.icon_map.values()):
+    if any(not safe_icon_name(v) for v in app.state.store.icon_map.values()):
         app.state.store.close()
         raise ValueError('Unsafe icon manifest')
     app.state.icon_names = frozenset(app.state.store.icon_map.values())

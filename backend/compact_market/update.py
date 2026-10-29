@@ -17,6 +17,7 @@ import time
 import uuid
 
 from app.services.auction_importer import sha256_file
+from app.icon_names import safe_icon_name
 from compact_market.manage import archive_source, generation_lock, inventory, stage_generation, write_json
 from compact_market.unified import UnifiedMarketStore
 
@@ -117,7 +118,7 @@ def prepare_icons(database, destination, source_map=None, listfile=None, cache_d
             if key in textures and match:
                 known[key] = re.sub(r'\s', '-', match[1])
     icons = {key: known.get(key, 'filedata-' + key) for key in sorted(textures)}
-    if any(not re.fullmatch(r'[a-zA-Z0-9_-]+', value) for value in icons.values()):
+    if any(not safe_icon_name(value) for value in icons.values()):
         raise ValueError('Icon manifest contains an unsafe name')
     write_json(destination, icons)
     output = destination.parent / 'wow-icons'

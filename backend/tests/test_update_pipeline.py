@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from compact_market.build import build
 from compact_market.manage import stage_generation, _verify_scan
-from compact_market.update import run_update, reconcile, discover_client_sources
+from compact_market.update import run_update, reconcile, discover_client_sources, prepare_icons
 from tests.test_market_pipeline import _lua_snapshot
 
 
@@ -144,3 +144,14 @@ class UpdatePipelineTest(unittest.TestCase):
             archive.add(found['sources'][0], arcname='auction.lua')
         self.config['archive_roots'] = [str(archives)]
         self.assertEqual(len(discover_client_sources(self.config)['sources']), 2)
+
+    def test_existing_icon_punctuation_is_preserved_but_paths_are_rejected(self):
+        names = self.root / 'icons.json'
+        output = self.root / 'icons/icon-map.json'
+        output.parent.mkdir()
+        names.write_text(json.dumps({'100': 'inv_misc_fork&knife', '200': 'inv_glove_mail_draenorcrafted_d_01_alliance]'}), encoding='utf-8')
+        prepare_icons(self.database, output, names)
+        self.assertEqual(json.loads(output.read_text())['100'], 'inv_misc_fork&knife')
+        names.write_text(json.dumps({'100': '../escape'}), encoding='utf-8')
+        with self.assertRaises(ValueError):
+            prepare_icons(self.database, output, names)
