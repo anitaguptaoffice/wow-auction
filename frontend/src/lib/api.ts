@@ -34,7 +34,9 @@ async function requestJson<T>(path: string, params?: Record<string, unknown>): P
       search.set(key, String(value));
     }
   });
-  const suffix = search.size > 0 ? `?${search.toString()}` : "";
+  // URLSearchParams.size is unavailable in Safari before version 17.
+  const queryString = search.toString();
+  const suffix = queryString ? `?${queryString}` : "";
   const url = new URL(`${getApiBase()}${path}${suffix}`, window.location.href);
   const response = await fetch(url, {
     headers: { Accept: "application/json" },

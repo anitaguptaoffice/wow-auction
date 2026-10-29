@@ -1,0 +1,109 @@
+/* Auction controls: opaque surfaces, legible states, consistent touch targets. */
+:root {
+  --control-bg: #fffefb;
+  --control-text: #262b33;
+  --control-muted: #646b77;
+  --control-border: #b9b2a5;
+  --menu-bg: #fffefb;
+  --menu-hover: #efede6;
+  --menu-selected: #f6e8bc;
+  --menu-accent: #775400;
+  --focus-ring: #a67600;
+  --control-radius: 6px;
+  --control-height: 44px;
+}
+
+:root[data-theme="dark"] {
+  --control-bg: #1b2027;
+  --control-text: #f4f1e9;
+  --control-muted: #b4bac4;
+  --control-border: #586171;
+  --menu-bg: #20262e;
+  --menu-hover: #303946;
+  --menu-selected: #3b3220;
+  --menu-accent: #f1cc72;
+  --focus-ring: #e5bc5b;
+}
+
+.ui-select { min-width: 0; }
+.ui-select-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 136px;
+  min-height: var(--control-height);
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: var(--control-text);
+  background: var(--control-bg);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.ui-select-trigger:hover { border-color: var(--focus-ring); }
+.ui-select-trigger[aria-expanded="true"] { border-color: var(--focus-ring); }
+.ui-select-trigger:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.ui-select-icon { display: flex; flex-shrink: 0; color: var(--control-muted); }
+.ui-select-prefix { flex-shrink: 0; color: var(--control-muted); font-size: 12px; }
+.ui-select-value { flex: 1; color: var(--control-text); font-weight: 650; white-space: nowrap; }
+.ui-select-chevron { flex-shrink: 0; color: var(--control-muted); transition: transform 120ms ease; }
+.ui-select-trigger[aria-expanded="true"] .ui-select-chevron { transform: rotate(180deg); }
+
+.ui-select-popover {
+  z-index: 150;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  color: var(--control-text);
+  background: var(--menu-bg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+.ui-select-caption { padding: 5px 10px 7px; color: var(--control-muted); font-size: 11px; line-height: 18px; }
+.ui-select-option {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--control-text);
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  user-select: none;
+}
+.ui-select-option.is-active { border-color: var(--control-border); background: var(--menu-hover); }
+.ui-select-option[aria-selected="true"] { color: var(--menu-accent); background: var(--menu-selected); font-weight: 650; }
+.ui-select-option[aria-selected="true"].is-active { border-color: var(--menu-accent); }
+
+/* Keep any remaining native fields readable as a baseline. */
+select, select option { color: var(--control-text); background-color: var(--control-bg); }
+
+@media (max-width: 640px) {
+  .ui-select-trigger { min-width: 0; gap: 7px; padding-inline: 10px; font-size: 13px; }
+  .ui-select-prefix { font-size: 11px; }
+  .ui-select-icon { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-select-trigger, .ui-select-chevron { transition: none; }
+}
+
+@media (forced-colors: active) {
+  .ui-select-trigger, .ui-select-popover { border-color: ButtonText; color: ButtonText; background: Canvas; }
+  .ui-select-option { color: CanvasText; }
+  .ui-select-option.is-active { border-color: Highlight; }
+  .ui-select-option[aria-selected="true"] { color: HighlightText; background: Highlight; }
+}

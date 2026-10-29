@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Select } from "./components/Select";
 import {
   Boxes,
   ChevronLeft,
@@ -40,6 +41,7 @@ import type {
 } from "./types";
 
 const PAGE_SIZES = [20, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = PAGE_SIZES.map((value) => ({ value, label: `${value} 条` }));
 const ICON_CDN_BASE = (
   import.meta.env.VITE_WOW_ICON_BASE_URL
   ?? "https://render.worldofwarcraft.com/us/icons/56"
@@ -107,7 +109,8 @@ export function App() {
     if (query.page > 1) params.set("page", String(query.page));
     if (query.pageSize !== 20) params.set("page_size", String(query.pageSize));
     if (query.sort !== "price_asc") params.set("sort", query.sort);
-    const suffix = params.size ? `?${params.toString()}` : window.location.pathname;
+    const queryString = params.toString();
+    const suffix = queryString ? `?${queryString}` : window.location.pathname;
     window.history.replaceState(null, "", suffix);
   }, [query]);
 
@@ -322,39 +325,21 @@ export function App() {
                 </div>
               </div>
               <div className="market-controls">
-                <label>
-                  <SlidersHorizontal size={15} />
-                  <span className="sr-only">排序方式</span>
-                  <select
-                    value={query.sort}
-                    onChange={(event) =>
-                      setQuery((current) => ({
-                        ...current,
-                        sort: event.target.value as MarketSort,
-                        page: 1,
-                      }))
-                    }
-                  >
-                    {SORT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>每页</span>
-                  <select
-                    value={query.pageSize}
-                    onChange={(event) =>
-                      setQuery((current) => ({
-                        ...current,
-                        pageSize: Number(event.target.value),
-                        page: 1,
-                      }))
-                    }
-                  >
-                    {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-                  </select>
-                </label>
+                <Select
+                  label="排序方式"
+                  prefix="排序"
+                  icon={<SlidersHorizontal size={15} />}
+                  value={query.sort}
+                  options={SORT_OPTIONS}
+                  onChange={(sort) => setQuery((current) => ({ ...current, sort, page: 1 }))}
+                />
+                <Select
+                  label="每页条数"
+                  prefix="每页"
+                  value={query.pageSize}
+                  options={PAGE_SIZE_OPTIONS}
+                  onChange={(pageSize) => setQuery((current) => ({ ...current, pageSize, page: 1 }))}
+                />
               </div>
             </div>
 
