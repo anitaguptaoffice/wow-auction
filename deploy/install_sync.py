@@ -95,10 +95,15 @@ location ^~ /api/sync/ {
         if not ready: raise ValueError('Sync ingress failed to start')
         api.write_bytes(previous+route)
         command('nginx','-t');command('nginx','-s','reload')
-        try: urllib.request.urlopen('https://wowplayer.fun/api/sync/jobs/'+'0'*32,timeout=15)
-        except urllib.error.HTTPError as exc:
-            if exc.code!=401: raise
-        else: raise ValueError('Unauthenticated sync request was not rejected')
+        public_ready=False
+        for attempt in range(15):
+            try: urllib.request.urlopen('https://wowplayer.fun/api/sync/jobs/'+'0'*32,timeout=5)
+            except urllib.error.HTTPError as exc:
+                if exc.code==401: public_ready=True;break
+                if exc.code not in (404,502,503): raise
+            except OSError: pass
+            time.sleep(1)
+        if not public_ready: raise ValueError('Public sync ingress did not become ready after Nginx reload')
     except Exception:
         api.write_bytes(previous);upstream.unlink()
         command('nginx','-t');command('nginx','-s','reload')
