@@ -19,11 +19,12 @@ runtime does not require CloudBase, MySQL, or Redis.
   00:37:52 snapshot (UTC+8); Panda Brewmaster has October 30 00:13:58 and
   Deathwing October 30 00:42:41. Earlier August/October snapshots are no longer
   in the active dataset. Shared commodity history is derived from these four sources.
-- Active database: `/opt/wow-auction/data/client-20261030-four/market.duckdb`;
-  active API container: `wow-auction-data-20261030-four`, loopback port `8181`.
-  The data-only switch uses the previous API image and leaves the frontend unchanged.
-  The previous API container and database are retained for rollback.
-  Dataset verification is recorded in `experiments/compact-market/results/client-four-generation-20261030.json`.
+- Current UI/API release: `a966f5a`, deployed October 30. Subsequent one-click data
+  updates use immutable generations under `/opt/wow-auction/data/automatic/` and
+  alternate ports `8180`/`8181` while retaining the API image and frontend.
+  Exact active paths, hashes and rollback records are recorded in
+  `experiments/compact-market/results/release-20261030-sync.json`.
+  The previous API container, frontend and database are retained for rollback.
 - Region commodities use market server ID `0`; each actual realm has its own history.
   Default browsing combines only the latest observation from each market.
 - Accounts and automatic snapshot collection are not enabled on this deployment.
@@ -74,9 +75,9 @@ and rollback use the existing API image and leave the frontend untouched.
 See [snapshot management](deploy/SNAPSHOT_MANAGEMENT.md) for complete commands.
 See [automatic updates and market history](deploy/AUTOMATIC_UPDATES.md) for the
 opt-in runner/watch pipeline, candidate acceptance and SSH publication. This is
-  functionality; automatic publication remains disabled by default. On Windows,
-  use the root `同步拍卖数据.cmd` entry after configuring the local settings, or
-  `./scripts/sync-market.ps1 -Preview` to discover new client data without uploading.
+functionality; background publication remains disabled by default. On Windows,
+use the root `同步拍卖数据.cmd` entry after configuring the local settings, or
+`./scripts/sync-market.ps1 -Preview` to discover new client data without uploading.
 
 The lower-level `compact_market.build` command still rebuilds a generation from
 all supplied originals. Keep each archive beside its manifest. Both the runner's
@@ -105,9 +106,9 @@ asset refresh. Deploy frontend and API allowlists together.
 
 Transfer the result, verify SHA-256, and start a candidate container
 with that generation using the same release procedure. Never replace a database
-file underneath a running reader. More frequent ingestion, incremental history
-compaction, off-host backups, and scheduled collection remain follow-up work.
-Current memory and latency measurements cover three snapshots, not months of data.
+file underneath a running reader. Custom historical partitioning/compression,
+off-host backups, and scheduled collection remain follow-up work.
+Current memory and latency measurements cover four snapshots, not months of data.
 See `experiments/compact-market/README.md` for the original benchmark evidence.
 
 ---

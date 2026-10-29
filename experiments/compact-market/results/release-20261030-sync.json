@@ -1,0 +1,135 @@
+{
+  "verified_at": "2026-10-30T01:57:30.289347+08:00",
+  "url": "https://wowplayer.fun/",
+  "source_commit": "a966f5a23183acacd1836fa2c56a6bc392d13ffa",
+  "api_image": "wow-auction:20261030-market-sync-a966f5a",
+  "api_image_id": "sha256:c9d433789342753a820c6d9c45ceb73fb715df4e19cbbecbb83b57db590eb256",
+  "frontend": "/opt/wow-auction/releases/20261030-market-sync-a966f5a/web",
+  "frontend_index_sha256": "b934c0d3d7dcbda28782c01c7e66d1ef9288b2c65eff90908f41552d8e96cd78",
+  "snapshot_count": 4,
+  "original_listing_count": 1756007,
+  "source_scan_ids": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "catalog": {
+    "realms": [
+      {
+        "key": "5:0",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "全服",
+        "realmID": 0,
+        "latestScanId": 14,
+        "scans": [
+          {
+            "scanId": 14,
+            "scannedAt": "2026-10-29T16:42:41Z",
+            "scannedAtUnix": 1793292161,
+            "listingCount": 396583
+          },
+          {
+            "scanId": 12,
+            "scannedAt": "2026-10-29T16:37:52Z",
+            "scannedAtUnix": 1793291872,
+            "listingCount": 398614
+          },
+          {
+            "scanId": 10,
+            "scannedAt": "2026-10-29T16:13:58Z",
+            "scannedAtUnix": 1793290438,
+            "listingCount": 404102
+          },
+          {
+            "scanId": 8,
+            "scannedAt": "2026-10-28T18:58:50Z",
+            "scannedAtUnix": 1793213930,
+            "listingCount": 354193
+          }
+        ]
+      },
+      {
+        "key": "5:707",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "白银之手",
+        "realmID": 707,
+        "latestScanId": 13,
+        "scans": [
+          {
+            "scanId": 13,
+            "scannedAt": "2026-10-29T16:37:52Z",
+            "scannedAtUnix": 1793291872,
+            "listingCount": 65545
+          },
+          {
+            "scanId": 9,
+            "scannedAt": "2026-10-28T18:58:50Z",
+            "scannedAtUnix": 1793213930,
+            "listingCount": 64785
+          }
+        ]
+      },
+      {
+        "key": "5:741",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "死亡之翼",
+        "realmID": 741,
+        "latestScanId": 15,
+        "scans": [
+          {
+            "scanId": 15,
+            "scannedAt": "2026-10-29T16:42:41Z",
+            "scannedAtUnix": 1793292161,
+            "listingCount": 52444
+          }
+        ]
+      },
+      {
+        "key": "5:838",
+        "region": "CN",
+        "regionID": 5,
+        "realm": "熊猫酒仙",
+        "realmID": 838,
+        "latestScanId": 11,
+        "scans": [
+          {
+            "scanId": 11,
+            "scannedAt": "2026-10-29T16:13:58Z",
+            "scannedAtUnix": 1793290438,
+            "listingCount": 19741
+          }
+        ]
+      }
+    ]
+  },
+  "active_database": "/opt/wow-auction/data/automatic/20261029T174515Z-2d2be085/market.duckdb",
+  "active_database_sha256": "bac3e709378dadedcaf1c76d605b717bf3593d95be47a8a496bba242c8f03b9e",
+  "publication": {
+    "status": "active",
+    "rollback_record": "/opt/wow-auction/backups/datasets/20261029-175012-af441fa2.json",
+    "database_sha256": "bac3e709378dadedcaf1c76d605b717bf3593d95be47a8a496bba242c8f03b9e"
+  },
+  "one_click_entry": "同步拍卖数据.cmd",
+  "one_click_live_publication_verified": true,
+  "duplicate_snapshot_added_rows": 0,
+  "repeat_discovery_result": "unchanged",
+  "backend_tests": 70,
+  "runner_go_tests": "passed",
+  "frontend_typecheck": "passed",
+  "frontend_build": "passed",
+  "frontend_requests_and_tooltips_tests": "passed",
+  "local_browser": "1440/708/375 light/dark passed",
+  "observed_api_memory_mib": 302.8,
+  "memory_limit_gib": 2,
+  "limitations": [
+    "No new auction observations were invented for deployment validation.",
+    "The candidate still needs a full database-file copy; custom time partitions and delta/RLE were not introduced.",
+    "Four snapshots and smoke tests do not prove long-term history capacity.",
+    "Repeated public-browser runs encountered intermittent initial-request timeouts from this client; targeted public checks were performed separately."
+  ],
+  "public_browser": "Passed targeted mobile/desktop realm selection, historical snapshot, heroic filter, cross-realm comparison, filtered history, listing page 2; no JS errors or page overflow"
+}

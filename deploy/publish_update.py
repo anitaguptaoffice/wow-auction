@@ -7,6 +7,8 @@ import shlex
 import subprocess
 import sys
 import uuid
+import tarfile
+import tempfile
 
 
 def publish(config, generation, expected_sha):
@@ -33,9 +35,17 @@ def publish(config, generation, expected_sha):
         files.append(Path(__file__).with_name('dataset.py'))
         if (generation / 'wow-icons').is_dir():
             files.append(generation / 'wow-icons')
-        scp = ['scp', '-r', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', '-P', str(config.get('port', 22))]
-        subprocess.run(scp + [str(p) for p in files] + [host + ':' + staging + '/'],
-                       check=True, stdout=sys.stderr, stderr=sys.stderr, timeout=1800)
+        # One compressed transfer avoids a round trip for every cached icon.
+        with tempfile.TemporaryDirectory(prefix='wow-auction-publish-') as temporary:
+            bundle = Path(temporary) / 'bundle.tar.gz'
+            with tarfile.open(bundle, 'w:gz', compresslevel=1) as archive:
+                for file in files:
+                    archive.add(file, arcname=file.name)
+            scp = ['scp', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', '-P', str(config.get('port', 22))]
+            subprocess.run(scp + [str(bundle), host + ':' + staging + '/bundle.tar.gz'],
+                           check=True, stdout=sys.stderr, stderr=sys.stderr, timeout=1800)
+        remote('tar', '-xzf', staging + '/bundle.tar.gz', '-C', staging)
+        remote('python3', '-c', 'import os,sys; os.unlink(sys.argv[1])', staging + '/bundle.tar.gz')
         remote('python3', '-c', 'import os,sys; os.rename(sys.argv[1],sys.argv[2])', staging, target)
     response = remote('python3', target + '/dataset.py', 'activate', '--database', target + '/market.duckdb',
                       '--report', target + '/market.report.json', '--config', config['nginx_config'],

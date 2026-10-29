@@ -6,6 +6,7 @@ from pathlib import Path
 import shlex
 from types import SimpleNamespace
 import tempfile
+import tarfile
 import unittest
 from unittest.mock import patch
 
@@ -18,12 +19,17 @@ class UpdatePublishTest(unittest.TestCase):
             generation = Path(temporary) / 'generation-1'
             generation.mkdir()
             (generation / 'market.report.json').write_text(json.dumps(dict(database_sha256='verified')), encoding='utf-8')
+            (generation / 'market.duckdb').write_bytes(b'verified candidate')
+            (generation / 'icon-map.json').write_text('{}', encoding='utf-8')
             config = dict(host='wow-auction', port=9722, remote_root='/opt/wow-auction/data/automatic',
                           nginx_config='/etc/nginx/api.conf', backup_dir='/opt/wow-auction/backups', public_url='https://example.test')
             calls = []
             exists = False
             def run(args, **kwargs):
                 calls.append(args)
+                if args[0] == 'scp':
+                    with tarfile.open(args[-2]) as bundle:
+                        self.assertEqual(set(bundle.getnames()), {'market.duckdb', 'market.report.json', 'icon-map.json', 'dataset.py'})
                 if args[0] == 'ssh':
                     remote = shlex.split(args[-1])
                     if remote[:2] == ['python3', '-c'] and 'os.path.exists' in remote[2]:
