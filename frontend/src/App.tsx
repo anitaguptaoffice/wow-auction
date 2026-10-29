@@ -153,7 +153,7 @@ export function App() {
       <header className="site-header">
         <div className="header-inner page-width">
           <a className="brand" href="./" aria-label="艾泽拉斯交易所首页">
-            <span className="brand-mark" aria-hidden="true">W</span>
+            <img className="brand-mark" src="/icons/wow-orc.png" alt="" width="44" height="44" />
             <span className="brand-copy">
               <strong>艾泽拉斯交易所</strong>
               <small>AZEROTH EXCHANGE</small>
