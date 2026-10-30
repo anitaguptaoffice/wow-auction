@@ -178,7 +178,7 @@ def accept(database, report):
     store = UnifiedMarketStore(database, memory_limit='256MB')
     try:
         expected = {(s['region_id'], r, s['scan_id'] * 2 + offset)
-                    for s in report['scans'] for r, offset in ((0, 0), (s['realm_id'], 1))}
+                    for s in report['scans'] for r, offset in ((0, 0), (s.get('auction_realm_id', s['realm_id']), 1))}
         actual = {(r['regionID'], r['realmID'], s['scanId']) for r in store.catalog()['realms'] for s in r['scans']}
         if actual != expected:
             raise ValueError('Candidate market inventory mismatch')

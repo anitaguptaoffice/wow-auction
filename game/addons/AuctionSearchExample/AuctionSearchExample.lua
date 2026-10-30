@@ -127,6 +127,31 @@ local function GetScanContext()
 	}
 end
 
+local function CaptureRealmEvidence()
+	local getter = C_AutoComplete and C_AutoComplete.GetAutoCompleteRealms or GetAutoCompleteRealms
+	if not getter then return nil end
+	local ok, realms = pcall(getter)
+	if not ok or type(realms) ~= "table" or #realms == 0 then return nil end
+	local context = GetScanContext()
+	if not context.realmID or not context.regionID then return nil end
+	local names = {}
+	for _, name in ipairs(realms) do
+		if type(name) == "string" then names[#names + 1] = name end
+	end
+	table.sort(names)
+	local version, build = GetBuildInfo()
+	local evidence = {
+		capturedAt = GetServerTime(), realmID = context.realmID, realmName = context.realmName,
+		regionID = context.regionID, projectID = WOW_PROJECT_ID,
+		clientVersion = version, clientBuild = build, connectedRealmNames = names,
+		api = C_AutoComplete and C_AutoComplete.GetAutoCompleteRealms and "C_AutoComplete.GetAutoCompleteRealms" or "GetAutoCompleteRealms",
+	}
+	-- Evidence is local metadata for review, never authority to rewrite server mappings.
+	AuctionSearchDB.realmEvidence = AuctionSearchDB.realmEvidence or {}
+	AuctionSearchDB.realmEvidence[context.regionID .. ":" .. context.realmID] = evidence
+	return evidence
+end
+
 local function BuildRecord(job, index, info)
 	local itemLink = ReadReplicateValue(job, index, C_AuctionHouse.GetReplicateItemLink)
 	local timeLeft = ReadReplicateValue(job, index, C_AuctionHouse.GetReplicateItemTimeLeft)
@@ -274,6 +299,7 @@ local function CommitJob(job)
 
 	local elapsedMs = debugprofilestop() - job.beginMs
 	local scanContext = GetScanContext()
+	CaptureRealmEvidence()
 	local incompleteCount = 0
 	for _ in pairs(job.incompleteInfo) do
 		incompleteCount = incompleteCount + 1
@@ -793,6 +819,9 @@ local function HandleSlashCommand(msg)
 				item.quantity or 0
 			))
 		end
+	elseif command == "realms" then
+		local evidence = CaptureRealmEvidence()
+		print(evidence and ("AuctionSearch connected realms: " .. table.concat(evidence.connectedRealmNames, ", ")) or "AuctionSearch: realm evidence unavailable")
 	elseif command == "scan" then
 		RequestReplicateSnapshot()
 	elseif command == "clear" then
@@ -817,6 +846,7 @@ local function HandleSlashCommand(msg)
 		print("AuctionSearch 命令:")
 		print("  /as scan - 在拍卖行打开时手动开始扫描")
 		print("  /as stats - 显示数据库统计")
+		print("  /as realms - Capture connected realm evidence")
 		print("  /as history <物品ID> - 显示最近历史")
 		print("  /as test [物品ID] - 调试物品缓存")
 		print("  /as clear - 清空保存的数据")

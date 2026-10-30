@@ -1,13 +1,19 @@
-# 待办：自动清理超过 7 天的快照
+# Snapshot retention implementation
 
-- 状态：待实施；本次只记录需求，不启用定时任务或删除数据。
-- 记录日期：2026-10-30。
-- 目标：所有服务器及区域共享市场最多保留最近 7 天的数据，定期清理，避免数据库、历史索引和磁盘无限增长。
+- Updated requirement (2026-10-30): retain at most 14 days, keeping at least one
+  snapshot for each auction market and local date that has eligible data. A global
+  soft cap defaults to 200; below it all eligible observations remain. Daily floors
+  take precedence when they exceed the cap. Missing dates
+  are not synthesized. This supersedes the original seven-day proposal.
+- Implemented: configurable selection, compact immutable generations, shared
+  sync lease, durable worker recovery, empty datasets, expired-upload rejection,
+  managed artifact reclamation and an opt-in systemd timer.
+- Configuration, installation and operational boundaries: [DATA_RETENTION.md](DATA_RETENTION.md).
 
-## 实施要求
+## Original operational requirements
 
-- 按快照的实际采集时间判断是否过期，以服务器当前时间计算滚动 7 天窗口，统一使用 UTC 比较。
-- 定期处理所有市场；某服唯一或最新快照若已超过 7 天，也不能无限保留，界面应明确显示暂无有效数据。
+- Expiration uses actual capture timestamps and a rolling 14-day window.
+- Even a realm's sole/latest snapshot expires; an empty dataset remains healthy.
 - 清理与同步导入、数据切换共用互斥机制；忙时跳过或延后，不能打断正在运行的同步或查询。
 - 沿用不可变候选库、校验和蓝绿切换流程；失败继续服务旧版本，不直接改写活动数据库。
 - 同时制定过期上传文件、候选库、历史数据版本及回滚副本的回收规则，保护活动版本和任务引用，确保实际磁盘占用下降，而非只隐藏查询结果。
@@ -16,6 +22,7 @@
 
 ## 验收
 
-- 覆盖恰好 7 天边界、不同服务器采集时间、区域共享市场、所有快照过期、并发同步、任务失败及重启重试。
+- Cover the exact 14-day boundary, realm/date coverage, shared markets, all-expired
+  datasets, concurrent sync, failures and restart recovery.
 - 清理后最新行情、有效历史、服务器目录、快照链接和分页行为一致；过期链接有明确提示。
 - 在真实数据上核对清理前后快照数、数据库大小及磁盘空间，确认调度可重复运行、无新过期数据时无需重建发布。

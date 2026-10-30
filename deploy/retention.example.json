@@ -1,0 +1,11 @@
+{
+  "worker_config": "/opt/wow-auction/releases/RETENTION/deploy/sync-worker.local.json",
+  "on_calendar": "hourly",
+  "policy": {
+    "retention_days": 14,
+    "min_snapshots_per_day": 1,
+    "max_snapshots": 200,
+    "timezone": "Asia/Shanghai",
+    "rollback_hours": 24
+  }
+}

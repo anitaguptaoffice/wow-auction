@@ -33,13 +33,30 @@ def status(config,phase):
     dataset.atomic_write(directory/'status.json',json.dumps(dict(phase=phase,updated_at=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()))).encode(),mode=0o644)
 
 
+def retention_gc(config, job):
+    from retention_gc import collect
+    try:
+        return collect(config, job)
+    except Exception as exc:
+        # A verified publication remains successful; expose reclamation failures separately.
+        print('Retention artifact cleanup failed: '+str(exc), flush=True)
+        return dict(error=str(exc))
+
+
 def process(config,store,job):
     folder=store.root/'jobs'/job['id'];output=folder/'generation'/'market.duckdb'
+    retention = job.get('kind') == 'retention'
     if job['phase']=='queued':
         base=live(config)
         if shutil.disk_usage(str(store.root)).free < base.stat().st_size*2+512*1024*1024:
             raise ValueError('Not enough free disk space for a recoverable candidate')
-        job=store.transition(job['id'],('queued',),'importing',base_database=str(base),base_sha256=dataset.sha256(base))
+        extra = {}
+        policy_file = store.root/'retention-policy.json'
+        if not retention and policy_file.exists():
+            from retention_policy import require_fresh
+            extra['retention'] = read(policy_file)
+            require_fresh(job['manifest']['captured_at'], extra['retention'])
+        job=store.transition(job['id'],('queued',),'importing',base_database=str(base),base_sha256=dataset.sha256(base),**extra)
         status(config,'importing')
     if job['phase']=='importing':
         base=Path(job['base_database']);name='wow-auction-import-'+job['id']
@@ -53,9 +70,12 @@ def process(config,store,job):
                      '--pids-limit','128','--network','none','--read-only','--cap-drop','ALL',
                      '--security-opt','no-new-privileges','--tmpfs','/tmp:rw,nosuid,size=256m',
                      '-v',str(base.parent)+':/base:ro','-v',str(folder)+':/work:rw',
-                     config['import_image'],'python','-m','compact_market.sync_import',
-                     '--source','/work/snapshot.jsonl.gz','--base','/base/market.duckdb',
+                     config['import_image'],'python','-m',
+                     'compact_market.retention' if retention else 'compact_market.sync_import',
+                     '--base','/base/'+base.name,
                      '--output','/work/generation/market.duckdb','--manifest','/work/job.json']
+            if not retention:
+                command += ['--source','/work/snapshot.jsonl.gz']
             dataset.command(*command)
         else:
             info=json.loads(dataset.command('docker','inspect',name))[0]
@@ -66,9 +86,15 @@ def process(config,store,job):
         if exit_code!='0':
             raise ValueError('Snapshot validation/import failed; inspect the private worker log')
         report=read(output.with_suffix('.report.json'))
-        if dataset.sha256(output)!=report['database_sha256']: raise ValueError('Import output checksum mismatch')
-        if not report['added_scans']:
-            job=store.transition(job['id'],('importing',),'succeeded',result=dict(changed=False,added_scans=0,skipped=report['skipped'],database_sha256=job['base_sha256']))
+        changed = report.get('changed', bool(report['added_scans'])) if retention else bool(report['added_scans'])
+        if (changed or not retention) and dataset.sha256(output)!=report['database_sha256']:
+            raise ValueError('Import output checksum mismatch')
+        if not changed:
+            result = dict(changed=False,added_scans=0,skipped=report.get('skipped',[]),database_sha256=job['base_sha256'])
+            if retention:
+                result['retention'] = report['retention']
+                result['artifact_cleanup'] = retention_gc(config, job)
+            job=store.transition(job['id'],('importing',),'succeeded',result=result)
             status(config,'published')
             subprocess.call(['docker','rm',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             return
@@ -93,8 +119,12 @@ def process(config,store,job):
         try:
             result=dataset.activate(args)
             report=read(output.with_suffix('.report.json'))
+            details = dict(changed=True,added_scans=len(report['added_scans']),publication=result)
+            if retention:
+                details.update(retention=report['retention'],removed_scans=len(report['removed_scans']))
+                details['artifact_cleanup'] = retention_gc(config, job)
             store.transition(job['id'],('publishing','publication_unknown'),'succeeded',
-                             result=dict(changed=True,added_scans=len(report['added_scans']),publication=result))
+                             result=details)
             subprocess.call(['docker','rm','wow-auction-import-'+job['id']],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         finally:
             os.close(fd);lock.unlink()

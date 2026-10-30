@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "version": "cn-retail-2026-10-30.1",
+  "groups": [
+    {
+      "auction_market_id": "retail:5:connected:tosedrin-20240804",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1515,
+      "valid_from": 1722743760,
+      "valid_to": null,
+      "realms": [{"id": 1515, "name": "托塞德林"}, {"id": 1794, "name": "凤凰之神"}],
+      "evidence": [
+        {"kind": "official_group_announcement", "url": "https://www.sina.cn/news/detail/5063616833782955.html", "published_at": "2024-08-04T11:56:00+08:00", "checked_at": "2026-10-30", "note": "Authenticated China WoW account names Tosedrin including Phoenix. Conservative observation date, not the original connection date."},
+        {"kind": "official_connected_realm_semantics", "url": "https://worldofwarcraft.blizzard.com/en-us/news/10551009", "note": "Connected realms share a single auction house."}
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:frostmourne-20240804",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 877,
+      "valid_from": 1722743760,
+      "valid_to": null,
+      "realms": [{"id": 877, "name": "霜之哀伤"}, {"id": 887, "name": "遗忘海岸"}, {"id": 941, "name": "神圣之歌"}, {"id": 718, "name": "回音山"}],
+      "evidence": [
+        {"kind": "official_group_announcement", "url": "https://www.sina.cn/news/detail/5063616833782955.html", "published_at": "2024-08-04T11:56:00+08:00", "checked_at": "2026-10-30", "note": "Authenticated China WoW account names Frostmourne including the three member realms. Conservative observation date, not the original connection date."},
+        {"kind": "official_connected_realm_semantics", "url": "https://worldofwarcraft.blizzard.com/en-us/news/10551009", "note": "Connected realms share a single auction house."}
+      ]
+    }
+  ]
+}

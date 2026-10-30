@@ -9,10 +9,13 @@ from compact_market.manage import stage_generation, write_json
 from compact_market.update import prepare_icons, accept
 
 
-def run(source, base, output, manifest):
+def run(source, base, output, manifest, retention=None):
     if sha256_file(source)!=manifest['compressed_sha256'] or source.stat().st_size!=manifest['size_bytes']:
         raise ValueError('Snapshot upload changed after receipt')
     meta=header(source)
+    if retention is not None:
+        from retention_policy import require_fresh
+        require_fresh(meta['captured_at'], retention)
     for key in ('schema_version','region_id','realm_id','captured_at','record_count'):
         if meta[key]!=manifest[key]:
             raise ValueError('Snapshot header disagrees with upload manifest: '+key)
@@ -31,5 +34,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('source','base','output','manifest'): parser.add_argument('--'+name,required=True,type=Path)
     args=parser.parse_args()
-    result=run(args.source,args.base,args.output,json.loads(args.manifest.read_text())['manifest'])
+    job = json.loads(args.manifest.read_text())
+    result=run(args.source,args.base,args.output,job['manifest'],job.get('retention'))
     print(json.dumps(result))
