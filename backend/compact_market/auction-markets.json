@@ -1,0 +1,3478 @@
+{
+  "schema_version": 1,
+  "version": "cn-retail-2026-10-30.2",
+  "groups": [
+    {
+      "auction_market_id": "retail:5:connected:tosedrin-20240804",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1515,
+      "valid_from": 1722743760,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1515,
+          "name": "托塞德林"
+        },
+        {
+          "id": 1794,
+          "name": "凤凰之神"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "official_group_announcement",
+          "url": "https://www.sina.cn/news/detail/5063616833782955.html",
+          "published_at": "2024-08-04T11:56:00+08:00",
+          "checked_at": "2026-10-30",
+          "note": "Authenticated China WoW account names Tosedrin including Phoenix. Conservative observation date, not the original connection date."
+        },
+        {
+          "kind": "official_connected_realm_semantics",
+          "url": "https://worldofwarcraft.blizzard.com/en-us/news/10551009",
+          "note": "Connected realms share a single auction house."
+        },
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:frostmourne-20240804",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 877,
+      "valid_from": 1722743760,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 877,
+          "name": "霜之哀伤"
+        },
+        {
+          "id": 887,
+          "name": "遗忘海岸"
+        },
+        {
+          "id": 941,
+          "name": "神圣之歌"
+        },
+        {
+          "id": 718,
+          "name": "回音山"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "official_group_announcement",
+          "url": "https://www.sina.cn/news/detail/5063616833782955.html",
+          "published_at": "2024-08-04T11:56:00+08:00",
+          "checked_at": "2026-10-30",
+          "note": "Authenticated China WoW account names Frostmourne including the three member realms. Conservative observation date, not the original connection date."
+        },
+        {
+          "kind": "official_connected_realm_semantics",
+          "url": "https://worldofwarcraft.blizzard.com/en-us/news/10551009",
+          "note": "Connected realms share a single auction house."
+        },
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-705-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 705,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 705,
+          "name": "奥达曼"
+        },
+        {
+          "id": 835,
+          "name": "甜水绿洲"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-706-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 706,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 706,
+          "name": "奥蕾莉亚"
+        },
+        {
+          "id": 922,
+          "name": "世界之树"
+        },
+        {
+          "id": 925,
+          "name": "万色星辰"
+        },
+        {
+          "id": 1501,
+          "name": "布莱恩"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-708-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 708,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 708,
+          "name": "暴风祭坛"
+        },
+        {
+          "id": 753,
+          "name": "艾萨拉"
+        },
+        {
+          "id": 822,
+          "name": "玛里苟斯"
+        },
+        {
+          "id": 867,
+          "name": "利刃之拳"
+        },
+        {
+          "id": 1213,
+          "name": "黑翼之巢"
+        },
+        {
+          "id": 1815,
+          "name": "摩摩尔"
+        },
+        {
+          "id": 1941,
+          "name": "熵魔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-709-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 709,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 709,
+          "name": "藏宝海湾"
+        },
+        {
+          "id": 879,
+          "name": "塔伦米尔"
+        },
+        {
+          "id": 1201,
+          "name": "阿拉希"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-721-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 721,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 721,
+          "name": "卡扎克"
+        },
+        {
+          "id": 755,
+          "name": "爱斯特纳"
+        },
+        {
+          "id": 767,
+          "name": "戈古纳斯"
+        },
+        {
+          "id": 807,
+          "name": "红云台地"
+        },
+        {
+          "id": 865,
+          "name": "拉格纳洛斯"
+        },
+        {
+          "id": 926,
+          "name": "激流之傲"
+        },
+        {
+          "id": 1203,
+          "name": "巴纳扎尔"
+        },
+        {
+          "id": 1215,
+          "name": "龙骨平原"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-723-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 723,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 723,
+          "name": "库德兰"
+        },
+        {
+          "id": 717,
+          "name": "红龙军团"
+        },
+        {
+          "id": 740,
+          "name": "山丘之王"
+        },
+        {
+          "id": 1231,
+          "name": "拉文霍德"
+        },
+        {
+          "id": 1499,
+          "name": "加里索斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-727-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 727,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 727,
+          "name": "烈焰峰"
+        },
+        {
+          "id": 1235,
+          "name": "瓦拉斯塔兹"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-730-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 730,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 730,
+          "name": "洛萨"
+        },
+        {
+          "id": 739,
+          "name": "萨格拉斯"
+        },
+        {
+          "id": 1482,
+          "name": "阿卡玛"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-736-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 736,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 736,
+          "name": "诺莫瑞根"
+        },
+        {
+          "id": 843,
+          "name": "自由之风"
+        },
+        {
+          "id": 847,
+          "name": "艾欧纳尔"
+        },
+        {
+          "id": 855,
+          "name": "达隆米尔"
+        },
+        {
+          "id": 1200,
+          "name": "阿努巴拉克"
+        },
+        {
+          "id": 1666,
+          "name": "冬寒"
+        },
+        {
+          "id": 1797,
+          "name": "刀塔"
+        },
+        {
+          "id": 1803,
+          "name": "无底海渊"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-738-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 738,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 738,
+          "name": "燃烧平原"
+        },
+        {
+          "id": 765,
+          "name": "风行者"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-743-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 743,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 743,
+          "name": "索瑞森"
+        },
+        {
+          "id": 710,
+          "name": "尘风峡谷"
+        },
+        {
+          "id": 790,
+          "name": "伊利丹"
+        },
+        {
+          "id": 1817,
+          "name": "试炼之环"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-744-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 744,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 744,
+          "name": "铜龙军团"
+        },
+        {
+          "id": 827,
+          "name": "普罗德摩"
+        },
+        {
+          "id": 2130,
+          "name": "玛洛加尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-745-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 745,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 745,
+          "name": "图拉扬"
+        },
+        {
+          "id": 782,
+          "name": "塞纳留斯"
+        },
+        {
+          "id": 1202,
+          "name": "瓦里玛萨斯"
+        },
+        {
+          "id": 1237,
+          "name": "海达希亚"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-746-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 746,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 746,
+          "name": "伊瑟拉"
+        },
+        {
+          "id": 754,
+          "name": "艾森娜"
+        },
+        {
+          "id": 780,
+          "name": "轻风之语"
+        },
+        {
+          "id": 792,
+          "name": "月神殿"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-799-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 799,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 799,
+          "name": "血环"
+        },
+        {
+          "id": 1828,
+          "name": "范克里夫"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-802-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 802,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 802,
+          "name": "杜隆坦"
+        },
+        {
+          "id": 732,
+          "name": "玛瑟里顿"
+        },
+        {
+          "id": 815,
+          "name": "狂风峭壁"
+        },
+        {
+          "id": 943,
+          "name": "暮色森林"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-803-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 803,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 803,
+          "name": "符文图腾"
+        },
+        {
+          "id": 720,
+          "name": "卡德罗斯"
+        },
+        {
+          "id": 932,
+          "name": "黑暗魅影"
+        },
+        {
+          "id": 1935,
+          "name": "阿斯塔洛"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-804-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 804,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 804,
+          "name": "鬼雾峰"
+        },
+        {
+          "id": 716,
+          "name": "黑石尖塔"
+        },
+        {
+          "id": 805,
+          "name": "黑暗之矛"
+        },
+        {
+          "id": 861,
+          "name": "巨龙之吼"
+        },
+        {
+          "id": 1818,
+          "name": "罗曼斯"
+        },
+        {
+          "id": 1820,
+          "name": "塞泰克"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-810-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 810,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 810,
+          "name": "火羽山"
+        },
+        {
+          "id": 812,
+          "name": "迦罗娜"
+        },
+        {
+          "id": 825,
+          "name": "纳沙塔尔"
+        },
+        {
+          "id": 1827,
+          "name": "末日祷告祭坛"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-814-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 814,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 814,
+          "name": "凯恩血蹄"
+        },
+        {
+          "id": 771,
+          "name": "卡德加"
+        },
+        {
+          "id": 1513,
+          "name": "瑟莱德丝"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-817-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 817,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 817,
+          "name": "雷克萨"
+        },
+        {
+          "id": 860,
+          "name": "激流堡"
+        },
+        {
+          "id": 1664,
+          "name": "火喉"
+        },
+        {
+          "id": 1795,
+          "name": "阿古斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-826-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 826,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 826,
+          "name": "诺兹多姆"
+        },
+        {
+          "id": 776,
+          "name": "梦境之树"
+        },
+        {
+          "id": 787,
+          "name": "泰兰德"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-829-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 829,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 829,
+          "name": "燃烧之刃"
+        },
+        {
+          "id": 866,
+          "name": "埃霍恩"
+        },
+        {
+          "id": 1222,
+          "name": "格瑞姆巴托"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-830-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 830,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 830,
+          "name": "萨尔"
+        },
+        {
+          "id": 1502,
+          "name": "伊莫塔尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-833-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 833,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 833,
+          "name": "圣火神殿"
+        },
+        {
+          "id": 1212,
+          "name": "桑德兰"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-839-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 839,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 839,
+          "name": "血牙魔王"
+        },
+        {
+          "id": 1496,
+          "name": "埃克索图斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-840-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 840,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 840,
+          "name": "勇士岛"
+        },
+        {
+          "id": 726,
+          "name": "雷霆之王"
+        },
+        {
+          "id": 742,
+          "name": "索拉丁"
+        },
+        {
+          "id": 1490,
+          "name": "达文格尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-844-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 844,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 844,
+          "name": "阿尔萨斯"
+        },
+        {
+          "id": 1831,
+          "name": "祖达克"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-845-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 845,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 845,
+          "name": "阿拉索"
+        },
+        {
+          "id": 748,
+          "name": "阿迦玛甘"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-846-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 846,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 846,
+          "name": "埃雷达尔"
+        },
+        {
+          "id": 1236,
+          "name": "永恒之井"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-851-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 851,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 851,
+          "name": "巴尔古恩"
+        },
+        {
+          "id": 1823,
+          "name": "托尔巴拉德"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-857-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 857,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 857,
+          "name": "古尔丹"
+        },
+        {
+          "id": 1487,
+          "name": "血顶"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-858-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 858,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 858,
+          "name": "寒冰皇冠"
+        },
+        {
+          "id": 1693,
+          "name": "冬泉谷"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-859-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 859,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 859,
+          "name": "基尔加丹"
+        },
+        {
+          "id": 757,
+          "name": "奥拉基尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-863-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 863,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 863,
+          "name": "凯尔萨斯"
+        },
+        {
+          "id": 751,
+          "name": "埃苏雷格"
+        },
+        {
+          "id": 1520,
+          "name": "双子峰"
+        },
+        {
+          "id": 1657,
+          "name": "冰川之拳"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-869-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 869,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 869,
+          "name": "玛诺洛斯"
+        },
+        {
+          "id": 711,
+          "name": "达纳斯"
+        },
+        {
+          "id": 1662,
+          "name": "火烟之谷"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-870-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 870,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 870,
+          "name": "麦迪文"
+        },
+        {
+          "id": 791,
+          "name": "月光林地"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-872-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 872,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 872,
+          "name": "耐奥祖"
+        },
+        {
+          "id": 762,
+          "name": "地狱之石"
+        },
+        {
+          "id": 770,
+          "name": "火焰之树"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-876-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 876,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 876,
+          "name": "霜狼"
+        },
+        {
+          "id": 1667,
+          "name": "迦玛兰"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-878-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 878,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 878,
+          "name": "斯坦索姆"
+        },
+        {
+          "id": 1234,
+          "name": "泰拉尔"
+        },
+        {
+          "id": 1807,
+          "name": "格鲁尔"
+        },
+        {
+          "id": 1813,
+          "name": "穆戈尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-882-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 882,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 882,
+          "name": "提瑞斯法"
+        },
+        {
+          "id": 849,
+          "name": "暗影议会"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-883-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 883,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 883,
+          "name": "通灵学院"
+        },
+        {
+          "id": 924,
+          "name": "恶魔之翼"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-889-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 889,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 889,
+          "name": "银月"
+        },
+        {
+          "id": 731,
+          "name": "玛多兰"
+        },
+        {
+          "id": 841,
+          "name": "羽月"
+        },
+        {
+          "id": 856,
+          "name": "耳语海岸"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-891-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 891,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 891,
+          "name": "影牙要塞"
+        },
+        {
+          "id": 703,
+          "name": "艾苏恩"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-916-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 916,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 916,
+          "name": "卡珊德拉"
+        },
+        {
+          "id": 756,
+          "name": "暗影之月"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-917-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 917,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 917,
+          "name": "迅捷微风"
+        },
+        {
+          "id": 1969,
+          "name": "萨洛拉丝"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-918-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 918,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 918,
+          "name": "守护之剑"
+        },
+        {
+          "id": 874,
+          "name": "瑞文戴尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-920-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 920,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 920,
+          "name": "斩魔者"
+        },
+        {
+          "id": 750,
+          "name": "埃加洛尔"
+        },
+        {
+          "id": 1676,
+          "name": "幽暗沼泽"
+        },
+        {
+          "id": 1798,
+          "name": "鲜血熔炉"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-929-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 929,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 929,
+          "name": "苏塔恩"
+        },
+        {
+          "id": 1216,
+          "name": "卡拉赞"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-938-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 938,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 938,
+          "name": "密林游侠"
+        },
+        {
+          "id": 1486,
+          "name": "巴瑟拉斯"
+        },
+        {
+          "id": 1512,
+          "name": "塔纳利斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-951-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 951,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 951,
+          "name": "伊萨里奥斯"
+        },
+        {
+          "id": 1830,
+          "name": "祖阿曼"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-953-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 953,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 953,
+          "name": "风暴之眼"
+        },
+        {
+          "id": 818,
+          "name": "雷霆号角"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-954-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 954,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 954,
+          "name": "提尔之手"
+        },
+        {
+          "id": 764,
+          "name": "风暴之怒"
+        },
+        {
+          "id": 800,
+          "name": "布莱克摩"
+        },
+        {
+          "id": 1238,
+          "name": "萨菲隆"
+        },
+        {
+          "id": 1484,
+          "name": "灰谷"
+        },
+        {
+          "id": 1503,
+          "name": "大漩涡"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-956-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 956,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 956,
+          "name": "永夜港"
+        },
+        {
+          "id": 808,
+          "name": "黄金之路"
+        },
+        {
+          "id": 1832,
+          "name": "翡翠梦境"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-959-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 959,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 959,
+          "name": "朵丹尼尔"
+        },
+        {
+          "id": 725,
+          "name": "蓝龙军团"
+        },
+        {
+          "id": 837,
+          "name": "沃金"
+        },
+        {
+          "id": 949,
+          "name": "芬里斯"
+        },
+        {
+          "id": 1524,
+          "name": "天谴之门"
+        },
+        {
+          "id": 1681,
+          "name": "烈焰荆棘"
+        },
+        {
+          "id": 1819,
+          "name": "希雷诺斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1483-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1483,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1483,
+          "name": "阿扎达斯"
+        },
+        {
+          "id": 786,
+          "name": "石爪峰"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1485-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1485,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1485,
+          "name": "艾维娜"
+        },
+        {
+          "id": 1812,
+          "name": "艾露恩"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1488-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1488,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1488,
+          "name": "恐怖图腾"
+        },
+        {
+          "id": 749,
+          "name": "阿克蒙德"
+        },
+        {
+          "id": 1663,
+          "name": "伊兰尼库斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1489-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1489,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1489,
+          "name": "古加尔"
+        },
+        {
+          "id": 1227,
+          "name": "洛丹伦"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1492-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1492,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1492,
+          "name": "恶魔之魂"
+        },
+        {
+          "id": 885,
+          "name": "希尔瓦娜斯"
+        },
+        {
+          "id": 930,
+          "name": "大地之怒"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1493-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1493,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1493,
+          "name": "迪瑟洛克"
+        },
+        {
+          "id": 772,
+          "name": "拉文凯斯"
+        },
+        {
+          "id": 927,
+          "name": "加兹鲁维"
+        },
+        {
+          "id": 1796,
+          "name": "奥金顿"
+        },
+        {
+          "id": 1808,
+          "name": "哈兰"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1494-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1494,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1494,
+          "name": "丹莫德"
+        },
+        {
+          "id": 1209,
+          "name": "克苏恩"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1495-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1495,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1495,
+          "name": "艾莫莉丝"
+        },
+        {
+          "id": 1937,
+          "name": "布鲁塔卢斯"
+        },
+        {
+          "id": 1965,
+          "name": "奎尔丹纳斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1498-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1498,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1498,
+          "name": "加基森"
+        },
+        {
+          "id": 1516,
+          "name": "黑暗虚空"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1500-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1500,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1500,
+          "name": "格雷迈恩"
+        },
+        {
+          "id": 734,
+          "name": "奈萨里奥"
+        },
+        {
+          "id": 806,
+          "name": "红龙女王"
+        },
+        {
+          "id": 1204,
+          "name": "黑手军团"
+        },
+        {
+          "id": 1497,
+          "name": "菲拉斯"
+        },
+        {
+          "id": 1829,
+          "name": "瓦丝琪"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1504-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1504,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1504,
+          "name": "诺森德"
+        },
+        {
+          "id": 1206,
+          "name": "燃烧军团"
+        },
+        {
+          "id": 1224,
+          "name": "哈卡"
+        },
+        {
+          "id": 1802,
+          "name": "死亡熔炉"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1505-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1505,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1505,
+          "name": "奥妮克希亚"
+        },
+        {
+          "id": 768,
+          "name": "海加尔"
+        },
+        {
+          "id": 1239,
+          "name": "纳克萨玛斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1506-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1506,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1506,
+          "name": "奥斯里安"
+        },
+        {
+          "id": 793,
+          "name": "战歌"
+        },
+        {
+          "id": 1682,
+          "name": "夺灵者"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1509-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1509,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1509,
+          "name": "风暴之鳞"
+        },
+        {
+          "id": 778,
+          "name": "耐普图隆"
+        },
+        {
+          "id": 946,
+          "name": "日落沼泽"
+        },
+        {
+          "id": 1199,
+          "name": "安纳塞隆"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1510-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1510,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1510,
+          "name": "荆棘谷"
+        },
+        {
+          "id": 1230,
+          "name": "拉贾克斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1514-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1514,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1514,
+          "name": "塞拉赞恩"
+        },
+        {
+          "id": 1824,
+          "name": "太阳之井"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1517-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1517,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1517,
+          "name": "安戈洛"
+        },
+        {
+          "id": 700,
+          "name": "阿格拉玛"
+        },
+        {
+          "id": 788,
+          "name": "屠魔山谷"
+        },
+        {
+          "id": 1214,
+          "name": "德拉诺"
+        },
+        {
+          "id": 1223,
+          "name": "古拉巴什"
+        },
+        {
+          "id": 1507,
+          "name": "外域"
+        },
+        {
+          "id": 1659,
+          "name": "深渊之巢"
+        },
+        {
+          "id": 1793,
+          "name": "深渊之喉"
+        },
+        {
+          "id": 2123,
+          "name": "织亡者"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1519-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1519,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1519,
+          "name": "祖尔金"
+        },
+        {
+          "id": 1208,
+          "name": "破碎岭"
+        },
+        {
+          "id": 1229,
+          "name": "奎尔萨拉斯"
+        },
+        {
+          "id": 1660,
+          "name": "埃基尔松"
+        },
+        {
+          "id": 1692,
+          "name": "厄祖玛特"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1668-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1668,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1668,
+          "name": "金度"
+        },
+        {
+          "id": 1207,
+          "name": "克洛玛古斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1670-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1670,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1670,
+          "name": "巫妖之王"
+        },
+        {
+          "id": 719,
+          "name": "基尔罗格"
+        },
+        {
+          "id": 1945,
+          "name": "迦顿"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1672-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1672,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1672,
+          "name": "米奈希尔"
+        },
+        {
+          "id": 1240,
+          "name": "无尽之海"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1687-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1687,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1687,
+          "name": "塞拉摩"
+        },
+        {
+          "id": 1810,
+          "name": "麦姆"
+        },
+        {
+          "id": 1821,
+          "name": "暗影迷宫"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1694-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1694,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1694,
+          "name": "伊森德雷"
+        },
+        {
+          "id": 760,
+          "name": "达斯雷玛"
+        },
+        {
+          "id": 1211,
+          "name": "雷霆之怒"
+        },
+        {
+          "id": 1226,
+          "name": "库尔提拉斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1695-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1695,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1695,
+          "name": "扎拉赞恩"
+        },
+        {
+          "id": 704,
+          "name": "安威玛尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1696-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1696,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1696,
+          "name": "亚雷戈斯"
+        },
+        {
+          "id": 888,
+          "name": "银松森林"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1931-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1931,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1931,
+          "name": "阿比迪斯"
+        },
+        {
+          "id": 933,
+          "name": "踏梦者"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1932-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1932,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1932,
+          "name": "阿曼尼"
+        },
+        {
+          "id": 761,
+          "name": "地狱咆哮"
+        },
+        {
+          "id": 1228,
+          "name": "奈法利安"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1934-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1934,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1934,
+          "name": "生态船"
+        },
+        {
+          "id": 1809,
+          "name": "军团要塞"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1936-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1936,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1936,
+          "name": "白骨荒野"
+        },
+        {
+          "id": 828,
+          "name": "千针石林"
+        },
+        {
+          "id": 1658,
+          "name": "刺骨利刃"
+        },
+        {
+          "id": 1942,
+          "name": "能源舰"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1938-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1938,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1938,
+          "name": "达尔坎"
+        },
+        {
+          "id": 890,
+          "name": "鹰巢山"
+        },
+        {
+          "id": 1233,
+          "name": "范达尔鹿盔"
+        },
+        {
+          "id": 1685,
+          "name": "石锤"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1943-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1943,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1943,
+          "name": "菲米丝"
+        },
+        {
+          "id": 781,
+          "name": "夏维安"
+        },
+        {
+          "id": 944,
+          "name": "元素之力"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1944-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1944,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1944,
+          "name": "加尔"
+        },
+        {
+          "id": 715,
+          "name": "黑龙军团"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1946-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1946,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1946,
+          "name": "血吼"
+        },
+        {
+          "id": 1801,
+          "name": "黑暗之门"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1948-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1948,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1948,
+          "name": "盖斯"
+        },
+        {
+          "id": 766,
+          "name": "弗塞雷迦"
+        },
+        {
+          "id": 1198,
+          "name": "安其拉"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1955-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1955,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1955,
+          "name": "霍格"
+        },
+        {
+          "id": 794,
+          "name": "主宰之剑"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1970-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1970,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1970,
+          "name": "沙怒"
+        },
+        {
+          "id": 773,
+          "name": "玛法里奥"
+        },
+        {
+          "id": 774,
+          "name": "玛维·影歌"
+        },
+        {
+          "id": 931,
+          "name": "雏龙之翼"
+        },
+        {
+          "id": 960,
+          "name": "法拉希姆"
+        },
+        {
+          "id": 1205,
+          "name": "血羽"
+        },
+        {
+          "id": 1232,
+          "name": "森金"
+        },
+        {
+          "id": 1508,
+          "name": "天空之墙"
+        },
+        {
+          "id": 1947,
+          "name": "戈提克"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-1971-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 1971,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 1971,
+          "name": "嚎风峡湾"
+        },
+        {
+          "id": 784,
+          "name": "闪电之刃"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2119-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2119,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2119,
+          "name": "奥杜尔"
+        },
+        {
+          "id": 737,
+          "name": "普瑞斯托"
+        },
+        {
+          "id": 1511,
+          "name": "逐日者"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2121-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2121,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2121,
+          "name": "安格博达"
+        },
+        {
+          "id": 758,
+          "name": "冰霜之刃"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2122-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2122,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2122,
+          "name": "安加萨"
+        },
+        {
+          "id": 1241,
+          "name": "莱索恩"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2124-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2124,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2124,
+          "name": "亡语者"
+        },
+        {
+          "id": 864,
+          "name": "克尔苏加德"
+        },
+        {
+          "id": 2120,
+          "name": "奥尔加隆"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2125-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2125,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2125,
+          "name": "达克萨隆"
+        },
+        {
+          "id": 1210,
+          "name": "阿纳克洛斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2126-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2126,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2126,
+          "name": "黑锋哨站"
+        },
+        {
+          "id": 1221,
+          "name": "熔火之心"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2127-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2127,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2127,
+          "name": "古达克"
+        },
+        {
+          "id": 775,
+          "name": "梅尔加尼"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2128-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2128,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2128,
+          "name": "兰娜瑟尔"
+        },
+        {
+          "id": 769,
+          "name": "毁灭之锤"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2129-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2129,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2129,
+          "name": "洛肯"
+        },
+        {
+          "id": 1225,
+          "name": "海克泰尔"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-2137-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 2137,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 2137,
+          "name": "冬拥湖"
+        },
+        {
+          "id": 712,
+          "name": "迪托马斯"
+        },
+        {
+          "id": 1940,
+          "name": "达基萨斯"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    },
+    {
+      "auction_market_id": "retail:5:connected:community-3755-20201118",
+      "game_version": "retail",
+      "region_id": 5,
+      "representative_realm_id": 3755,
+      "valid_from": 1605692664,
+      "valid_to": null,
+      "realms": [
+        {
+          "id": 3755,
+          "name": "辛达苟萨"
+        },
+        {
+          "id": 862,
+          "name": "暗影裂口"
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "community_connected_realm_table",
+          "url": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+          "published_at": "2020-11-18T09:44:24Z",
+          "checked_at": "2026-10-30",
+          "note": "Historical LibRealmInfo CN retail baseline, not a live authenticated Blizzard response. Connection ID is community-reported; market identity is project-owned."
+        }
+      ]
+    }
+  ],
+  "community_baseline": {
+    "source": "https://github.com/janekjl/LibRealmInfo/blob/4f605baae89cacf841d854aab0bed70eb1e13bd8/LibRealmInfo.lua",
+    "source_repository_head": "4f605baae89cacf841d854aab0bed70eb1e13bd8",
+    "source_file_blob": "15af700bb0fce08fe51ed176956cdc1b93d99e6f",
+    "source_file_last_commit_at": "2020-11-18T09:44:24Z",
+    "checked_at": "2026-10-30",
+    "group_count": 137,
+    "multi_realm_group_count": 105,
+    "realm_count": 360,
+    "independent_realms": [
+      {
+        "id": 707,
+        "name": "白银之手"
+      },
+      {
+        "id": 714,
+        "name": "国王之谷"
+      },
+      {
+        "id": 729,
+        "name": "罗宁"
+      },
+      {
+        "id": 741,
+        "name": "死亡之翼"
+      },
+      {
+        "id": 797,
+        "name": "埃德萨拉"
+      },
+      {
+        "id": 816,
+        "name": "雷斧堡垒"
+      },
+      {
+        "id": 838,
+        "name": "熊猫酒仙"
+      },
+      {
+        "id": 842,
+        "name": "蜘蛛王国"
+      },
+      {
+        "id": 848,
+        "name": "安东尼达斯"
+      },
+      {
+        "id": 850,
+        "name": "奥特兰克"
+      },
+      {
+        "id": 852,
+        "name": "冰风岗"
+      },
+      {
+        "id": 886,
+        "name": "血色十字军"
+      },
+      {
+        "id": 915,
+        "name": "狂热之刃"
+      },
+      {
+        "id": 921,
+        "name": "布兰卡德"
+      },
+      {
+        "id": 940,
+        "name": "伊森利恩"
+      },
+      {
+        "id": 962,
+        "name": "金色平原"
+      },
+      {
+        "id": 1491,
+        "name": "黑铁"
+      },
+      {
+        "id": 1933,
+        "name": "安苏"
+      },
+      {
+        "id": 1939,
+        "name": "末日行者"
+      },
+      {
+        "id": 1949,
+        "name": "壁炉谷"
+      },
+      {
+        "id": 1950,
+        "name": "贫瘠之地"
+      },
+      {
+        "id": 1972,
+        "name": "斯克提斯"
+      },
+      {
+        "id": 2118,
+        "name": "迦拉克隆"
+      },
+      {
+        "id": 2133,
+        "name": "影之哀伤"
+      },
+      {
+        "id": 2134,
+        "name": "风暴峭壁"
+      },
+      {
+        "id": 2135,
+        "name": "远古海滩"
+      },
+      {
+        "id": 2136,
+        "name": "瓦拉纳"
+      },
+      {
+        "id": 3751,
+        "name": "丽丽（四川)"
+      },
+      {
+        "id": 3752,
+        "name": "晴日峰（江苏)"
+      },
+      {
+        "id": 3757,
+        "name": "时光之穴"
+      },
+      {
+        "id": 3941,
+        "name": "苏拉玛"
+      },
+      {
+        "id": 3944,
+        "name": "瓦里安"
+      }
+    ],
+    "note": "Singletons remain independent fallback identities, not proof of current isolation. Existing evidenced market IDs and intervals are preserved."
+  }
+}

@@ -16,13 +16,16 @@ from compact_market.store import MarketStore, SORTS, PUBLIC_LISTINGS_SQL, grams,
 from compact_market.schema import RESTORE_SQL
 from app.services.market_queries import SUPPORTED_COLLECTIONS, RAID_BOE_12_1_ITEM_IDS, _parse_item_variant
 from compact_market.variant_filters import VariantFilters
+from compact_market.auction_markets import load_registry
 
 
 class ArrowRows:
     """Decode only requested rows; avoid a Python dictionary per stored observation."""
     def __init__(self, table):
         self.table = table.combine_chunks()
-        self.columns = {name: self.table[name].chunk(0) for name in self.table.column_names}
+        self.columns = {name: (self.table[name].chunk(0) if self.table[name].num_chunks
+                              else pa.array([], type=self.table[name].type))
+                        for name in self.table.column_names}
 
     def __len__(self):
         return self.table.num_rows
@@ -51,6 +54,7 @@ class UnifiedMarketStore(MarketStore):
         self.connection_lock = threading.Lock()
         self.connections = []
         originals = rows_as_dicts(self.root.execute("SELECT * FROM scans"))
+        self.market_registry = load_registry(self.root)
         self.scans = {}
         for source in originals:
             if source['region_id'] is None or source['realm_id'] is None:
@@ -59,10 +63,18 @@ class UnifiedMarketStore(MarketStore):
                 scan = dict(source)
                 scan['source_scan_id'] = source['scan_id']
                 scan['source_realm_name'] = source['realm_name']
+                scan['source_realm_id'] = source['realm_id']
                 scan['scan_id'] = source['scan_id'] * 2 + (0 if regional else 1)
+                identity = self.market_registry.resolve(source)
+                scan.update(identity)
+                scan['realm_id'] = identity['auction_realm_id']
+                scan['realm_name'] = identity['auction_realm_name']
                 if regional:
                     scan['realm_id'] = 0
                     scan['realm_name'] = '全服'
+                    scan['auction_market_id'] = 'retail:%s:region' % source['region_id']
+                    scan['aliases'] = []
+                    scan['evidence'] = []
                 self.scans[scan['scan_id']] = scan
         table = self.root.execute("""
             SELECT s.* EXCLUDE(scan_id),
@@ -89,7 +101,7 @@ class UnifiedMarketStore(MarketStore):
             key = sys.intern(row['market_key'])
             self.lookup[scan_id, key] = index
             scan = self.scans[scan_id]
-            self.history_index[scan['region_id'], scan['realm_id'], key].append(index)
+            self.history_index[scan['region_id'], scan['auction_market_id'], key].append(index)
             name = sys.intern(row['name'].casefold())
             self.names.append(name)
             sort_values.append((row['min_unit_price'], row['total_quantity'], row['listing_count'], row['name'], key))
@@ -101,14 +113,14 @@ class UnifiedMarketStore(MarketStore):
             scan['total_quantity'] = sum(sort_values[i][1] for i in self.by_scan[scan_id])
         latest = {}
         for scan_id, scan in self.scans.items():
-            identity = (scan['region_id'], scan['realm_id'])
+            identity = (scan['region_id'], scan['auction_market_id'])
             previous = latest.get(identity)
             if previous is None or (scan['timestamp'], scan_id) > (self.scans[previous]['timestamp'], previous):
                 latest[identity] = scan_id
-        self.latest_scans = tuple(latest.values())
+        self.latest_scans = tuple(sid for sid in latest.values() if self._is_current_market(self.scans[sid]))
         self.scan_timelines = defaultdict(list)
         for sid, observed in self.scans.items():
-            self.scan_timelines[observed['region_id'], observed['realm_id']].append((observed['timestamp'], sid))
+            self.scan_timelines[observed['region_id'], observed['auction_market_id']].append((observed['timestamp'], sid))
         for timeline in self.scan_timelines.values():
             timeline.sort()
         latest_ids = [i for sid in self.latest_scans for i in self.by_scan[sid]]
@@ -175,8 +187,34 @@ class UnifiedMarketStore(MarketStore):
             self.history_index[key] = array('I', sorted(indices, key=lambda i: (
                 self.scans[self.records.columns['scan_id'][i].as_py()]['timestamp'],
                 self.records.columns['scan_id'][i].as_py())))
-        self.default_scan = max(self.scans, key=lambda s: (self.scans[s]['timestamp'], -self.scans[s]['realm_id']))
+        self.default_scan = max(self.scans, key=lambda s: (self.scans[s]['timestamp'], -self.scans[s]['realm_id']), default=None)
         self.load_seconds = time.perf_counter() - started
+
+    def _is_current_market(self, scan):
+        source = dict(scan, realm_id=scan['source_realm_id'], realm_name=scan['source_realm_name'])
+        return scan['realm_id'] == 0 or self.market_registry.resolve(source, timestamp=int(time.time()))['auction_market_id'] == scan['auction_market_id']
+
+    def catalog(self):
+        groups = defaultdict(list)
+        for scan in self.scans.values():
+            groups[scan['auction_market_id']].append(scan)
+        realms = []
+        for market, scans in sorted(groups.items()):
+            scans.sort(key=lambda s: (s['timestamp'], s['scan_id']), reverse=True)
+            latest = scans[0]
+            region, realm = latest['region_id'], latest['realm_id']
+            archived = not self._is_current_market(latest)
+            # Preserve old standalone URLs and expose every connected member as an alias.
+            key = market if len(latest['aliases']) > 1 or archived else '%s:%s' % (region, realm)
+            realms.append(dict(key=key, auctionMarketId=market, regionID=region, realmID=realm,
+                region=latest['region_name'], realm=latest['realm_name'], archived=archived,
+                aliases=[dict(key='%s:%s' % (region, a['id']), realmID=a['id'], realm=a['name']) for a in latest['aliases']],
+                evidence=latest['evidence'], registryVersion=self.market_registry.document['version'],
+                registrySha256=self.market_registry.sha256, latestScanId=latest['scan_id'],
+                scans=[dict(scanId=s['scan_id'], scannedAt=iso(s['timestamp']), scannedAtUnix=s['timestamp'],
+                            listingCount=s['record_count'], sourceRealmID=s['source_realm_id'],
+                            sourceRealm=s['source_realm_name']) for s in scans]))
+        return dict(realms=realms)
 
     def _stat_combination_count(self, facts):
         # Link bonuses, sockets and tertiary attributes do not create a new
@@ -186,6 +224,9 @@ class UnifiedMarketStore(MarketStore):
 
     def _public_record(self, row):
         result = super()._public_record(row)
+        scan = self.scans[row['scan_id']]
+        result.update(auctionMarketId=scan['auction_market_id'], sourceRealmID=scan['source_realm_id'],
+                      sourceRealm=scan['source_realm_name'])
         if row['item_id'] in RAID_BOE_12_1_ITEM_IDS:
             if 'stat_combination_count' in row:
                 count = row['stat_combination_count']
@@ -282,9 +323,16 @@ class UnifiedMarketStore(MarketStore):
             return self.historical_sorts[key]
 
     def status(self, scan_id=None):
+        if not self.scans and scan_id is None:
+            return dict(available=False, complete=True, scanId=None, scannedAt=None,
+                        listingCount=0, totalQuantity=0, marketItemCount=0,
+                        engine='unified-arrow', generation=self.database.name)
         result = super().status(scan_id)
         result.update(engine='unified-arrow', historyColumnBytes=self.records.table.nbytes,
-                      sourceRealm=self.scan(scan_id)['source_realm_name'])
+                      sourceRealm=self.scan(scan_id)['source_realm_name'],
+                      sourceRealmID=self.scan(scan_id)['source_realm_id'],
+                      auctionMarketId=self.scan(scan_id)['auction_market_id'],
+                      registrySha256=self.market_registry.sha256)
         if scan_id is None:
             result.update(scanId=None, realm=None, realmID=None,
                           listingCount=sum(self.scans[s]['record_count'] for s in self.latest_scans),
@@ -294,7 +342,7 @@ class UnifiedMarketStore(MarketStore):
 
     def items(self, *, scan_id=None, q='', sort='price_asc', page=1, page_size=20, collection='',
               difficulty='', stats='', socket='', tertiary='', group_markets=False):
-        scan = self.scan(scan_id)
+        scan = self.scan(scan_id) if self.scans or scan_id is not None else None
         filters = VariantFilters(difficulty, stats, socket, tertiary)
         if filters.active and collection != 'raid_boe_12_1':
             raise ValueError('Equipment filters require the raid collection')
@@ -363,7 +411,7 @@ class UnifiedMarketStore(MarketStore):
                 other = self.scans[sid]
                 if other['region_id'] != scan['region_id'] or (other['realm_id'] == 0) != (scan['realm_id'] == 0):
                     continue
-                history = self.history_index.get((other['region_id'], other['realm_id'], market_key), ())
+                history = self.history_index.get((other['region_id'], other['auction_market_id'], market_key), ())
                 if history:
                     prototype = self.records[history[-1]]
                     break
@@ -441,12 +489,12 @@ class UnifiedMarketStore(MarketStore):
         filters = VariantFilters(difficulty, stats, socket, tertiary)
         if filters.active and current['item_id'] not in RAID_BOE_12_1_ITEM_IDS:
             raise ValueError('Equipment history filters require raid equipment')
-        indices = self.history_index[scan['region_id'], scan['realm_id'], market_key]
+        indices = self.history_index[scan['region_id'], scan['auction_market_id'], market_key]
         if not indices:
             return {'marketKey': market_key, 'realmID': scan['realm_id'], 'regionID': scan['region_id'], 'points': []}
         first_time = self.scans[self.records[indices[0]]['scan_id']]['timestamp']
         timeline = sorted((s for s in self.scans.values()
-                           if (s['region_id'], s['realm_id']) == (scan['region_id'], scan['realm_id'])
+                           if s['auction_market_id'] == scan['auction_market_id']
                            and first_time <= s['timestamp'] <= scan['timestamp']),
                           key=lambda s: (s['timestamp'], s['scan_id']))
         points = []
@@ -465,6 +513,8 @@ class UnifiedMarketStore(MarketStore):
                            'realm_id': scan['realm_id'], 'region_id': scan['region_id'],
                            'source_scan_id': observed['source_scan_id'],
                            'source_realm': observed['source_realm_name'],
+                           'source_realm_id': observed['source_realm_id'],
+                           'auction_market_id': observed['auction_market_id'],
                             'state': 'observed' if present and row['min_unit_price'] is not None else 'no_price' if present else 'absent',
                             'min_buyout': row['min_buyout'] if present else None,
                             'variant_count': row['variant_count'] if present else 0,
@@ -497,6 +547,8 @@ class UnifiedMarketStore(MarketStore):
                           if self.scans[sid]['region_id'] == scan['region_id']
                           and self.scans[sid]['realm_id'] > 0], key=lambda s: s['realm_id']) if merged else [scan]
         if history_realm_id is not None:
+            history_realm_id = self.market_registry.resolve(dict(region_id=scan['region_id'],
+                realm_id=history_realm_id, timestamp=scan['timestamp']))['auction_realm_id']
             if row['market_scope'] != 'realm':
                 raise ValueError('Regional commodity history cannot be split by realm')
             related = [self.scans[sid] for sid in self.latest_scans if self.scans[sid]['region_id']==scan['region_id']
@@ -516,7 +568,7 @@ class UnifiedMarketStore(MarketStore):
         windows = []
         missing = []
         for observed in related:
-            identity = (scan['region_id'], observed['realm_id'])
+            identity = (scan['region_id'], observed['auction_market_id'])
             timeline = self.scan_timelines[identity]
             indices = self.history_index.get((*identity, market_key), ())
             first = self.scans[self.records.columns['scan_id'][indices[0]].as_py()]['timestamp'] if indices else 0
@@ -558,6 +610,8 @@ class UnifiedMarketStore(MarketStore):
             present = bool(record and record['listing_count'])
             points.append(dict(scanId=sid, scannedAt=iso(timestamp), scannedAtUnix=timestamp,
                 sourceDate=iso(timestamp)[:10], realm=observed['realm_name'], realmID=observed['realm_id'],
+                auctionMarketId=observed['auction_market_id'], sourceRealmID=self.scans[sid]['source_realm_id'],
+                sourceRealm=self.scans[sid]['source_realm_name'],
                 region=scan['region_name'], regionID=scan['region_id'], marketScope=row['market_scope'],
                 state='observed' if present and record['min_unit_price'] is not None else 'no_price' if present else 'absent',
                 minUnitPrice=record['min_unit_price'] if present else None, minBuyout=record['min_buyout'] if present else None,

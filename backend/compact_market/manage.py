@@ -19,6 +19,7 @@ from app.services.auction_importer import sha256_file
 from compact_market.build import build, extract_source, update_digest
 from compact_market.schema import DESCRIPTOR_FIELDS, FACT_FIELDS, RESTORE_SQL
 from compact_market.store import rows_as_dicts
+from compact_market.auction_markets import Registry, load_registry
 
 
 def write_json(path: Path, value: dict):
@@ -37,9 +38,13 @@ def write_json(path: Path, value: dict):
 def inventory(database: Path) -> dict:
     with duckdb.connect(str(database), read_only=True) as db:
         scans = rows_as_dicts(db.execute('SELECT * FROM scans ORDER BY timestamp, scan_id'))
+        registry = load_registry(db)
         for scan in scans:
             scan['scanned_at'] = datetime.fromtimestamp(scan['timestamp'], timezone.utc).isoformat()
+            identity = registry.resolve(scan)
+            scan.update(auction_market_id=identity['auction_market_id'], auction_realm_id=identity['auction_realm_id'])
         return dict(database=str(database.resolve()), scans=scans,
+                    market_registry_sha256=registry.sha256, market_registry_version=registry.document['version'],
                     snapshot_count=len(scans), listing_count=sum(s['record_count'] for s in scans),
                     realms=[dict(region_id=r, realm_id=m, realm_name=name) for r, m, name in
                             sorted({(s['region_id'], s['realm_id'], s['realm_name']) for s in scans})])
@@ -112,7 +117,8 @@ def _verify_scan(db, scan, original_id=None):
 
 def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), remove_realms=(),
                      keep_scans=None, expected_scans=None, memory_limit='1GB', full_verify=False,
-                     newer_only=False, allowed_realms=None, new_realm_after=None, excluded_realms=()) -> dict:
+                     newer_only=False, allowed_realms=None, new_realm_after=None, excluded_realms=(),
+                     allow_empty=False, compact=False, market_registry=None) -> dict:
     """Append verified snapshots or remove exact identities into a NEW generation.
 
     Existing scan IDs are stable, including after pruning. Reimports deduplicate by
@@ -124,6 +130,8 @@ def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), r
     if output.exists() or output.with_suffix('.report.json').exists() or base == output:
         raise ValueError('Output must be a new generation path')
     before = inventory(base)
+    with duckdb.connect(str(base), read_only=True) as source_db:
+        registry = Registry(market_registry) if market_registry is not None else load_registry(source_db)
     known = {s['scan_id']: s for s in before['scans']}
     latest_times = {}
     for scan in known.values():
@@ -257,7 +265,7 @@ def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), r
                 db.execute('DELETE FROM descriptors WHERE descriptor_id NOT IN (SELECT descriptor_id FROM listings)')
                 db.execute('''DELETE FROM people WHERE person_id NOT IN (SELECT owner_id FROM listings
                     UNION SELECT owner_full_name_id FROM listings UNION SELECT bidder_full_name_id FROM listings)''')
-            if not expectations or (expected_scans is not None and len(expectations) != expected_scans):
+            if (not expectations and not allow_empty) or (expected_scans is not None and len(expectations) != expected_scans):
                 raise ValueError('Resulting snapshot count does not match the required nonempty dataset')
             for scan, original_id in expectations:
                 previous = certified.get(scan['scan_id']) if original_id is None else None
@@ -275,9 +283,17 @@ def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), r
             db.execute('CREATE INDEX IF NOT EXISTS listing_lookup ON listings(scan_id, descriptor_id)')
             db.execute('CREATE INDEX IF NOT EXISTS descriptor_lookup ON descriptors(market_key)')
             db.execute('CREATE INDEX IF NOT EXISTS summary_lookup ON summaries(scan_id, market_key)')
+            registry.freeze(db)
             db.execute('CHECKPOINT')
         finally:
             db.close()
+        if compact:
+            packed = folder / 'packed.duckdb'
+            with duckdb.connect(config={'threads': 2, 'memory_limit': memory_limit}) as copier:
+                copier.execute('ATTACH ? AS source_db (READ_ONLY)', [str(candidate)])
+                copier.execute('ATTACH ? AS packed_db', [str(packed)])
+                copier.execute('COPY FROM DATABASE source_db TO packed_db')
+            candidate = packed
         if sha256_file(base) != base_sha:
             raise ValueError('Base generation changed during staging')
         result = inventory(candidate)
@@ -285,7 +301,7 @@ def stage_generation(base: Path, output: Path, *, sources=(), remove_scans=(), r
                       database_sha256=sha256_file(candidate), kept_scan_ids=sorted(kept),
                       removed_scans=[known[i] for i in sorted(remove)], added_scans=added,
                       skipped=skipped, roundtrip_checks=checks, created_at=datetime.now(timezone.utc).isoformat())
-        result.update(storage_mode='immutable_clone_append', summaries_rebuilt=False,
+        result.update(storage_mode='immutable_compact' if compact else 'immutable_clone_append', summaries_rebuilt=False,
                       full_verify=full_verify,
                       inherited_scan_ids=[c['scan_id'] for c in checks if c['verification'] == 'inherited_exact_base_sha256'])
         result['toolchain_sha256'] = {name: sha256_file(Path(__file__).with_name(name))
@@ -333,6 +349,7 @@ def main():
     stage.add_argument('--expect-scans', type=int)
     stage.add_argument('--memory-limit', default='1GB')
     stage.add_argument('--full-verify', action='store_true', help='Audit all retained rows, even with a matching base report')
+    stage.add_argument('--market-registry', type=Path, help='Explicitly replace the frozen market registry in the NEW generation')
     args = parser.parse_args()
     if args.command == 'list':
         result = inventory(args.database)
@@ -342,7 +359,8 @@ def main():
         result = stage_generation(args.database, args.output, sources=args.add,
                                   remove_scans=args.remove_scan, remove_realms=args.remove_realm,
                                   keep_scans=args.keep_scan, expected_scans=args.expect_scans,
-                                  memory_limit=args.memory_limit, full_verify=args.full_verify)
+                                  memory_limit=args.memory_limit, full_verify=args.full_verify,
+                                  market_registry=json.loads(args.market_registry.read_text()) if args.market_registry else None)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

@@ -45,6 +45,9 @@ export interface MarketScanOption {
 }
 
 export interface MarketRealmOption {
+  auctionMarketId?: string;
+  archived?: boolean;
+  aliases?: { key: string; realmID: number; realm: string }[];
   key: string;
   region?: string | null;
   regionID: number;

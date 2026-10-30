@@ -207,6 +207,12 @@ def build(sources: list[Path], destination: Path, *, threads: int = 2,
         db.execute("CREATE INDEX listing_lookup ON listings(scan_id, descriptor_id)")
         db.execute("CREATE INDEX descriptor_lookup ON descriptors(market_key)")
         db.execute("CREATE INDEX summary_lookup ON summaries(scan_id, market_key)")
+        from compact_market.auction_markets import bundled_registry
+        registry = bundled_registry()
+        registry.freeze(db)
+        for scan in scan_rows:
+            identity = registry.resolve(scan)
+            scan.update(auction_market_id=identity["auction_market_id"], auction_realm_id=identity["auction_realm_id"])
         db.execute("CHECKPOINT")
         checks = []
         for scan in scan_rows:

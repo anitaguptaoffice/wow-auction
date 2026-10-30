@@ -124,7 +124,10 @@ export function App() {
   }, [query]);
 
   const catalogQuery = useQuery({ queryKey: ["market-catalog"], queryFn: fetchMarketCatalog });
-  const selectedMarket = catalogQuery.data?.realms.find(realm => realm.key === query.market);
+  const selectedMarket = catalogQuery.data?.realms.find(realm =>
+    (realm.key === query.market || realm.aliases?.some(alias => alias.key === query.market)) &&
+    (query.scanId ? realm.scans.some(scan => scan.scanId === query.scanId) : !realm.archived)
+  ) ?? catalogQuery.data?.realms.find(realm => realm.key === query.market);
   const selectedScan = selectedMarket?.scans.find(scan => scan.scanId === (query.scanId ?? selectedMarket.latestScanId));
   const invalidScope = Boolean(catalogQuery.data && ((query.market && !selectedScan) || (!query.market && query.scanId)));
   const scopeReady = !query.market || Boolean(selectedScan);
@@ -199,8 +202,8 @@ export function App() {
             </div>
           </div>
           <div className="market-scope-controls" aria-label="市场与快照">
-            <Select label="服务器与市场" prefix="市场" appearance="filter" value={query.market ?? ""}
-              options={[{ value: "", label: "全部市场" }, ...(catalogQuery.data?.realms ?? []).map(realm => ({ value: realm.key, label: realm.realmID === 0 ? "全服商品" : realm.realm }))]}
+            <Select label="服务器与市场" prefix="市场" appearance="filter" value={selectedMarket?.key ?? query.market ?? ""}
+              options={[{ value: "", label: "全部市场" }, ...(catalogQuery.data?.realms ?? []).map(realm => ({ value: realm.key, label: realm.realmID === 0 ? "全服商品" : realm.realm + (realm.archived ? "（历史市场）" : "") }))]}
               onChange={market => setQuery(current => ({ ...current, market, scanId: undefined, page: 1 }))} />
             {selectedMarket && <Select label="历史快照" prefix="快照" appearance="filter" value={query.scanId ?? 0}
               options={[{ value: 0, label: "最新快照" }, ...selectedMarket.scans.map(scan => ({ value: scan.scanId, label: formatDate(scan.scannedAt) }))]}
@@ -711,7 +714,7 @@ function ItemDetails({ item: originalItem, initialScope, onClose }: { item: Mark
               <div className="history-range-control">
                 {item.marketScope === "realm" && <Select label="历史服务器" prefix="服务器" appearance="filter" value={historyRealmId ?? 0}
                   options={[{ value: 0, label: allMarkets ? "全部服务器" : item.realm || "当前服务器" },
-                    ...(historyCatalog.data?.realms ?? []).filter(r => r.regionID === item.regionID && r.realmID > 0).map(r => ({ value: r.realmID, label: r.realm }))]}
+                    ...(historyCatalog.data?.realms ?? []).filter(r => r.regionID === item.regionID && r.realmID > 0 && !r.archived).map(r => ({ value: r.realmID, label: r.realm }))]}
                   onChange={value => { setHistoryRealmId(value || undefined); setHistoryRealmPage(1); }} />}
                 <Select label="历史时间范围" prefix="时间" appearance="filter" value={historyDays}
                 options={[{ value: 0, label: "全部历史" }, { value: 7, label: "近 7 天" }, { value: 30, label: "近 30 天" }, { value: 90, label: "近 90 天" }]}

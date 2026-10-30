@@ -57,18 +57,18 @@ def api_json(base, path):
 
 
 def verify_catalog(catalog, scans):
-    expected = {}
-    for scan in scans:
-        for regional in (True, False):
-            identity = (scan['region_id'], 0 if regional else scan['realm_id'])
-            expected.setdefault(identity, set()).add(scan['scan_id'] * 2 + (0 if regional else 1))
-    actual = {(row['regionID'], row['realmID']): {s['scanId'] for s in row['scans']} for row in catalog['realms']}
-    if actual != expected:
+    expected = {(s['region_id'], realm, s['scan_id'] * 2 + offset)
+                for s in scans for realm, offset in ((0, 0), (s.get('auction_realm_id', s['realm_id']), 1))}
+    rows = [(r, s) for r in catalog['realms'] for s in r['scans']]
+    entries = {(r['regionID'], r['realmID'], s['scanId']): s for r, s in rows}
+    if set(entries) != expected or len(entries) != len(rows):
         raise ValueError('Candidate catalog does not exactly match the staged snapshot selection')
-    entries = {(r['regionID'], r['realmID'], s['scanId']): s for r in catalog['realms'] for s in r['scans']}
+    markets = {s['scanId']: r.get('auctionMarketId') for r, s in rows}
     for source in scans:
         observations = [entries[source['region_id'], realm, source['scan_id'] * 2 + offset]
-                        for realm, offset in ((0, 0), (source['realm_id'], 1))]
+                        for realm, offset in ((0, 0), (source.get('auction_realm_id', source['realm_id']), 1))]
+        if source.get('auction_market_id') and markets[source['scan_id'] * 2 + 1] != source['auction_market_id']:
+            raise ValueError('Catalog market identity differs from the verified report')
         if 'timestamp' in source and any(s.get('scannedAtUnix') != source['timestamp'] for s in observations):
             raise ValueError('Catalog snapshot timestamps differ from the verified report')
         if 'record_count' in source and sum(s.get('listingCount', -1) for s in observations) != source['record_count']:

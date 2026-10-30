@@ -96,6 +96,10 @@ class Store:
                 if previous['phase'] not in TERMINAL and not active:
                     write(self.root/'active.json',{'id':previous['id']})
                 return previous,False
+            policy_path = self.root/'retention-policy.json'
+            if policy_path.exists():
+                from retention_policy import require_fresh
+                require_fresh(manifest['captured_at'], read(policy_path))
             if active or (self.switch_lock and self.switch_lock.exists()):
                 raise Busy('Another sync or dataset publication is active')
             job=dict(id=uuid.uuid4().hex,phase='awaiting_upload',manifest=manifest,
@@ -105,6 +109,23 @@ class Store:
             write(receipt,{'id':job['id']})
             write(self.root/'active.json',{'id':job['id']})
             return job,True
+
+    def schedule_retention(self, policy):
+        from retention_policy import validate
+        policy = validate(policy)
+        with guard(self.root):
+            active = self.active()
+            if active or (self.switch_lock and self.switch_lock.exists()):
+                raise Busy('Another sync or dataset publication is active')
+            job = dict(id=uuid.uuid4().hex, kind='retention', phase='queued',
+                       retention=policy, created_at=int(time.time()))
+            (self.root/'jobs'/job['id']).mkdir(mode=0o700)
+            if os.name != 'nt' and os.geteuid() == 0:
+                parent = (self.root/'jobs').stat()
+                os.chown(str(self.root/'jobs'/job['id']), parent.st_uid, parent.st_gid)
+            self.save(job)
+            write(self.root/'active.json', {'id': job['id']})
+            return job
 
     def transition(self, job_id, expected, phase, **values):
         with guard(self.root):
