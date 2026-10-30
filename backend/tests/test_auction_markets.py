@@ -20,6 +20,23 @@ from tests.test_market_pipeline import _lua_snapshot
 
 
 class RegistryTest(unittest.TestCase):
+    def test_complete_community_baseline_and_cross_region_isolation(self):
+        registry = bundled_registry()
+        groups = registry.document['groups']
+        baseline = registry.document['community_baseline']
+        members = [r['id'] for g in groups for r in g['realms']]
+        singles = [r['id'] for r in baseline['independent_realms']]
+        self.assertEqual(len(groups), 105)
+        self.assertEqual(len(singles), 32)
+        self.assertEqual(len(members + singles), 360)
+        self.assertEqual(len(set(members + singles)), 360)
+        for ids, representative in [((953,818),953), ((829,866,1222),829)]:
+            resolved = [registry.resolve(dict(region_id=5, realm_id=r, timestamp=1793361600)) for r in ids]
+            self.assertEqual({r['auction_realm_id'] for r in resolved}, {representative})
+            self.assertEqual(len({r['auction_market_id'] for r in resolved}), 1)
+            self.assertEqual({a['id'] for a in resolved[0]['aliases']}, set(ids))
+            self.assertEqual(registry.resolve(dict(region_id=1, realm_id=ids[-1], timestamp=1793361600))['auction_realm_id'], ids[-1])
+
     def test_evidence_intervals_regions_and_unknowns(self):
         registry = bundled_registry()
         start = registry.document['groups'][0]['valid_from']
@@ -69,6 +86,34 @@ class ConnectedGenerationTest(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_community_connection_migration_and_shared_retention_floor(self):
+        sources = []
+        for index, realm in enumerate((953,818,707)):
+            path = self.root / ('community-%d.lua' % realm)
+            path.write_text(_lua_snapshot(timestamp=self.now-300+index*100, realm_id=realm, realm_name=str(realm)))
+            sources.append(path)
+        database = self.root/'community.duckdb'
+        with contextlib.redirect_stdout(io.StringIO()): build(sources, database)
+        scans = inventory(database)['scans']
+        store = UnifiedMarketStore(database)
+        try:
+            catalog = store.catalog()
+            verify_catalog(catalog, scans)
+            connected = next(r for r in catalog['realms'] if r['realmID']==953)
+            self.assertEqual({a['realmID'] for a in connected['aliases']}, {953,818})
+            self.assertEqual(len(connected['scans']), 2)
+            self.assertEqual(len(store.latest_scans), 3)
+            sid = connected['latestScanId']
+            key = next(r['marketKey'] for r in store.items(scan_id=sid)['items'] if r['itemID']==20)
+            self.assertEqual([p['source_realm_id'] for p in store.history(scan_id=sid, market_key=key)['points']], [953,818])
+            self.assertEqual(store.listings(scan_id=sid, market_key=key, all_markets=True)['total'], 2)
+        finally:
+            store.close()
+        self.assertEqual(plan(scans, {}, self.now)['remove_scan_ids'], [])
+        pressure = plan(scans, {'max_snapshots':2}, self.now)
+        self.assertEqual(len(pressure['protected_scan_ids']), 2)
+        self.assertEqual(pressure['remove_scan_ids'], [scans[0]['scan_id']])
 
     def test_latest_history_listings_aliases_and_catalog_verifier(self):
         scans = inventory(self.base)['scans']
