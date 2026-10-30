@@ -31,6 +31,11 @@ node_modules/
 data/auction.lua
 data/auction.lua.*
 data/archive/
+data/manual-session/
+data/tts-export/
+data/memory-export/
+PBZ-system-backup-*/
+research-EverythingDelves/
 data/icon-cache/
 data/compact/
 data/itemsparse-stackable-*.jsonl
